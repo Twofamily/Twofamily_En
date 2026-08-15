@@ -31,6 +31,7 @@
         .sidebar {
             background: var(--sidebar-bg);
             color: var(--sidebar-text);
+            overflow-y: auto;
         }
 
         .brand {
