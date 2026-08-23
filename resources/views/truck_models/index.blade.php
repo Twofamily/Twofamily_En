@@ -2,52 +2,79 @@
 
 @section('namepage')
     <div class="container">
-        <h3>จัดการรุ่นรถบรรทุก</h3>
+        <h3>รุ่นรถบรรทุก</h3>
     </div>
 @endsection
 
 @section('content')
-    <div class="container py-3">
+    <div class="container py-4">
+
         @if (session('ok'))
             <div class="alert alert-success">{{ session('ok') }}</div>
         @endif
+        @if (session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
 
-        <div class="d-flex justify-content-end mb-3">
-            <a href="{{ route('truck_models.create') }}" class="btn btn-dark">เพิ่มรุ่นรถบรรทุก</a>
-        </div>
+        <form method="GET" class="row g-3 mb-3">
+            <div class="col-md-3">
+                <input type="text" name="q" value="{{ $q }}" class="form-control" placeholder="ค้นหารุ่น">
+            </div>
+            <div class="col-md-3">
+                <select name="brand" class="form-select">
+                    <option value="">— ทุกยี่ห้อ —</option>
+                    @foreach ($brands as $b)
+                        <option value="{{ $b->id }}" @selected($brandId == $b->id)>{{ $b->name_brand }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-6">
+                <button class="btn btn-dark">ค้นหา</button>
+                <a href="{{ route('truck_models.index') }}" class="btn btn-outline-secondary">ล้าง</a>
+                <a href="{{ route('truck_models.create') }}" class="btn btn-dark float-end">เพิ่มรุ่น</a>
+            </div>
+        </form>
 
-        <div class="table-responsive shadow-sm rounded-3">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>ลำดับ</th>
-                        <th>ยี่ห้อ</th>
-                        <th>ชื่อรุ่น</th>
-                        <th>จัดการ</th>
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>ยี่ห้อ</th>
+                    <th>รุ่น</th>
+                    <th class="text-center">ปี</th>
+                    <th class="text-center">ล้อ</th>
+                    <th class="text-end">คิว</th>
+                    <th class="text-end">กม./ลิตร</th>
+                    {{-- <th class="text-center">รถที่ใช้</th> --}}
+                    <th class="text-end">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($models as $m)
+                    <tr class="{{ $m->is_active ? '' : 'text-muted' }}">
+                        <td>{{ $m->brand->name_brand ?? '-' }}</td>
+                        <td>{{ $m->name_model }}</td>
+                        <td class="text-center">{{ $m->model_year ?? '-' }}</td>
+                        <td class="text-center">{{ $m->wheels ?? '-' }}</td>
+                        <td class="text-end">{{ $m->cubic_capacity ?? '-' }}</td>
+                        <td class="text-end">{{ $m->fuel_rate ?? '-' }}</td>
+                        {{-- <td class="text-center">{{ $m->trucks_count }}</td> --}}
+                        <td class="text-end">
+                            <a href="{{ route('truck_models.edit', $m) }}"
+                               class="btn btn-sm btn-outline-secondary">แก้ไข</a>
+
+                            <form method="POST" action="{{ route('truck_models.destroy', $m) }}"
+                                  class="d-inline" onsubmit="return confirm('ยืนยันลบรุ่นนี้?')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-outline-danger">ลบ</button>
+                            </form>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @forelse($models as $m)
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-                            <td>{{ $m->brand->name_brand ?? 'ไม่ระบุ' }}</td>
-                            <td>{{ $m->name_model }}</td>
-                            <td>
-                                <a href="{{ route('truck_models.edit', $m->id) }}" class="btn btn-sm btn-primary">แก้ไข</a>
-                                <form method="POST" action="{{ route('truck_models.destroy', $m->id) }}" class="d-inline" onsubmit="return confirm('ยืนยันลบข้อมูล?')">
-                                    @csrf @method('DELETE')
-                                    <button class="btn btn-sm btn-danger">ลบ</button>
-                                </form>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="text-center text-muted">— ไม่พบข้อมูล —</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-            {{ $models->links() ?? '' }}
-        </div>
+                @empty
+                    <tr><td colspan="8" class="text-center text-muted">ยังไม่มีข้อมูล</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+
+        {{ $models->links() }}
     </div>
 @endsection

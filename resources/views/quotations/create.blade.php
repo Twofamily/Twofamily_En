@@ -106,7 +106,7 @@
                     <thead>
                         <tr>
                             <th>สินค้า</th>
-                            <th width="120">จำนวน</th>
+                            <th width="120">จำนวน (คิว)</th>
                             <th width="150">ราคา/หน่วย</th>
                             <th width="150">รวม</th>
                             <th></th>

@@ -19,8 +19,8 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('truck_models.store') }}" autocomplete="off">
-            @csrf
+                <form method="POST" action="{{ route('truck_models.update', $model) }}" autocomplete="off">
+            @csrf @method('PUT')
             @include('truck_models._form', ['model' => $model, 'brands' => $brands])
 
             <div class="mt-4">

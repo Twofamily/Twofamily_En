@@ -31,6 +31,7 @@ class TruckStoreRequest extends FormRequest
             'year_truck'        => ['nullable', 'integer', "between:1980,$yearMax"],
             'weight_truck'      => ['nullable', 'integer', 'min:0'],
             'fuelfactory_truck' => ['nullable', 'integer', 'min:0'],
+            'cubic_capacity'    => ['nullable', 'numeric', 'min:0', 'max:100'],
             'status_truck'      => ['bail', 'required', Rule::in(['active', 'maintenance', 'retired'])],
 
             'province_truck' => [
