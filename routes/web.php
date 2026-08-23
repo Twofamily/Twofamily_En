@@ -16,7 +16,8 @@ use App\Http\Controllers\{
     TruckModelController,
     SettingController,
     ReceiptController,
-    CampController
+    CampController,
+    UserController
 };
 
 /*
@@ -24,127 +25,177 @@ use App\Http\Controllers\{
 | หน้าแรก
 |--------------------------------------------------------------------------
 */
-
 Route::get('/', function () {
     return auth()->check()
         ? redirect()->route('dashboard')
         : view('welcome');
 })->name('welcome');
 
+
 /*
-|--------------------------------------------------------------------------
-| หลังล็อกอิน
-|--------------------------------------------------------------------------
+|==========================================================================
+|  กลุ่มหลัก : ผู้ใช้ที่ล็อกอินแล้วทุกระดับ (admin / staff / viewer)
+|
+|  หลักการ:
+|  - ประกาศ resource ครั้งเดียว ครบทุก action  (ป้องกัน route ชนกัน)
+|  - action ที่แก้ไขข้อมูล กำหนดสิทธิ์เพิ่มด้วย middlewareFor()
+|==========================================================================
 */
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
     'verified',
+    'role:admin,staff,viewer',
 ])->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Dashboard
-    |--------------------------------------------------------------------------
-    */
+    /* ---------- Dashboard ---------- */
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Master Data
-    |--------------------------------------------------------------------------
-    */
-    Route::resource('customers', CustomerController::class);
-    Route::resource('drivers', DriverController::class);
-    Route::resource('products', ProductController::class);
-    Route::resource('product_types', ProductTypeController::class);
 
-    Route::resource('truck_brands', TruckBrandController::class);
-    Route::resource('truck_models', TruckModelController::class);
-    Route::resource('trucks', TruckController::class)->except(['show']);
-    /*
-    |--------------------------------------------------------------------------
-    | Truck Status & Maintenance
-    |--------------------------------------------------------------------------
-    */
+    /* ==================== Master Data ==================== */
+
+    Route::resource('customers', CustomerController::class)
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
+    Route::resource('drivers', DriverController::class)
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
+    Route::resource('products', ProductController::class)
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
+    Route::resource('product_types', ProductTypeController::class)
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
+    Route::resource('truck_brands', TruckBrandController::class)
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
+    Route::resource('truck_models', TruckModelController::class)
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
+    Route::resource('camps', CampController::class)
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
+    /* รถบรรทุก : show ถูกแยกเป็น route พิเศษ ด้านล่าง */
+    Route::resource('trucks', TruckController::class)
+        ->except(['show'])
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
     Route::get('trucks/{truck}/detail', [TruckController::class, 'show'])
         ->name('trucks.show');
 
     Route::patch('trucks/{truck}/status', [TruckController::class, 'updateStatus'])
+        ->middleware('role:admin,staff')
         ->name('trucks.status');
 
     Route::patch('maintenances/{maintenance}/finish', [TruckController::class, 'finishMaintenance'])
+        ->middleware('role:admin,staff')
         ->name('maintenances.finish');
 
-    Route::resource('trucks', TruckController::class)->except(['show']);   // <- บรรทัดเดิม อยู่ต่อจากนี้
 
-    /*
-    |--------------------------------------------------------------------------
-    | Operations
-    |--------------------------------------------------------------------------
-    */
-    Route::resource('transport-jobs', TransportJobController::class);
-    Route::resource('fuel_records', FuelRecordController::class);
+    /* ==================== มอบหมายรถเข้าแคมป์ ==================== */
 
-    /*
-    |--------------------------------------------------------------------------
-    | Quotation
-    |--------------------------------------------------------------------------
-    */
-    Route::resource('quotations', QuotationController::class);
+    Route::post('camps/{camp}/trucks', [CampController::class, 'assignTruck'])
+        ->middleware('role:admin,staff')
+        ->name('camps.trucks.assign');
 
-    Route::post('/quotations/{id}/cancel', [QuotationController::class, 'cancel'])
-        ->name('quotations.cancel');
+    Route::patch('camps/{camp}/trucks/{assignment}/release', [CampController::class, 'releaseTruck'])
+        ->middleware('role:admin,staff')
+        ->name('camps.trucks.release');
 
-    Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve'])
-        ->name('quotations.approve');
+
+    /* ==================== Operations ==================== */
+
+    Route::resource('transport-jobs', TransportJobController::class)
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
+    Route::resource('fuel_records', FuelRecordController::class)
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
+
+    /* ==================== ใบเสนอราคา ==================== */
+
+    Route::resource('quotations', QuotationController::class)
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
     Route::get('/quotation/{quotation}/pdf', [QuotationController::class, 'downloadPDF'])
         ->name('quotation.pdf');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Invoice
-    |--------------------------------------------------------------------------
-    */
-    Route::resource('invoices', InvoiceController::class)->only(['index', 'show', 'destroy']);
+    Route::post('/quotations/{id}/cancel', [QuotationController::class, 'cancel'])
+        ->middleware('role:admin,staff')
+        ->name('quotations.cancel');
 
-    Route::post('/invoices/create/{id}', [InvoiceController::class, 'createFromQuotation'])
-        ->name('invoices.createFromQuotation');
+    Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve'])
+        ->middleware('role:admin,staff')
+        ->name('quotations.approve');
 
-    Route::post('/invoices/{id}/pay', [InvoiceController::class, 'pay'])
-        ->name('invoices.pay');
+
+    /* ==================== ใบแจ้งหนี้ ==================== */
+
+    Route::resource('invoices', InvoiceController::class)
+        ->only(['index', 'show', 'destroy'])
+        ->middlewareFor(['destroy'], 'role:admin,staff');
 
     Route::get('/invoice/{id}/pdf', [InvoiceController::class, 'pdf'])
         ->name('invoice.pdf');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Receipt
-    |--------------------------------------------------------------------------
-    */
-    Route::post('/receipts/create/{id}', [ReceiptController::class, 'createFromInvoice'])
-        ->name('receipts.createFromInvoice');
+    Route::post('/invoices/create/{id}', [InvoiceController::class, 'createFromQuotation'])
+        ->middleware('role:admin,staff')
+        ->name('invoices.createFromQuotation');
+
+    Route::post('/invoices/{id}/pay', [InvoiceController::class, 'pay'])
+        ->middleware('role:admin,staff')
+        ->name('invoices.pay');
+
+
+    /* ==================== ใบเสร็จ ==================== */
+
+    Route::get('/receipts', [ReceiptController::class, 'index'])
+        ->name('receipts.index');
+
+    Route::get('/receipts/pdf/{id}', [ReceiptController::class, 'pdf'])
+        ->name('receipts.pdf');
 
     Route::get('/receipts/{id}', [ReceiptController::class, 'show'])
         ->name('receipts.show');
 
-    Route::get('/receipts', [ReceiptController::class, 'index'])->name('receipts.index');
-    Route::get('/receipts/pdf/{id}', [ReceiptController::class, 'pdf'])->name('receipts.pdf');
+    Route::post('/receipts/create/{id}', [ReceiptController::class, 'createFromInvoice'])
+        ->middleware('role:admin,staff')
+        ->name('receipts.createFromInvoice');
 
     Route::delete('/receipts/{id}', [ReceiptController::class, 'destroy'])
+        ->middleware('role:admin,staff')
         ->name('receipts.destroy');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Settings
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
 
-    Route::get('/settings/documents', [SettingController::class, 'documents'])->name('settings.documents');
+    /* ==================== AJAX ==================== */
 
-    Route::get('/settings/documents/quotation', [SettingController::class, 'quotation'])->name('settings.quotation');
+    Route::post('/customers/ajax', [CustomerController::class, 'storeAjax'])
+        ->middleware('role:admin,staff')
+        ->name('customers.store.ajax');
+});
+
+
+/*
+|==========================================================================
+|  ผู้ดูแลระบบเท่านั้น (admin)
+|==========================================================================
+*/
+Route::middleware([
+    'auth:sanctum',
+    config('jetstream.auth_session'),
+    'verified',
+    'role:admin',
+])->group(function () {
+
+    /* ---------- ตั้งค่าระบบ ---------- */
+    Route::get('/settings', [SettingController::class, 'index'])
+        ->name('settings.index');
+
+    Route::get('/settings/documents', [SettingController::class, 'documents'])
+        ->name('settings.documents');
+
+    Route::get('/settings/documents/quotation', [SettingController::class, 'quotation'])
+        ->name('settings.quotation');
 
     Route::post('/settings/documents/quotation', [SettingController::class, 'quotationUpdate'])
         ->name('settings.quotation.update');
@@ -155,36 +206,23 @@ Route::middleware([
     Route::post('/settings/documents/invoice', [SettingController::class, 'invoiceUpdate'])
         ->name('settings.invoice.update');
 
-    Route::get('/settings/documents/invoice', [SettingController::class, 'invoice'])
-        ->name('settings.invoice');
+    Route::get('/settings/documents/receipt', fn() => view('settings.documents.receipt', [
+        'settings' => \App\Models\Setting::pluck('value', 'key'),
+    ]))->name('settings.documents.receipt');
 
-    Route::get(
-        '/settings/documents/receipt',
-        fn() => view('settings.documents.receipt', [
-            'settings' => \App\Models\Setting::pluck('value', 'key')
-        ])
-    )->name('settings.documents.receipt');
-    Route::post('/settings/update', [App\Http\Controllers\SettingController::class, 'update'])
+    Route::post('/settings/update', [SettingController::class, 'update'])
         ->name('settings.update');
 
-    Route::post('/settings/receipt', [App\Http\Controllers\SettingController::class, 'update'])
+    Route::post('/settings/receipt', [SettingController::class, 'update'])
         ->name('settings.receipt.update');
 
-    /*
-    |--------------------------------------------------------------------------
-    | AJAX
-    |--------------------------------------------------------------------------
-    */
-    Route::post('/customers/ajax', [CustomerController::class, 'storeAjax'])
-        ->name('customers.store.ajax');
 
-    Route::resource('camps', CampController::class)->except(['show']);
+    /* ---------- จัดการผู้ใช้งาน ---------- */
+    Route::resource('users', UserController::class)->except(['show']);
 
-    Route::post('camps/{camp}/trucks', [CampController::class, 'assignTruck'])
-    ->name('camps.trucks.assign');
+    Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
+        ->name('users.toggleStatus');
 
-Route::patch('camps/{camp}/trucks/{assignment}/release', [CampController::class, 'releaseTruck'])
-    ->name('camps.trucks.release');
-
-Route::resource('camps', CampController::class);   // เอา ->except(['show']) ออก
+    Route::patch('users/{user}/reset-password', [UserController::class, 'resetPassword'])
+        ->name('users.resetPassword');
 });

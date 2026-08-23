@@ -82,7 +82,7 @@
                 @else
                     <a href="{{ route('login') }}">Log in</a>
                     @if (Route::has('register'))
-                        <a href="{{ route('register') }}">Register</a>
+                        <a href="{{ route('register') }}">สมัครสมาชิก</a>
                     @endif
                 @endauth
             </nav>
@@ -102,20 +102,22 @@
 
             {{-- ปุ่ม: ใหญ่ขึ้น เท่ากัน และจัดกึ่งกลาง --}}
             <div class="flex items-center justify-center gap-4">
-  <a href="{{ route('login') }}"
-     class="inline-flex items-center justify-center rounded-sm px-5 py-2 hover:opacity-90 transition"
-     style="flex:1; font-size:1rem; background:#000; color:#fff; border:1px solid #000;">
-    Log in
-  </a>
-
-  @if (Route::has('register'))
-  <a href="{{ route('register') }}"
-     class="inline-flex items-center justify-center rounded-sm px-5 py-2 transition"
-     style="flex:1; font-size:1rem; background:#fff; color:#1b1b18; border:1px solid #19140035;">
-    Register
-  </a>
-  @endif
-</div>
+                <a href="{{ route('login') }}"
+                    class="inline-flex items-center justify-center rounded-sm px-5 py-2 hover:opacity-90 transition"
+                    style="flex:1; font-size:1rem; background:#000; color:#fff; border:1px solid #000;">
+                    Log in
+                </a>
+                @if (Route::has('register'))
+                    <a href="{{ route('register') }}">สมัครสมาชิก</a>
+                @endif
+                {{-- @if (Route::has('register'))
+                    <a href="{{ route('register') }}"
+                        class="inline-flex items-center justify-center rounded-sm px-5 py-2 transition"
+                        style="flex:1; font-size:1rem; background:#fff; color:#1b1b18; border:1px solid #19140035;">
+                        Register
+                    </a>
+                @endif --}}
+            </div>
 
         </div>
     </main>

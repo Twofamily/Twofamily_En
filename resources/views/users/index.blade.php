@@ -1,0 +1,103 @@
+@extends('layout')
+
+@section('namepage')
+    <div class="container">
+        <h3>จัดการผู้ใช้งาน</h3>
+    </div>
+@endsection
+
+@section('content')
+    <div class="container py-3">
+
+        @if (session('ok'))
+            <div class="alert alert-success">{{ session('ok') }}</div>
+        @endif
+
+        @if (session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
+
+        <div class="d-flex justify-content-between mb-3">
+            <form class="d-flex gap-2">
+                <input type="text" name="q" value="{{ $q }}" class="form-control"
+                    placeholder="ค้นหาชื่อ / อีเมล">
+                <button class="btn btn-outline-secondary">ค้นหา</button>
+            </form>
+
+            <a href="{{ route('users.create') }}" class="btn btn-dark">
+                + เพิ่มผู้ใช้งาน
+            </a>
+        </div>
+
+        <div class="table-responsive shadow-sm rounded-3">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ชื่อ-นามสกุล</th>
+                        <th>สิทธิ์การใช้งาน</th>
+                        <th>สถานะ</th>
+                        <th style="width:260px">จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($users as $u)
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">
+                                    {{ $u->name }}
+                                    @if ($u->id === auth()->id())
+                                        <span class="badge bg-secondary ms-1">คุณ</span>
+                                    @endif
+                                </div>
+                                <div class="small text-muted">📧 {{ $u->email }}</div>
+                            </td>
+
+                            <td>{{ $u->role_name }}</td>
+
+                            <td>
+                                @if ($u->is_active)
+                                    <span class="badge bg-success">ใช้งานอยู่</span>
+                                @else
+                                    <span class="badge bg-danger">ถูกระงับ</span>
+                                @endif
+                            </td>
+
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('users.edit', $u) }}"
+                                        class="btn btn-sm btn-outline-primary">แก้ไข</a>
+
+                                    {{-- ปุ่มระงับและลบ ไม่แสดงในแถวของตนเอง --}}
+                                    @if ($u->id !== auth()->id())
+                                        <form method="POST" action="{{ route('users.toggleStatus', $u) }}"
+                                            onsubmit="return confirm('{{ $u->is_active ? 'ยืนยันระงับบัญชีนี้?' : 'ยืนยันเปิดใช้งานบัญชีนี้?' }}')">
+                                            @csrf @method('PATCH')
+                                            <button class="btn btn-sm btn-outline-warning">
+                                                {{ $u->is_active ? 'ระงับ' : 'เปิดใช้' }}
+                                            </button>
+                                        </form>
+
+                                        <form method="POST" action="{{ route('users.destroy', $u) }}"
+                                            onsubmit="return confirm('ยืนยันลบผู้ใช้งานนี้?')">
+                                            @csrf @method('DELETE')
+                                            <button class="btn btn-sm btn-outline-danger">ลบ</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                — ไม่พบข้อมูล —
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        {{ $users->links() }}
+
+    </div>
+@endsection

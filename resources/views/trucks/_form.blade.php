@@ -4,8 +4,8 @@
 <div class="mb-3">
     <label class="form-label">เลขทะเบียน</label>
     <input type="text" name="id_truck" id="id_truck" value="{{ old('id_truck', $truck->id_truck ?? '') }}"
-        class="form-control @error('id_truck') is-invalid @enderror"
-        placeholder="เช่น 70-1234" required maxlength="7" inputmode="numeric">
+        class="form-control @error('id_truck') is-invalid @enderror" placeholder="เช่น 70-1234" required maxlength="7"
+        inputmode="numeric">
     @error('id_truck')
         <div class="invalid-feedback">{{ $message }}</div>
     @enderror
@@ -36,8 +36,7 @@
             <option value="">— เลือกยี่ห้อรถ —</option>
             @if (isset($brands))
                 @foreach ($brands as $brand)
-                    <option value="{{ $brand->id }}"
-                        @selected(old('truck_brand_id', $truck->truck_brand_id ?? '') == $brand->id)>
+                    <option value="{{ $brand->id }}" @selected(old('truck_brand_id', $truck->truck_brand_id ?? '') == $brand->id)>
                         {{ $brand->name_brand }}
                     </option>
                 @endforeach
@@ -79,19 +78,30 @@
 
 <div class="row g-3 mt-2">
 
-    <div class="col-md-4">
-        <label>น้ำหนักรถ (กก.)</label>
-        <input type="number" name="weight_truck" min="0" max="50000" step="1"
+    <div class="col-md-3">
+        <label>ความจุกระบะ (คิว)</label>
+        <input type="number" name="cubic_capacity" id="spec_cubic" min="0" max="100" step="0.1"
+            value="{{ old('cubic_capacity', $truck->cubic_capacity ?? '') }}"
+            class="form-control @error('cubic_capacity') is-invalid @enderror" placeholder="เช่น 10">
+        @error('cubic_capacity')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
+        <div class="form-text text-muted">ใช้คิดค่าขนส่งต่อเที่ยว</div>
+    </div>
+
+    <div class="col-md-3">
+        <label>น้ำหนักรถเปล่า (กก.)</label>
+        <input type="number" name="weight_truck" id="spec_weight" min="0" max="50000" step="1"
             value="{{ old('weight_truck', $truck->weight_truck ?? '') }}"
-            class="form-control @error('weight_truck') is-invalid @enderror" placeholder="เช่น 12000">
+            class="form-control @error('weight_truck') is-invalid @enderror" placeholder="เช่น 9000">
         @error('weight_truck')
             <div class="invalid-feedback">{{ $message }}</div>
         @enderror
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label>ความจุถังน้ำมัน (ลิตร)</label>
-        <input type="number" name="fuelfactory_truck" min="0" max="1000" step="1"
+        <input type="number" name="fuelfactory_truck" id="spec_tank" min="0" max="1000" step="1"
             value="{{ old('fuelfactory_truck', $truck->fuelfactory_truck ?? '') }}"
             class="form-control @error('fuelfactory_truck') is-invalid @enderror" placeholder="เช่น 300">
         @error('fuelfactory_truck')
@@ -99,24 +109,27 @@
         @enderror
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label>อัตราสิ้นเปลือง (กม./ลิตร)</label>
-        <input type="number" name="fuel_rate" min="0.1" max="50" step="0.01" required
+        <input type="number" name="fuel_rate" id="spec_rate" min="0.1" max="50" step="0.01" required
             value="{{ old('fuel_rate', $truck->fuel_rate ?? '') }}"
-            class="form-control @error('fuel_rate') is-invalid @enderror" placeholder="เช่น 5.5">
+            class="form-control @error('fuel_rate') is-invalid @enderror" placeholder="เช่น 3.5">
         @error('fuel_rate')
             <div class="invalid-feedback">{{ $message }}</div>
         @enderror
-        <div class="form-text text-muted">ใช้คำนวณต้นทุนน้ำมันของแต่ละงาน</div>
     </div>
 
 </div>
 
+{{-- <div id="specHint" class="alert alert-info py-2 mt-2 d-none">
+    <small>สเปคด้านบนถูกเติมอัตโนมัติจากรุ่นที่เลือก แก้ไขได้หากรถคันนี้ต่างจากมาตรฐาน</small>
+</div> --}}
+
 <div class="mb-3 mt-4">
     <label class="form-label">สถานะ</label>
     @php($val = old('status_truck', $truck->status_truck ?? 'active'))
-    <select name="status_truck" id="status_truck"
-        class="form-select @error('status_truck') is-invalid @enderror" required>
+    <select name="status_truck" id="status_truck" class="form-select @error('status_truck') is-invalid @enderror"
+        required>
         @foreach (\App\Models\Truck::STATUS_LABELS as $value => $label)
             <option value="{{ $value }}" @selected($val === $value)>{{ $label }}</option>
         @endforeach
@@ -140,8 +153,7 @@
             <div class="mb-3">
                 <label class="form-label">ซ่อมอะไร</label>
                 <input type="text" name="title" value="{{ old('title') }}"
-                    class="form-control @error('title') is-invalid @enderror"
-                    placeholder="เช่น เปลี่ยนยาง 6 เส้น">
+                    class="form-control @error('title') is-invalid @enderror" placeholder="เช่น เปลี่ยนยาง 6 เส้น">
                 @error('title')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -149,8 +161,7 @@
 
             <div class="mb-3">
                 <label class="form-label">รายละเอียดเพิ่มเติม</label>
-                <textarea name="detail" rows="2"
-                    class="form-control @error('detail') is-invalid @enderror">{{ old('detail') }}</textarea>
+                <textarea name="detail" rows="2" class="form-control @error('detail') is-invalid @enderror">{{ old('detail') }}</textarea>
                 @error('detail')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -225,13 +236,22 @@
             });
         }
 
-        // ยี่ห้อ → รุ่น
+        // ยี่ห้อ → รุ่น → สเปคอัตโนมัติ
         @if (isset($brands))
             const brandsData = @json($brands);
             const brandSelect = document.getElementById('truck_brand_select');
             const modelSelect = document.getElementById('truck_model_select');
 
             const oldModelId = "{{ old('truck_model_id', $truck->truck_model_id ?? '') }}";
+
+            // แมปคอลัมน์ในตาราง truck_models → ช่องกรอกในฟอร์ม
+            const specFields = {
+                cubic_capacity: document.getElementById('spec_cubic'),
+                curb_weight: document.getElementById('spec_weight'),
+                tank_capacity: document.getElementById('spec_tank'),
+                fuel_rate: document.getElementById('spec_rate'),
+            };
+            const specHint = document.getElementById('specHint');
 
             function updateModels() {
                 const brandId = brandSelect.value;
@@ -249,14 +269,56 @@
 
                 if (brand && brand.models) {
                     brand.models.forEach(model => {
-                        const opt = new Option(model.name_model, model.id);
+                        const label = model.model_year ?
+                            model.name_model + ' (' + model.model_year + ')' :
+                            model.name_model;
+
+                        const opt = new Option(label, model.id);
                         if (model.id == oldModelId) opt.selected = true;
                         modelSelect.add(opt);
                     });
                 }
             }
 
-            brandSelect.addEventListener('change', updateModels);
+            function findModel(modelId) {
+                let found = null;
+                brandsData.forEach(b => {
+                    (b.models || []).forEach(m => {
+                        if (m.id == modelId) found = m;
+                    });
+                });
+                return found;
+            }
+
+            // ช่องที่ต้องเป็นจำนวนเต็ม
+            const intFields = ['curb_weight', 'tank_capacity'];
+
+            function fillSpecs() {
+                const model = findModel(modelSelect.value);
+
+                if (!model) {
+                    if (specHint) specHint.classList.add('d-none');
+                    return;
+                }
+
+                Object.keys(specFields).forEach(key => {
+                    const el = specFields[key];
+                    if (el && model[key] !== null && model[key] !== undefined) {
+                        el.value = intFields.includes(key) ?
+                            Math.round(model[key]) :
+                            model[key];
+                    }
+                });
+
+                if (specHint) specHint.classList.remove('d-none');
+            }
+
+            brandSelect.addEventListener('change', function() {
+                updateModels();
+                fillSpecs();
+            });
+
+            modelSelect.addEventListener('change', fillSpecs);
 
             if (brandSelect.value) updateModels();
         @endif

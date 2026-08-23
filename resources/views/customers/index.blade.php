@@ -20,9 +20,11 @@
                 <button class="btn btn-outline-secondary">ค้นหา</button>
             </form>
 
-            <a href="{{ route('customers.create') }}" class="btn btn-dark">
-                + เพิ่มลูกค้า
-            </a>
+            @if (auth()->user()->canEdit())
+                <a href="{{ route('customers.create') }}" class="btn btn-dark">
+                    + เพิ่มลูกค้า
+                </a>
+            @endif
         </div>
 
         <div class="table-responsive shadow-sm rounded-3">
@@ -53,16 +55,18 @@
                             <td>{{ $c->province ?: '-' }}</td>
 
                             <td onclick="event.stopPropagation()">
-                                <div class="d-flex gap-2">
-                                    <a href="{{ route('customers.edit', $c) }}"
-                                        class="btn btn-sm btn-outline-primary">แก้ไข</a>
+                                @if (auth()->user()->canEdit())
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ route('customers.edit', $c) }}"
+                                            class="btn btn-sm btn-outline-primary">แก้ไข</a>
 
-                                    <form method="POST" action="{{ route('customers.destroy', $c) }}"
-                                        onsubmit="event.stopPropagation(); return confirm('ยืนยันลบข้อมูล?')">
-                                        @csrf @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger">ลบ</button>
-                                    </form>
-                                </div>
+                                        <form method="POST" action="{{ route('customers.destroy', $c) }}"
+                                            onsubmit="event.stopPropagation(); return confirm('ยืนยันลบข้อมูล?')">
+                                            @csrf @method('DELETE')
+                                            <button class="btn btn-sm btn-outline-danger">ลบ</button>
+                                        </form>
+                                    </div>
+                                @endif
                             </td>
                         </tr>
                     @empty

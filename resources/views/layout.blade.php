@@ -298,16 +298,25 @@
                             </a>
 
                             <ul class="dropdown-menu dropdown-menu-dark shadow user-menu">
-                                <li>
+                                {{-- <li>
                                     <a class="dropdown-item" href="{{ route('profile.show') }}">
                                         จัดการบัญชีผู้ใช้
                                     </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="{{ route('settings.index') }}">
-                                        ตั้งค่า
-                                    </a>
-                                </li>
+                                </li> --}}
+
+                                {{-- เมนูสำหรับผู้ดูแลระบบเท่านั้น --}}
+                                @if (auth()->user()->isAdmin())
+                                    <li>
+                                        <a class="dropdown-item" href="{{ route('settings.index') }}">
+                                            ตั้งค่า
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ route('users.index') }}">
+                                            จัดการผู้ใช้งาน
+                                        </a>
+                                    </li>
+                                @endif
 
                                 <li>
                                     <hr class="dropdown-divider">

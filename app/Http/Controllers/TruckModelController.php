@@ -2,62 +2,103 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\TruckModel;
 use App\Models\TruckBrand;
+use App\Models\TruckModel;
 use Illuminate\Http\Request;
 
 class TruckModelController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $models = TruckModel::with('brand')->latest()->paginate(10);
-        return view('truck_models.index', compact('models'));
+        $q       = $request->q;
+        $brandId = $request->brand;
+
+        $models = TruckModel::with('brand')
+            ->withCount('trucks')
+            ->when($q, fn($x) => $x->where('name_model', 'like', "%$q%"))
+            ->when($brandId, fn($x) => $x->where('truck_brand_id', $brandId))
+            ->orderBy('truck_brand_id')
+            ->orderBy('name_model')
+            ->paginate(10);
+
+        $brands = TruckBrand::orderBy('name_brand')->get();
+
+        return view('truck_models.index', compact('models', 'brands', 'q', 'brandId'));
     }
 
     public function create()
     {
+        $model  = new TruckModel();
         $brands = TruckBrand::orderBy('name_brand')->get();
-        return view('truck_models.create', compact('brands'));
+
+        return view('truck_models.create', compact('model', 'brands'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'truck_brand_id' => 'required|exists:truck_brands,id',
-            'name_model' => 'required|max:255',
-        ], [
-            'truck_brand_id.required' => 'กรุณาเลือกยี่ห้อรถ',
-            'name_model.required' => 'กรุณากรอกชื่อรุ่น',
-        ]);
+        $data = $this->validateData($request);
 
-        TruckModel::create($request->all());
+        TruckModel::create($data);
 
-        return redirect()->route('truck_models.index')->with('ok', 'เพิ่มรุ่นรถบรรทุกสำเร็จ!');
+        return redirect()->route('truck_models.index')->with('ok', 'เพิ่มรุ่นรถเรียบร้อย');
     }
 
-    public function edit($id)
+        public function edit(TruckModel $truck_model)
     {
-        $truck_model = TruckModel::findOrFail($id);
+        $model  = $truck_model;
         $brands = TruckBrand::orderBy('name_brand')->get();
-        return view('truck_models.create', compact('truck_model', 'brands'));
+
+        return view('truck_models.edit', compact('model', 'brands'));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, TruckModel $truck_model)
     {
-        $request->validate([
-            'truck_brand_id' => 'required|exists:truck_brands,id',
-            'name_model' => 'required|max:255',
+        $data = $this->validateData($request, $truck_model->id);
+
+        $truck_model->update($data);
+
+        return redirect()->route('truck_models.index')->with('ok', 'แก้ไขรุ่นรถเรียบร้อย');
+    }
+
+    public function destroy(TruckModel $truck_model)
+    {
+        $count = $truck_model->trucks()->count();
+
+        if ($count > 0) {
+            return back()->with('error', "ลบไม่ได้ มีรถ {$count} คันใช้รุ่นนี้อยู่");
+        }
+
+        $truck_model->delete();
+
+        return back()->with('ok', 'ลบรุ่นรถแล้ว');
+    }
+
+    private function validateData(Request $request, $ignoreId = null)
+    {
+        $yearMax = (int) now()->year + 1;
+
+        $unique = 'unique:truck_models,name_model' . ($ignoreId ? ",$ignoreId" : '');
+
+        return $request->validate([
+            'truck_brand_id' => ['required', 'exists:truck_brands,id'],
+            'name_model'     => ['required', 'string', 'max:100'],
+            'model_year'     => ['required', 'integer', "between:1980,$yearMax"],
+            'truck_type'     => ['nullable', 'string', 'max:50'],
+            'wheels'         => ['nullable', 'integer', 'min:4', 'max:24'],
+            'cubic_capacity' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'load_capacity'  => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'curb_weight'    => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'tank_capacity'  => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'engine_cc'      => ['nullable', 'integer', 'min:0', 'max:30000'],
+            'horsepower'     => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'fuel_type'      => ['nullable', 'string', 'max:30'],
+            'fuel_rate'      => ['required', 'numeric', 'min:0.1', 'max:50'],
+            'is_active'      => ['nullable', 'boolean'],
+        ], [
+            'truck_brand_id.required' => 'กรุณาเลือกยี่ห้อ',
+            'name_model.required'     => 'กรุณากรอกชื่อรุ่น',
+            'model_year.required'     => 'กรุณาระบุปีรุ่น',
+            'fuel_rate.required'      => 'กรุณาระบุอัตราสิ้นเปลือง',
         ]);
-
-        $model = TruckModel::findOrFail($id);
-        $model->update($request->all());
-
-        return redirect()->route('truck_models.index')->with('ok', 'อัปเดตข้อมูลสำเร็จ!');
-    }
-
-    public function destroy($id)
-    {
-        TruckModel::destroy($id);
-        return redirect()->route('truck_models.index')->with('ok', 'ลบข้อมูลสำเร็จ!');
     }
 }

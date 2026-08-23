@@ -15,7 +15,7 @@ class Truck extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    protected $fillable = [
+        protected $fillable = [
         'id_truck',
         'truck_brand_id',
         'truck_model_id',
@@ -24,12 +24,14 @@ class Truck extends Model
         'fuel_rate',
         'weight_truck',
         'fuelfactory_truck',
+        'cubic_capacity',
         'status_truck',
     ];
 
-    protected $casts = [
-        'fuel_rate'  => 'decimal:2',
-        'year_truck' => 'integer',
+        protected $casts = [
+        'fuel_rate'      => 'decimal:2',
+        'cubic_capacity' => 'decimal:2',
+        'year_truck'     => 'integer',
     ];
 
     public const STATUS_LABELS = [
