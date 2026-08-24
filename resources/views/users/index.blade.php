@@ -64,23 +64,31 @@
 
                             <td>
                                 <div class="d-flex gap-2">
-                                    <a href="{{ route('users.edit', $u) }}"
-                                        class="btn btn-sm btn-outline-primary">แก้ไข</a>
+                                    <a href="{{ route('users.edit', $u) }}" class="btn btn-sm btn-outline-primary">แก้ไข</a>
 
                                     {{-- ปุ่มระงับและลบ ไม่แสดงในแถวของตนเอง --}}
                                     @if ($u->id !== auth()->id())
-                                        <form method="POST" action="{{ route('users.toggleStatus', $u) }}"
-                                            onsubmit="return confirm('{{ $u->is_active ? 'ยืนยันระงับบัญชีนี้?' : 'ยืนยันเปิดใช้งานบัญชีนี้?' }}')">
+                                        <form method="POST" action="{{ route('users.toggleStatus', $u) }}" class="d-inline"
+                                            data-confirm="{{ $u->is_active
+                                                ? $u->name . ' จะไม่สามารถเข้าสู่ระบบได้ทันที จนกว่าจะเปิดใช้งานอีกครั้ง'
+                                                : $u->name . ' จะสามารถเข้าสู่ระบบได้ทันที' }}"
+                                            data-confirm-title="{{ $u->is_active ? 'ยืนยันการระงับบัญชี' : 'ยืนยันการเปิดใช้งานบัญชี' }}"
+                                            data-confirm-variant="{{ $u->is_active ? 'warning' : 'success' }}"
+                                            data-confirm-ok="{{ $u->is_active ? 'ระงับบัญชี' : 'เปิดใช้งาน' }}">
                                             @csrf @method('PATCH')
-                                            <button class="btn btn-sm btn-outline-warning">
-                                                {{ $u->is_active ? 'ระงับ' : 'เปิดใช้' }}
+                                            <button
+                                                class="btn btn-sm btn-outline-{{ $u->is_active ? 'warning' : 'success' }}"
+                                                type="submit">
+                                                {{ $u->is_active ? 'ระงับ' : 'เปิดใช้งาน' }}
                                             </button>
                                         </form>
 
-                                        <form method="POST" action="{{ route('users.destroy', $u) }}"
-                                            onsubmit="return confirm('ยืนยันลบผู้ใช้งานนี้?')">
+                                        <form method="POST" action="{{ route('users.destroy', $u) }}" class="d-inline"
+                                            data-confirm="บัญชี {{ $u->name }} ({{ $u->email }}) จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                                            data-confirm-title="ยืนยันการลบผู้ใช้งาน" data-confirm-variant="danger"
+                                            data-confirm-ok="ลบบัญชี">
                                             @csrf @method('DELETE')
-                                            <button class="btn btn-sm btn-outline-danger">ลบ</button>
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
                                         </form>
                                     @endif
                                 </div>

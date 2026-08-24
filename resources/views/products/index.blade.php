@@ -24,7 +24,7 @@
                 </button>
             </form>
 
-            
+
             <a href="{{ route('products.create') }}" class="btn btn-dark">
                 + เพิ่มสินค้า
             </a>
@@ -56,10 +56,12 @@
                                 <div class="btn-group">
                                     <a href="{{ route('products.edit', $p) }}"
                                         class="btn btn-sm btn-outline-primary">แก้ไข</a>
-                                    <form action="{{ route('products.destroy', $p) }}" method="POST"
-                                        onsubmit="return confirm('ยืนยันลบสินค้า?')">
+                                    <form method="POST" action="{{ route('products.destroy', $item) }}" class="d-inline"
+                                        data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                                        data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
+                                        data-confirm-ok="ลบข้อมูล">
                                         @csrf @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger">ลบ</button>
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
                                     </form>
                                 </div>
                             </td>

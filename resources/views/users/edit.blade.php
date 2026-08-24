@@ -10,7 +10,11 @@
     <div class="container py-3">
 
         {{-- ============ ข้อมูลทั่วไป ============ --}}
-        <form method="POST" action="{{ route('users.update', $user) }}">
+        <form method="POST" action="{{ route('users.update', $user) }}"
+            data-confirm="ข้อมูลและสิทธิ์การเข้าถึงของ {{ $user->name }} จะถูกอัปเดตทันทีหลังบันทึก"
+            data-confirm-title="ยืนยันการแก้ไขข้อมูลผู้ใช้"
+            data-confirm-variant="primary"
+            data-confirm-ok="บันทึก">
             @csrf @method('PUT')
 
             <div class="mb-3">
@@ -57,7 +61,10 @@
         <h5 class="mb-3">รีเซ็ตรหัสผ่าน</h5>
 
         <form method="POST" action="{{ route('users.resetPassword', $user) }}"
-            onsubmit="return confirm('ยืนยันเปลี่ยนรหัสผ่านของผู้ใช้รายนี้?')">
+            data-confirm="รหัสผ่านเดิมของ {{ $user->name }} จะใช้งานไม่ได้ทันที กรุณาแจ้งรหัสผ่านใหม่ให้ผู้ใช้ทราบ"
+            data-confirm-title="ยืนยันการรีเซ็ตรหัสผ่าน"
+            data-confirm-variant="danger"
+            data-confirm-ok="รีเซ็ตรหัสผ่าน">
             @csrf @method('PATCH')
 
             <div class="mb-3">

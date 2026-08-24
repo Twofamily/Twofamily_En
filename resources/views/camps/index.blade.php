@@ -60,7 +60,8 @@
                         <select name="status" class="form-select">
                             <option value="">ทุกสถานะ</option>
                             @foreach (\App\Models\Camp::STATUS_LABELS as $value => $label)
-                                <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
+                                <option value="{{ $value }}" @selected($status === $value)>{{ $label }}
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -122,8 +123,10 @@
                                         <a href="{{ route('camps.edit', $camp->id_camp) }}"
                                             class="btn btn-sm btn-outline-primary">แก้ไข</a>
 
-                                        <form method="POST" action="{{ route('camps.destroy', $camp->id_camp) }}"
-                                            onsubmit="return confirm('ยืนยันลบแคมป์ {{ $camp->name_camp }} ?')">
+                                        <form method="POST" action="{{ route('camps.destroy', $item) }}" class="d-inline"
+                                            data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                                            data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
+                                            data-confirm-ok="ลบข้อมูล">
                                             @csrf @method('DELETE')
                                             <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
                                         </form>

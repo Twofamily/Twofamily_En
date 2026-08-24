@@ -39,7 +39,7 @@
 
                 <p>
                     <strong>สถานะ:</strong>
-                    @if($quotation->status == 'draft')
+                    @if ($quotation->status == 'draft')
                         <span class="badge bg-secondary">ร่าง</span>
                     @elseif($quotation->status == 'approved')
                         <span class="badge bg-success">อนุมัติแล้ว</span>
@@ -107,23 +107,19 @@
                     ย้อนกลับ
                 </a>
 
-                <a href="{{ route('quotation.pdf', $quotation->id_quot) }}"
-                   target="_blank"
-                   class="btn btn-danger">
+                <a href="{{ route('quotation.pdf', $quotation->id_quot) }}" target="_blank" class="btn btn-danger">
                     ดาวน์โหลด PDF
                 </a>
 
                 @if ($quotation->status == 'draft')
-                    <a href="{{ route('quotations.edit', $quotation->id_quot) }}"
-                       class="btn btn-warning">
+                    <a href="{{ route('quotations.edit', $quotation->id_quot) }}" class="btn btn-warning">
                         แก้ไข
                     </a>
                 @endif
 
                 @if ($quotation->status == 'draft')
-                    <form action="{{ route('quotations.approve', $quotation->id_quot) }}"
-                          method="POST"
-                          style="display:inline;">
+                    <form action="{{ route('quotations.approve', $quotation->id_quot) }}" method="POST"
+                        style="display:inline;">
                         @csrf
                         <button class="btn btn-success">
                             อนุมัติ
@@ -132,21 +128,17 @@
                 @endif
 
                 @if ($quotation->status == 'draft')
-                    <form action="{{ route('quotations.cancel', $quotation->id_quot) }}"
-                          method="POST"
-                          style="display:inline;"
-                          onsubmit="return confirm('ยืนยันยกเลิกใบเสนอราคา?')">
-                        @csrf
-                        <button class="btn btn-danger">
-                            ยกเลิก
-                        </button>
+                    <form method="POST" action="{{ route('quotations.destroy', $item) }}" class="d-inline"
+                        data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                        data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger" data-confirm-ok="ลบข้อมูล">
+                        @csrf @method('DELETE')
+                        <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
                     </form>
                 @endif
 
                 @if ($quotation->status == 'approved')
-                    <form action="{{ route('invoices.createFromQuotation', $quotation->id_quot) }}"
-                          method="POST"
-                          style="display:inline;">
+                    <form action="{{ route('invoices.createFromQuotation', $quotation->id_quot) }}" method="POST"
+                        style="display:inline;">
                         @csrf
                         <button class="btn btn-primary">
                             สร้างใบแจ้งหนี้

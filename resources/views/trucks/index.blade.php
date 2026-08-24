@@ -95,9 +95,15 @@
                                         </a>
 
                                         <form method="POST" action="{{ route('trucks.destroy', $t->id_truck) }}"
-                                            onsubmit="return confirm('ยืนยันลบรถทะเบียน {{ $t->id_truck }} ?')">
-                                            @csrf @method('DELETE')
-                                            <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
+                                            data-confirm="ทะเบียน {{ $t->id_truck }} จะถูกลบออกจากระบบถาวร และไม่สามารถกู้คืนได้"
+                                            data-confirm-title="ยืนยันการลบรถบรรทุก"
+                                            data-confirm-variant="danger"
+                                            data-confirm-ok="ลบข้อมูล">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                ลบ
+                                            </button>
                                         </form>
                                     </div>
                                 </td>

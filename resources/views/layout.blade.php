@@ -10,42 +10,49 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
-        /* ===============================
-       THEME VARIABLES
-    =============================== */
         :root {
-            --sidebar-bg: linear-gradient(180deg, #2b4466 0%, #223654 100%);
+            --sidebar-bg: linear-gradient(180deg, #2a2a2a 0%, #141414 100%);
             --sidebar-text: #e5e7eb;
             --sidebar-hover: rgba(255, 255, 255, 0.12);
             --active-bg: #f8fafc;
-            --active-text: #223654;
+            --active-text: #141414;
         }
 
         body {
             background-color: #f5f7fa;
         }
 
-        /* ===============================
-       SIDEBAR BASE
-    =============================== */
         .sidebar {
             background: var(--sidebar-bg);
             color: var(--sidebar-text);
         }
 
         .brand {
-            padding: 14px 16px;
+            padding: 20px 16px 24px;
             border-radius: 14px;
-            font-weight: 700;
             color: #fff;
             text-decoration: none;
             display: block;
             margin-bottom: 12px;
         }
 
-        /* ===============================
-       LINK BASE (nav + sub)
-    =============================== */
+        .brand-line-1 {
+            display: block;
+            font-size: 2.1rem;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-line-2 {
+            display: block;
+            font-size: 1.15rem;
+            font-weight: 400;
+            opacity: .8;
+            line-height: 1.3;
+            margin-top: 6px;
+        }
+
         .sidebar a {
             transition: all .25s ease;
             text-decoration: none;
@@ -56,13 +63,10 @@
             color: #fff;
         }
 
-        /* ===============================
-       MAIN NAV (PILL)
-    =============================== */
         .sidebar .nav-link {
             border-radius: 18px;
-            padding: 14px 18px;
-            margin-bottom: 8px;
+            padding: 12px 18px;
+            margin-bottom: 6px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -75,9 +79,6 @@
             font-weight: 700;
         }
 
-        /* ===============================
-       ARROW ICON
-    =============================== */
         .arrow {
             font-size: .8rem;
             transition: transform .25s ease;
@@ -87,20 +88,18 @@
             transform: rotate(180deg);
         }
 
-        /* ===============================
-       SUB MENU
-    =============================== */
         .submenu {
             padding-left: 12px;
-            margin-top: 4px;
+            margin-top: 2px;
+            margin-bottom: 6px;
         }
 
         .sub-link {
             display: block;
             border-radius: 14px;
-            padding: 12px 16px;
+            padding: 10px 16px;
             font-size: .95rem;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             color: inherit;
         }
 
@@ -110,9 +109,6 @@
             font-weight: 600;
         }
 
-        /* ===============================
-       USER DROPDOWN
-    =============================== */
         .user-menu {
             background: var(--sidebar-bg);
             border-radius: 14px;
@@ -129,9 +125,6 @@
             border-color: rgba(255, 255, 255, .2);
         }
 
-        /* ===============================
-       CONTENT
-    =============================== */
         .content-area {
             background-color: #fff;
             border-radius: 20px;
@@ -145,29 +138,45 @@
     <div class="container-fluid p-0">
         <div class="row m-0 flex-nowrap">
 
-            <div class="col-auto col-md-3 col-xl-2 px-0 position-fixed vh-100 sidebar">
+            <div class="col-auto col-md-3 col-xl-2 px-0 position-fixed vh-100 sidebar overflow-auto">
                 <div class="d-flex flex-column px-3 pt-3 min-vh-100">
 
-                    <a href="{{ route('dashboard') }}" class="brand fs-2">
-                        TWO FAMILY CO., LTD.
+                    <a href="{{ route('dashboard') }}" class="brand">
+                        <span class="brand-line-1">บริษัททูแฟมิลี่</span>
+                        <span class="brand-line-2">เอ็นจิเนียริ่ง จำกัด</span>
                     </a>
+
+                    @php
+                        $isProductPage = request()->routeIs('products.*') || request()->routeIs('product_types.*');
+
+                        $isTruckPage =
+                            request()->routeIs('truck_brands.*') ||
+                            request()->routeIs('truck_models.*') ||
+                            request()->routeIs('trucks.*');
+
+                        $isDocPage =
+                            request()->routeIs('quotations.*') ||
+                            request()->routeIs('invoices.*') ||
+                            request()->routeIs('receipts.*') ||
+                            request()->routeIs('tax-invoices.*');
+
+                        $isUserPage =
+                            request()->routeIs('users.*') ||
+                            request()->routeIs('drivers.*') ||
+                            request()->routeIs('customers.*');
+                    @endphp
 
                     <ul class="nav flex-column mb-auto">
 
+                        {{-- แดชบอร์ด --}}
                         <li class="nav-item">
                             <a href="{{ route('dashboard') }}"
                                 class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                                <span>หน้าหลัก</span>
+                                <span>แดชบอร์ด</span>
                             </a>
                         </li>
 
-                        <li class="nav-item">
-                            <a href="{{ route('customers.index') }}"
-                                class="nav-link {{ request()->routeIs('customers.*') ? 'active' : '' }}">
-                                <span>ลูกค้า</span>
-                            </a>
-                        </li>
-
+                        {{-- แคมป์งาน --}}
                         <li class="nav-item">
                             <a href="{{ route('camps.index') }}"
                                 class="nav-link {{ request()->routeIs('camps.*') ? 'active' : '' }}">
@@ -175,108 +184,74 @@
                             </a>
                         </li>
 
+                        {{-- สินค้า --}}
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('products.*') || request()->routeIs('product_types.*') ? 'active' : '' }}"
-                                data-bs-toggle="collapse" href="#productMenu" role="button"
-                                aria-expanded="{{ request()->routeIs('products.*') || request()->routeIs('product_types.*') ? 'true' : 'false' }}"
-                                aria-controls="productMenu">
-
+                            <a class="nav-link {{ $isProductPage ? 'active' : '' }}" data-bs-toggle="collapse"
+                                href="#productMenu" role="button"
+                                aria-expanded="{{ $isProductPage ? 'true' : 'false' }}" aria-controls="productMenu">
                                 <span>สินค้า</span>
                                 <i class="bi bi-caret-down-fill arrow"></i>
                             </a>
 
-                            <div class="collapse submenu {{ request()->routeIs('products.*') || request()->routeIs('product_types.*') ? 'show' : '' }}"
-                                id="productMenu" data-bs-parent="#sidebarMenu">
-
-                                <a href="{{ route('products.index') }}"
-                                    class="sub-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
-                                    สินค้าทั้งหมด
-                                </a>
-
+                            <div class="collapse submenu {{ $isProductPage ? 'show' : '' }}" id="productMenu">
                                 <a href="{{ route('product_types.index') }}"
                                     class="sub-link {{ request()->routeIs('product_types.*') ? 'active' : '' }}">
                                     ประเภทสินค้า
                                 </a>
-
+                                <a href="{{ route('products.index') }}"
+                                    class="sub-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
+                                    สินค้าทั้งหมด
+                                </a>
                             </div>
                         </li>
 
+                        {{-- ต้นทุนค่าน้ำมัน --}}
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('truck_brands.*') || request()->routeIs('truck_models.*') ? 'active' : '' }}"
-                                data-bs-toggle="collapse" href="#truckMenu" role="button"
-                                aria-expanded="{{ request()->routeIs('truck_brands.*') || request()->routeIs('truck_models.*') ? 'true' : 'false' }}"
+                            <a href="{{ route('fuel_records.index') }}"
+                                class="nav-link {{ request()->routeIs('fuel_records.*') ? 'active' : '' }}">
+                                <span>ต้นทุนค่าน้ำมัน</span>
+                            </a>
+                        </li>
+
+                        {{-- จัดการรถบรรทุก --}}
+                        <li class="nav-item">
+                            <a class="nav-link {{ $isTruckPage ? 'active' : '' }}" data-bs-toggle="collapse"
+                                href="#truckMenu" role="button" aria-expanded="{{ $isTruckPage ? 'true' : 'false' }}"
                                 aria-controls="truckMenu">
-                                <span>จัดการข้อมูลรถบรรทุก</span>
+                                <span>จัดการรถบรรทุก</span>
                                 <i class="bi bi-caret-down-fill arrow"></i>
                             </a>
 
-                            <div class="collapse submenu {{ request()->routeIs('truck_brands.*') || request()->routeIs('truck_models.*') ? 'show' : '' }}"
-                                id="truckMenu" data-bs-parent="#sidebarMenu">
-
+                            <div class="collapse submenu {{ $isTruckPage ? 'show' : '' }}" id="truckMenu">
                                 <a href="{{ route('truck_brands.index') }}"
                                     class="sub-link {{ request()->routeIs('truck_brands.*') ? 'active' : '' }}">
                                     ยี่ห้อรถบรรทุก
                                 </a>
-
                                 <a href="{{ route('truck_models.index') }}"
                                     class="sub-link {{ request()->routeIs('truck_models.*') ? 'active' : '' }}">
                                     รุ่นรถบรรทุก
                                 </a>
-
+                                <a href="{{ route('trucks.index') }}"
+                                    class="sub-link {{ request()->routeIs('trucks.*') ? 'active' : '' }}">
+                                    รถบรรทุกในบริษัท
+                                </a>
                             </div>
                         </li>
 
+                        {{-- เอกสาร --}}
                         <li class="nav-item">
-                            <a href="{{ route('trucks.index') }}"
-                                class="nav-link {{ request()->routeIs('trucks.*') ? 'active' : '' }}">
-                                <span>รถบรรทุก</span>
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a href="{{ route('drivers.index') }}"
-                                class="nav-link {{ request()->routeIs('drivers.*') ? 'active' : '' }}">
-                                <span>พนักงานขับรถ</span>
-                            </a>
-                        </li>
-
-                        {{-- <li class="nav-item">
-                            <a href="{{ route('transport-jobs.index') }}"
-                                class="nav-link {{ request()->routeIs('transport-jobs.*') ? 'active' : '' }}">
-                                <span>แผนงานขนส่ง</span>
-                            </a>
-                        </li> --}}
-
-                        <li class="nav-item">
-                            <a href="{{ route('fuel_records.index') }}"
-                                class="nav-link {{ request()->routeIs('fuel_records.*') ? 'active' : '' }}">
-                                <span>คำนวณค่าน้ำมัน</span>
-                            </a>
-                        </li>
-
-                        @php
-                            $isDocPage =
-                                request()->routeIs('quotations.*') ||
-                                request()->routeIs('invoices.*') ||
-                                request()->routeIs('receipts.*') ||
-                                request()->routeIs('tax-invoices.*');
-                        @endphp
-
-                        <li class="nav-item">
-
                             <a class="nav-link {{ $isDocPage ? 'active' : '' }}" data-bs-toggle="collapse"
-                                href="#docMenu" role="button" aria-expanded="{{ $isDocPage ? 'true' : 'false' }}">
+                                href="#docMenu" role="button" aria-expanded="{{ $isDocPage ? 'true' : 'false' }}"
+                                aria-controls="docMenu">
                                 <span>เอกสาร</span>
                                 <i class="bi bi-caret-down-fill arrow"></i>
                             </a>
 
                             <div class="collapse submenu {{ $isDocPage ? 'show' : '' }}" id="docMenu">
-
                                 <a href="{{ route('quotations.index') }}"
                                     class="sub-link {{ request()->routeIs('quotations.*') ? 'active' : '' }}">
                                     ใบเสนอราคา
                                 </a>
-
                                 <a href="{{ route('invoices.index') }}"
                                     class="sub-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
                                     ใบแจ้งหนี้
@@ -284,6 +259,42 @@
                                 <a href="{{ route('receipts.index') }}"
                                     class="sub-link {{ request()->routeIs('receipts.*') ? 'active' : '' }}">
                                     ใบเสร็จ
+                                </a>
+                            </div>
+                        </li>
+
+                        {{-- จัดการผู้ใช้งาน --}}
+                        <li class="nav-item">
+                            <a class="nav-link {{ $isUserPage ? 'active' : '' }}" data-bs-toggle="collapse"
+                                href="#userMenu" role="button" aria-expanded="{{ $isUserPage ? 'true' : 'false' }}"
+                                aria-controls="userMenu">
+                                <span>จัดการผู้ใช้งาน</span>
+                                <i class="bi bi-caret-down-fill arrow"></i>
+                            </a>
+
+                            <div class="collapse submenu {{ $isUserPage ? 'show' : '' }}" id="userMenu">
+
+                                {{-- ยังไม่มี route roles.index — ปลดคอมเมนต์เมื่อสร้าง RoleController แล้ว --}}
+                                {{-- <a href="{{ route('roles.index') }}"
+                                    class="sub-link {{ request()->routeIs('roles.*') ? 'active' : '' }}">
+                                    บทบาท
+                                </a> --}}
+
+                                @if (auth()->check() && auth()->user()->isAdmin())
+                                    <a href="{{ route('users.index') }}"
+                                        class="sub-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                                        พนักงานบริษัท
+                                    </a>
+                                @endif
+
+                                <a href="{{ route('drivers.index') }}"
+                                    class="sub-link {{ request()->routeIs('drivers.*') ? 'active' : '' }}">
+                                    พนักงานขับรถ
+                                </a>
+
+                                <a href="{{ route('customers.index') }}"
+                                    class="sub-link {{ request()->routeIs('customers.*') ? 'active' : '' }}">
+                                    ลูกค้าประจำ
                                 </a>
                             </div>
                         </li>
@@ -298,13 +309,6 @@
                             </a>
 
                             <ul class="dropdown-menu dropdown-menu-dark shadow user-menu">
-                                {{-- <li>
-                                    <a class="dropdown-item" href="{{ route('profile.show') }}">
-                                        จัดการบัญชีผู้ใช้
-                                    </a>
-                                </li> --}}
-
-                                {{-- เมนูสำหรับผู้ดูแลระบบเท่านั้น --}}
                                 @if (auth()->user()->isAdmin())
                                     <li>
                                         <a class="dropdown-item" href="{{ route('settings.index') }}">
@@ -312,21 +316,15 @@
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="{{ route('users.index') }}">
-                                            จัดการผู้ใช้งาน
-                                        </a>
+                                        <hr class="dropdown-divider">
                                     </li>
                                 @endif
-
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
 
                                 <li>
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
                                         <button type="submit" class="dropdown-item">
-                                            Sign out
+                                            ออกจากระบบ
                                         </button>
                                     </form>
                                 </li>
@@ -347,7 +345,11 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+    {{-- ระบบยืนยันการทำรายการ --}}
+    <x-confirm-modal />
+    <script src="{{ asset('js/confirm.js') }}"></script>
+
+</body>
 </html>
