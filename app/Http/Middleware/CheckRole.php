@@ -4,35 +4,39 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
-    /**
-     * ตรวจสอบสิทธิ์ผู้ใช้ก่อนเข้าถึง route
-     * วิธีใช้: ->middleware('role:admin')  หรือ  ->middleware('role:admin,staff')
-     */
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        // ยังไม่ได้ล็อกอิน → ส่งไปหน้า login
-        if (!auth()->check()) {
+        // ใช้ web guard สำหรับระบบล็อกอินผ่านหน้าเว็บ
+        $guard = Auth::guard('web');
+
+        // ยังไม่ได้ล็อกอิน
+        if (!$guard->check()) {
             return redirect()->route('login');
         }
 
-        $user = auth()->user();
+        $user = $guard->user();
 
-        // บัญชีถูกระงับ → เตะออกจากระบบทันที
+        // บัญชีถูกระงับ
         if (!$user->is_active) {
-            auth()->logout();
+            $guard->logout();
+
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return redirect()->route('login')
-                ->withErrors(['email' => 'บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ']);
+            return redirect()
+                ->route('login')
+                ->withErrors([
+                    'email' => 'บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ',
+                ]);
         }
 
-        // สิทธิ์ไม่ตรงกับที่ route กำหนดไว้
-        if (!in_array($user->role, $roles)) {
+        // สิทธิ์ไม่ตรงกับ Route
+        if (!in_array($user->role, $roles, true)) {
             abort(403, 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
         }
 

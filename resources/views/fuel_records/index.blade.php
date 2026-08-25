@@ -8,13 +8,20 @@
 
 @section('content')
     <div class="container py-3">
+
         @if (session('ok'))
-            <div class="alert alert-success">{{ session('ok') }}</div>
+            <div class="alert alert-success">
+                {{ session('ok') }}
+            </div>
         @endif
 
-
         <div class="d-flex justify-content-end mb-3">
-            <a href="{{ route('fuel_records.create') }}" class="btn btn-dark">เพิ่มบันทึกน้ำมัน</a>
+            <a
+                href="{{ route('fuel_records.create') }}"
+                class="btn btn-dark"
+            >
+                เพิ่มบันทึกน้ำมัน
+            </a>
         </div>
 
         <div class="table-responsive shadow-sm rounded-3">
@@ -31,36 +38,95 @@
                         <th>จัดการ</th>
                     </tr>
                 </thead>
+
                 <tbody>
-                    @forelse($records as $r)
+                    @forelse ($records as $r)
                         <tr>
-                            <td>{{ $r->date_record }}</td>
-                            <td>{{ $r->truck->brand_truck }} ({{ $r->trucks_id_truck }})</td>
-                            <td>{{ $r->start_point }}</td>
-                            <td>{{ $r->destination }}</td>
-                            <td>{{ $r->distance }}</td>
-                            <td>{{ $r->cost_fuel }}</td>
-                            <td>{{ $r->cost_fuel_total }}</td>
                             <td>
-                                <a href="{{ route('fuel_records.edit', $r->id_fuel_record) }}"
-                                    class="btn btn-sm btn-primary">แก้ไข</a>
-                                <form method="POST" action="{{ route('fuel_records.destroy', $item) }}" class="d-inline"
-                                    data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
-                                    data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
-                                    data-confirm-ok="ลบข้อมูล">
-                                    @csrf @method('DELETE')
-                                    <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
-                                </form>
+                                {{ $r->date_record }}
+                            </td>
+
+                            <td>
+                                {{ $r->truck?->brand_truck ?? 'ไม่พบข้อมูลรถ' }}
+                                ({{ $r->trucks_id_truck }})
+                            </td>
+
+                            <td>
+                                {{ $r->start_point }}
+                            </td>
+
+                            <td>
+                                {{ $r->destination }}
+                            </td>
+
+                            <td>
+                                {{ number_format((float) $r->distance, 2) }}
+                            </td>
+
+                            <td>
+                                {{ number_format((float) $r->cost_fuel, 2) }}
+                            </td>
+
+                            <td>
+                                {{ number_format((float) $r->cost_fuel_total, 2) }}
+                            </td>
+
+                            <td>
+                                <div class="d-flex gap-2 flex-nowrap">
+                                    <a
+                                        href="{{ route(
+                                            'fuel_records.edit',
+                                            $r->id_fuel_record
+                                        ) }}"
+                                        class="btn btn-outline-primary btn-sm"
+                                    >
+                                        แก้ไข
+                                    </a>
+
+                                    <form
+                                        method="POST"
+                                        action="{{ route(
+                                            'fuel_records.destroy',
+                                            $r->id_fuel_record
+                                        ) }}"
+                                        class="m-0"
+                                        data-confirm="ข้อมูลบันทึกน้ำมันนี้จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                                        data-confirm-title="ยืนยันการลบข้อมูล"
+                                        data-confirm-variant="danger"
+                                        data-confirm-ok="ลบข้อมูล"
+                                        onsubmit="return window.confirmDeleteHandled
+                                            ? true
+                                            : confirm('ยืนยันลบข้อมูล?')"
+                                    >
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button
+                                            type="submit"
+                                            class="btn btn-outline-danger btn-sm"
+                                        >
+                                            ลบ
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted">— ไม่พบข้อมูล —</td>
+                            <td
+                                colspan="8"
+                                class="text-center text-muted py-4"
+                            >
+                                — ไม่พบข้อมูล —
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
-            {{ $records->links() }}
+
+            <div class="p-3">
+                {{ $records->links() }}
+            </div>
         </div>
     </div>
 @endsection
