@@ -19,8 +19,10 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('trucks.update', $truck->id_truck) }}" autocomplete="off">
-            @csrf @method('PUT')
+        {{-- เพิ่ม enctype="multipart/form-data" เพื่อให้รองรับการอัปโหลดไฟล์รูปภาพ --}}
+        <form method="POST" action="{{ route('trucks.update', $truck->id_truck) }}" enctype="multipart/form-data" autocomplete="off">
+            @csrf 
+            @method('PUT')
 
             @include('trucks._form', [
                 'truck' => $truck,
@@ -29,8 +31,10 @@
                 'provinces' => config('provinces'),
             ])
 
-            <button class="btn btn-dark">บันทึกการแก้ไข</button>
-            <a href="{{ route('trucks.index') }}" class="btn btn-outline-secondary">ย้อนกลับ</a>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-dark">บันทึกการแก้ไข</button>
+                <a href="{{ route('trucks.index') }}" class="btn btn-outline-secondary ms-1">ย้อนกลับ</a>
+            </div>
 
         </form>
     </div>

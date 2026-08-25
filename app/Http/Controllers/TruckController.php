@@ -7,6 +7,7 @@ use App\Models\TruckBrand;
 use App\Models\TruckMaintenance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\TruckStoreRequest;
 use App\Http\Requests\TruckUpdateRequest;
 
@@ -48,27 +49,32 @@ class TruckController extends Controller
     }
 
     public function store(TruckStoreRequest $request)
-{
-    $data = $request->validated();
+    {
+        $data = $request->validated();
 
-    DB::transaction(function () use ($data, $request) {
-        $truck = Truck::create($data);
-
-        if ($data['status_truck'] === 'maintenance') {
-            TruckMaintenance::create([
-                'id_truck'        => $truck->id_truck,
-                'title'           => $request->title,
-                'detail'          => $request->detail,
-                'garage'          => $request->garage,
-                'cost'            => $request->cost,
-                'start_date'      => $request->start_date,
-                'expected_return' => $request->expected_return,
-            ]);
+        // จัดการไฟล์รูปภาพ
+        if ($request->hasFile('image')) {
+            $data['image'] = $request->file('image')->store('trucks', 'public');
         }
-    });
 
-    return redirect()->route('trucks.index')->with('ok', 'เพิ่มรถเรียบร้อย');
-}
+        DB::transaction(function () use ($data, $request) {
+            $truck = Truck::create($data);
+
+            if ($data['status_truck'] === 'maintenance') {
+                TruckMaintenance::create([
+                    'id_truck'        => $truck->id_truck,
+                    'title'           => $request->title,
+                    'detail'          => $request->detail,
+                    'garage'          => $request->garage,
+                    'cost'            => $request->cost,
+                    'start_date'      => $request->start_date,
+                    'expected_return' => $request->expected_return,
+                ]);
+            }
+        });
+
+        return redirect()->route('trucks.index')->with('ok', 'เพิ่มรถเรียบร้อย');
+    }
 
     public function edit($id)
     {
@@ -79,14 +85,31 @@ class TruckController extends Controller
 
     public function update(TruckUpdateRequest $request, Truck $truck)
     {
-        $truck->fill($request->validated());
-        $truck->save();
+        $data = $request->validated();
+
+        // จัดการไฟล์รูปภาพกรณีมีการอัปโหลดใหม่
+        if ($request->hasFile('image')) {
+            // ลบรูปภาพเก่าออกก่อนถ้ามี
+            if ($truck->image && Storage::disk('public')->exists($truck->image)) {
+                Storage::disk('public')->delete($truck->image);
+            }
+
+            // บันทึกรูปภาพใหม่
+            $data['image'] = $request->file('image')->store('trucks', 'public');
+        }
+
+        $truck->update($data);
 
         return redirect()->route('trucks.index')->with('ok', 'อัปเดตรถเรียบร้อย');
     }
 
     public function destroy(Truck $truck)
     {
+        // ลบไฟล์รูปภาพออกจาก Storage
+        if ($truck->image && Storage::disk('public')->exists($truck->image)) {
+            Storage::disk('public')->delete($truck->image);
+        }
+
         $truck->delete();
         return redirect()->route('trucks.index')->with('ok', 'ลบข้อมูลรถแล้ว');
     }

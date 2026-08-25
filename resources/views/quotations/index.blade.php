@@ -9,11 +9,6 @@
 @section('content')
     <div class="container py-3">
 
-        @if (session('ok'))
-            <div class="alert alert-success shadow-sm">
-                {{ session('ok') }}
-            </div>
-        @endif
 
         <div class="d-flex justify-content-end mb-3">
             <a href="{{ route('quotations.create') }}" class="btn btn-dark">
@@ -76,9 +71,10 @@
                                         ดู
                                     </a>
 
-                                    <form method="POST" action="{{ route('quotations.destroy', $item) }}" class="d-inline"
-                                        data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
-                                        data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
+                                    <form method="POST" action="{{ route('quotations.destroy', $q) }}" class="d-inline"
+                                    data-confirm="ข้อมูล {{ $q->id_quot }} จะถูกลบออกจากระบบ"
+                                        data-confirm-title="ยืนยันการลบข้อมูล" 
+                                        data-confirm-variant="danger"
                                         data-confirm-ok="ลบข้อมูล">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>

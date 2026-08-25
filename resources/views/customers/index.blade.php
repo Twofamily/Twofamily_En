@@ -9,9 +9,6 @@
 @section('content')
     <div class="container py-3">
 
-        @if (session('ok'))
-            <div class="alert alert-success">{{ session('ok') }}</div>
-        @endif
 
         <div class="d-flex justify-content-between mb-3">
             <form class="d-flex gap-2">
@@ -60,8 +57,11 @@
                                         <a href="{{ route('customers.edit', $c) }}"
                                             class="btn btn-sm btn-outline-primary">แก้ไข</a>
 
-                                        <form method="POST" action="{{ route('customers.destroy', $c) }}"
-                                            onsubmit="event.stopPropagation(); return confirm('ยืนยันลบข้อมูล?')">
+                                        <form method="POST" action="{{ route('customers.destroy', $c) }}"class="d-inline"
+                                            data-confirm="ข้อมูล {{ $c->name_customer }} จะถูกลบออกจากระบบ"
+                                            data-confirm-title="ยืนยันการลบข้อมูล" 
+                                            data-confirm-variant="danger"
+                                            data-confirm-ok="ลบข้อมูล">
                                             @csrf @method('DELETE')
                                             <button class="btn btn-sm btn-outline-danger">ลบ</button>
                                         </form>

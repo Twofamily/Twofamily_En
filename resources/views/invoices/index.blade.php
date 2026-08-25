@@ -9,11 +9,6 @@
 @section('content')
     <div class="container py-3">
 
-        @if (session('success'))
-            <div class="alert alert-success shadow-sm">
-                {{ session('success') }}
-            </div>
-        @endif
 
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
@@ -82,11 +77,12 @@
                                         ดู
                                     </a>
 
-                                    <form method="POST" action="{{ route('invoices.destroy', $item) }}" class="d-inline"
-                                        data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                                    <form method="POST" action="{{ route('invoices.destroy', $inv) }}" class="d-inline"
+                                        data-confirm="ข้อมูล {{ $inv->id_invoice }} จะถูกลบออกจากระบบ"
                                         data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
                                         data-confirm-ok="ลบข้อมูล">
-                                        @csrf @method('DELETE')
+                                        @csrf
+                                        @method('DELETE')
                                         <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
                                     </form>
 

@@ -9,13 +9,6 @@
 @section('content')
     <div class="container py-3">
 
-        @if (session('ok'))
-            <div class="alert alert-success">{{ session('ok') }}</div>
-        @endif
-
-        @if (session('error'))
-            <div class="alert alert-danger">{{ session('error') }}</div>
-        @endif
 
         <div class="d-flex justify-content-between mb-3">
             <form class="d-flex gap-2">
@@ -84,8 +77,9 @@
                                         </form>
 
                                         <form method="POST" action="{{ route('users.destroy', $u) }}" class="d-inline"
-                                            data-confirm="บัญชี {{ $u->name }} ({{ $u->email }}) จะถูกลบถาวร ไม่สามารถกู้คืนได้"
-                                            data-confirm-title="ยืนยันการลบผู้ใช้งาน" data-confirm-variant="danger"
+                                            data-confirm="บัญชี {{ $u->name }} ({{ $u->email }}) จะถูกลบออกจากระบบ"
+                                            data-confirm-title="ยืนยันการลบผู้ใช้งาน" 
+                                            data-confirm-variant="danger"
                                             data-confirm-ok="ลบบัญชี">
                                             @csrf @method('DELETE')
                                             <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>

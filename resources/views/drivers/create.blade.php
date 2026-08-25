@@ -5,10 +5,6 @@
 
         <h3 class="mb-3">เพิ่มข้อมูลคนขับรถ</h3>
 
-        {{-- ✅ 1. แสดงข้อความสำเร็จ --}}
-        @if (session('ok'))
-            <div class="alert alert-success">{{ session('ok') }}</div>
-        @endif
 
         {{-- ✅ 2. แสดงกล่องรวม Error ทุกอัน (ถ้ามี) --}}
         @if ($errors->any())

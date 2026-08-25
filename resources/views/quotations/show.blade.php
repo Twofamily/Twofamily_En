@@ -128,13 +128,15 @@
                 @endif
 
                 @if ($quotation->status == 'draft')
-                    <form method="POST" action="{{ route('quotations.destroy', $item) }}" class="d-inline"
-                        data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                    <form method="POST" action="{{ route('quotations.destroy', $quotation) }}"
+                        class="d-inline confirm-delete" data-confirm="ข้อมูล {{ $quotation->id_quot }} จะถูกลบออกจากระบบ"
                         data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger" data-confirm-ok="ลบข้อมูล">
-                        @csrf @method('DELETE')
+                        @csrf
+                        @method('DELETE')
                         <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
                     </form>
                 @endif
+
 
                 @if ($quotation->status == 'approved')
                     <form action="{{ route('invoices.createFromQuotation', $quotation->id_quot) }}" method="POST"

@@ -70,6 +70,7 @@ class UserController extends Controller
 
     /* ============================================================
      |  1.2.3 แก้ไขผู้ใช้งาน / เปลี่ยนสิทธิ์
+     |  ใช้ error bag "updateUser" เพื่อไม่ให้ error ไปโผล่ที่ฟอร์มรีเซ็ตรหัสผ่าน
      ============================================================ */
     public function edit(User $user)
     {
@@ -81,7 +82,7 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
-        $data = $request->validate([
+        $data = $request->validateWithBag('updateUser', [
             'name'  => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'role'  => ['required', Rule::in(array_keys(User::roleList()))],
@@ -100,7 +101,7 @@ class UserController extends Controller
 
             return back()->withInput()->withErrors([
                 'role' => 'ไม่สามารถลดสิทธิ์ตนเองได้ เนื่องจากเป็นผู้ดูแลระบบคนสุดท้าย',
-            ]);
+            ], 'updateUser');
         }
 
         $user->update($data);
@@ -111,10 +112,11 @@ class UserController extends Controller
 
     /* ============================================================
      |  1.2.4 รีเซ็ตรหัสผ่านให้ผู้ใช้
+     |  ใช้ error bag "updatePassword" แยกจากฟอร์มข้อมูลทั่วไป
      ============================================================ */
     public function resetPassword(Request $request, User $user)
     {
-        $request->validate([
+        $request->validateWithBag('updatePassword', [
             'password' => ['required', 'confirmed', Password::min(8)],
         ], [
             'password.required'  => 'กรุณากรอกรหัสผ่านใหม่',

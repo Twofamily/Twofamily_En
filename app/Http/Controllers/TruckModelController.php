@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TruckBrand;
 use App\Models\TruckModel;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class TruckModelController extends Controller
 {
@@ -43,7 +44,7 @@ class TruckModelController extends Controller
         return redirect()->route('truck_models.index')->with('ok', 'เพิ่มรุ่นรถเรียบร้อย');
     }
 
-        public function edit(TruckModel $truck_model)
+    public function edit(TruckModel $truck_model)
     {
         $model  = $truck_model;
         $brands = TruckBrand::orderBy('name_brand')->get();
@@ -77,11 +78,25 @@ class TruckModelController extends Controller
     {
         $yearMax = (int) now()->year + 1;
 
-        $unique = 'unique:truck_models,name_model' . ($ignoreId ? ",$ignoreId" : '');
+        $request->merge([
+            'name_model' => trim((string) $request->name_model),
+            'is_active'  => $request->boolean('is_active'),
+        ]);
 
         return $request->validate([
             'truck_brand_id' => ['required', 'exists:truck_brands,id'],
-            'name_model'     => ['required', 'string', 'max:100'],
+
+            'name_model' => [
+                'required', 'string', 'max:100',
+                // ซ้ำได้ถ้าคนละยี่ห้อหรือคนละปี และไม่นับแถวที่ถูกลบไปแล้ว
+                Rule::unique('truck_models', 'name_model')
+                    ->where(fn($x) => $x
+                        ->where('truck_brand_id', $request->truck_brand_id)
+                        ->where('model_year', $request->model_year)
+                        ->whereNull('deleted_at'))
+                    ->ignore($ignoreId),
+            ],
+
             'model_year'     => ['required', 'integer', "between:1980,$yearMax"],
             'truck_type'     => ['nullable', 'string', 'max:50'],
             'wheels'         => ['nullable', 'integer', 'min:4', 'max:24'],
@@ -93,10 +108,11 @@ class TruckModelController extends Controller
             'horsepower'     => ['nullable', 'integer', 'min:0', 'max:1000'],
             'fuel_type'      => ['nullable', 'string', 'max:30'],
             'fuel_rate'      => ['required', 'numeric', 'min:0.1', 'max:50'],
-            'is_active'      => ['nullable', 'boolean'],
+            'is_active'      => ['required', 'boolean'],
         ], [
             'truck_brand_id.required' => 'กรุณาเลือกยี่ห้อ',
             'name_model.required'     => 'กรุณากรอกชื่อรุ่น',
+            'name_model.unique'       => 'มีรุ่นนี้ในยี่ห้อและปีนี้อยู่แล้ว',
             'model_year.required'     => 'กรุณาระบุปีรุ่น',
             'fuel_rate.required'      => 'กรุณาระบุอัตราสิ้นเปลือง',
         ]);

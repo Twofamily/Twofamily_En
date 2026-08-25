@@ -72,11 +72,17 @@ class CampController extends Controller
     }
 
     public function destroy(Camp $camp)
-    {
-        $camp->delete();
+{
+    $count = $camp->trucks()->wherePivotNull('released_date')->count();
 
-        return redirect()->route('camps.index')->with('ok', 'ลบแคมป์แล้ว');
+    if ($count > 0) {
+        return back()->with('error', "ลบไม่ได้ มีรถประจำแคมป์นี้อยู่ {$count} คัน");
     }
+
+    $camp->delete();
+
+    return redirect()->route('camps.index')->with('ok', 'ลบแคมป์แล้ว');
+}
 
     // ใช้ร่วมกันทั้ง store และ update
     private function validateCamp(Request $request): array
@@ -139,7 +145,7 @@ class CampController extends Controller
             ->exists();
 
         if ($alreadyHere) {
-            return back()->with('info', 'รถคันนี้ประจำแคมป์นี้อยู่แล้ว');
+            return back()->with('warning', 'รถคันนี้ประจำแคมป์นี้อยู่แล้ว');
         }
 
         $camp->trucks()->attach($data['id_truck'], [

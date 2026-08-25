@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\TruckBrand;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class TruckBrandController extends Controller
 {
@@ -65,10 +66,18 @@ class TruckBrandController extends Controller
 
     private function validateData(Request $request, $ignoreId = null)
     {
+        // ตัดช่องว่างหน้า-หลัง และแปลงเป็นตัวพิมพ์ใหญ่ให้เหมือนกันทั้งระบบ
+        $request->merge([
+            'name_brand' => mb_strtoupper(trim((string) $request->name_brand)),
+        ]);
+
         return $request->validate([
             'name_brand' => [
                 'required', 'string', 'max:100',
-                'unique:truck_brands,name_brand' . ($ignoreId ? ",$ignoreId" : ''),
+                // เช็คซ้ำเฉพาะแถวที่ยังไม่ถูกลบ (soft delete)
+                Rule::unique('truck_brands', 'name_brand')
+                    ->whereNull('deleted_at')
+                    ->ignore($ignoreId),
             ],
         ], [
             'name_brand.required' => 'กรุณากรอกชื่อยี่ห้อ',

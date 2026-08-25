@@ -9,12 +9,6 @@
 @section('content')
     <div class="container py-4">
 
-        @if (session('ok'))
-            <div class="alert alert-success">{{ session('ok') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="alert alert-danger">{{ session('error') }}</div>
-        @endif
 
         <form method="GET" class="row g-3 mb-3">
             <div class="col-md-4">
@@ -46,7 +40,7 @@
                                 class="btn btn-sm btn-outline-secondary">แก้ไข</a>
 
                             <form method="POST" action="{{ route('truck_brands.destroy', $brand) }}" class="d-inline"
-                                data-confirm="ยี่ห้อ {{ $brand->name_brand }} จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                                data-confirm="ยี่ห้อ {{ $brand->name_brand }} จะถูกลบออกจากระบบ"
                                 data-confirm-title="ยืนยันการลบยี่ห้อรถบรรทุก" data-confirm-variant="danger"
                                 data-confirm-ok="ลบข้อมูล">
                                 @csrf @method('DELETE')

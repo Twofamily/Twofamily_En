@@ -29,9 +29,7 @@
     </style>
 
     <div class="container py-3">
-        @if (session('ok'))
-            <div class="alert alert-success shadow-sm">{{ session('ok') }}</div>
-        @endif
+
 
         @if (session('info'))
             <div class="alert alert-info shadow-sm">{{ session('info') }}</div>
@@ -123,9 +121,10 @@
                                         <a href="{{ route('camps.edit', $camp->id_camp) }}"
                                             class="btn btn-sm btn-outline-primary">แก้ไข</a>
 
-                                        <form method="POST" action="{{ route('camps.destroy', $item) }}" class="d-inline"
-                                            data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
-                                            data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
+                                        <form method="POST" action="{{ route('camps.destroy', $camp) }}" class="d-inline"
+                                            data-confirm="ข้อมูล {{ $camp->code_camp }} จะถูกลบออกจากระบบ"
+                                            data-confirm-title="ยืนยันการลบข้อมูล" 
+                                            data-confirm-variant="danger"
                                             data-confirm-ok="ลบข้อมูล">
                                             @csrf @method('DELETE')
                                             <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>

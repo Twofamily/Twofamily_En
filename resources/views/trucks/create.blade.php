@@ -19,7 +19,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('trucks.store') }}" autocomplete="off">
+        <form method="POST" action="{{ route('trucks.store') }}" enctype="multipart/form-data" autocomplete="off">
             @csrf
 
             @include('trucks._form', [
@@ -29,9 +29,11 @@
                 'provinces' => config('provinces'),
             ])
 
-            <button class="btn btn-dark">บันทึก</button>
-            <a href="{{ route('trucks.index') }}" class="btn btn-outline-secondary">ย้อนกลับ</a>
-
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">บันทึก</button>
+                <a href="{{ route('trucks.index') }}" class="btn btn-outline-secondary">ย้อนกลับ</a>
+            </div>
         </form>
+
     </div>
 @endsection

@@ -2,7 +2,7 @@
 
 @section('namepage')
     <div class="container">
-        <h3 class="mb-0">หน้าหลัก</h3>
+        <h3 class="mb-0">แดชบอร์ด</h3>
     </div>
 @endsection
 

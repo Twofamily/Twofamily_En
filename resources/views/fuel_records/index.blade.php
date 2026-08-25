@@ -9,11 +9,6 @@
 @section('content')
     <div class="container py-3">
 
-        @if (session('ok'))
-            <div class="alert alert-success">
-                {{ session('ok') }}
-            </div>
-        @endif
 
         <div class="d-flex justify-content-end mb-3">
             <a

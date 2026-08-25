@@ -8,11 +8,6 @@
 <div class="card shadow-sm border-0">
     <div class="card-body">
 
-        @if (session('success'))
-            <div class="alert alert-success">
-                {{ session('success') }}
-            </div>
-        @endif
 
         <form method="POST" action="{{ route('settings.invoice.update') }}">
             @csrf
