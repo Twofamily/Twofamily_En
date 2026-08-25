@@ -304,12 +304,12 @@
 
                     @auth
                         <div class="dropdown pb-3">
-                            <a href="#" class="text-white text-decoration-none dropdown-toggle"
+                            <a href="#" class="nav-link text-white text-decoration-none dropdown-toggle"
                                 data-bs-toggle="dropdown">
                                 {{ Auth::user()->name ?? Auth::user()->email }}
                             </a>
 
-                            <ul class="dropdown-menu dropdown-menu-dark shadow user-menu">
+                            <ul class="dropdown-menu dropdown-menu-dark shadow user-menu w-100">
                                 @if (auth()->user()->isAdmin())
                                     <li>
                                         <a class="dropdown-item" href="{{ route('settings.index') }}">
@@ -324,7 +324,7 @@
                                 <li>
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
-                                        <button type="submit" class="dropdown-item">
+                                        <button type="submit" class="dropdown-item text-danger">
                                             ออกจากระบบ
                                         </button>
                                     </form>
@@ -353,4 +353,5 @@
     <script src="{{ asset('js/confirm.js') }}"></script>
 
 </body>
+
 </html>
