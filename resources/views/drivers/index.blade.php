@@ -9,9 +9,7 @@
 @section('content')
     <div class="container py-3">
 
-        @if (session('ok'))
-            <div class="alert alert-success shadow-sm">{{ session('ok') }}</div>
-        @endif
+
 
         <div class="d-flex justify-content-between align-items-center mb-3">
             <form class="d-flex gap-2" method="GET" action="{{ route('drivers.index') }}">
@@ -59,8 +57,11 @@
                                         แก้ไข
                                     </a>
 
-                                    <form method="POST" action="{{ route('drivers.destroy', $d) }}"
-                                        onsubmit="event.stopPropagation(); return confirm('ยืนยันลบข้อมูล?')">
+                                    <form method="POST" action="{{ route('drivers.destroy', $d) }}"class="d-inline"
+                                        data-confirm="ข้อมูล {{ $d->lname_driver }} จะถูกลบออกจากระบบ"
+                                        data-confirm-title="ยืนยันการลบข้อมูล" 
+                                        data-confirm-variant="danger"
+                                        data-confirm-ok="ลบข้อมูล">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-sm btn-outline-danger">
                                             ลบ

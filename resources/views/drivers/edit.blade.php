@@ -9,9 +9,6 @@
 @section('content')
     <div class="container py-4">
 
-        @if (session('ok'))
-            <div class="alert alert-success">{{ session('ok') }}</div>
-        @endif
 
         @if ($errors->any())
             <div class="alert alert-danger shadow-sm">

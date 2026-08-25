@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Two Family Co., Ltd.</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
@@ -122,10 +122,6 @@
             border-radius: 10px;
         }
 
-        .user-menu .dropdown-divider {
-            border-color: rgba(255, 255, 255, .2);
-        }
-
         .content-area {
             background-color: #fff;
             border-radius: 20px;
@@ -139,7 +135,7 @@
     <div class="container-fluid p-0">
         <div class="row m-0 flex-nowrap">
 
-            <div class="col-auto col-md-3 col-xl-2 px-0 position-fixed vh-100 sidebar overflow-auto">
+            <div class="col-auto col-md-3 col-xl-2 px-0 position-fixed vh-100 sidebar">
                 <div class="d-flex flex-column px-3 pt-3 min-vh-100">
 
                     <a href="{{ route('dashboard') }}" class="brand">
@@ -173,7 +169,7 @@
                         <li class="nav-item">
                             <a href="{{ route('dashboard') }}"
                                 class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                                <span>แดชบอร์ด</span>
+                                <span><i class="bi bi-speedometer2 me-2"></i>แดชบอร์ด</span>
                             </a>
                         </li>
 
@@ -181,7 +177,7 @@
                         <li class="nav-item">
                             <a href="{{ route('camps.index') }}"
                                 class="nav-link {{ request()->routeIs('camps.*') ? 'active' : '' }}">
-                                <span>แคมป์งาน</span>
+                                <span><i class="bi bi-geo-alt me-2"></i>แคมป์งาน</span>
                             </a>
                         </li>
 
@@ -190,18 +186,18 @@
                             <a class="nav-link {{ $isProductPage ? 'active' : '' }}" data-bs-toggle="collapse"
                                 href="#productMenu" role="button"
                                 aria-expanded="{{ $isProductPage ? 'true' : 'false' }}" aria-controls="productMenu">
-                                <span>สินค้า</span>
+                                <span><i class="bi bi-box-seam me-2"></i>สินค้า</span>
                                 <i class="bi bi-caret-down-fill arrow"></i>
                             </a>
 
                             <div class="collapse submenu {{ $isProductPage ? 'show' : '' }}" id="productMenu">
                                 <a href="{{ route('product_types.index') }}"
                                     class="sub-link {{ request()->routeIs('product_types.*') ? 'active' : '' }}">
-                                    ประเภทสินค้า
+                                    <i class="bi bi-tags me-2"></i>ประเภทสินค้า
                                 </a>
                                 <a href="{{ route('products.index') }}"
                                     class="sub-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
-                                    สินค้าทั้งหมด
+                                    <i class="bi bi-boxes me-2"></i>สินค้าทั้งหมด
                                 </a>
                             </div>
                         </li>
@@ -210,7 +206,7 @@
                         <li class="nav-item">
                             <a href="{{ route('fuel_records.index') }}"
                                 class="nav-link {{ request()->routeIs('fuel_records.*') ? 'active' : '' }}">
-                                <span>ต้นทุนค่าน้ำมัน</span>
+                                <span><i class="bi bi-fuel-pump me-2"></i>ต้นทุนค่าน้ำมัน</span>
                             </a>
                         </li>
 
@@ -219,22 +215,22 @@
                             <a class="nav-link {{ $isTruckPage ? 'active' : '' }}" data-bs-toggle="collapse"
                                 href="#truckMenu" role="button" aria-expanded="{{ $isTruckPage ? 'true' : 'false' }}"
                                 aria-controls="truckMenu">
-                                <span>จัดการรถบรรทุก</span>
+                                <span><i class="bi bi-truck me-2"></i>จัดการรถบรรทุก</span>
                                 <i class="bi bi-caret-down-fill arrow"></i>
                             </a>
 
                             <div class="collapse submenu {{ $isTruckPage ? 'show' : '' }}" id="truckMenu">
                                 <a href="{{ route('truck_brands.index') }}"
                                     class="sub-link {{ request()->routeIs('truck_brands.*') ? 'active' : '' }}">
-                                    ยี่ห้อรถบรรทุก
+                                    <i class="bi bi-award me-2"></i>ยี่ห้อรถบรรทุก
                                 </a>
                                 <a href="{{ route('truck_models.index') }}"
                                     class="sub-link {{ request()->routeIs('truck_models.*') ? 'active' : '' }}">
-                                    รุ่นรถบรรทุก
+                                    <i class="bi bi-card-list me-2"></i>รุ่นรถบรรทุก
                                 </a>
                                 <a href="{{ route('trucks.index') }}"
                                     class="sub-link {{ request()->routeIs('trucks.*') ? 'active' : '' }}">
-                                    รถบรรทุกในบริษัท
+                                    <i class="bi bi-truck-front me-2"></i>รถบรรทุกในบริษัท
                                 </a>
                             </div>
                         </li>
@@ -244,58 +240,51 @@
                             <a class="nav-link {{ $isDocPage ? 'active' : '' }}" data-bs-toggle="collapse"
                                 href="#docMenu" role="button" aria-expanded="{{ $isDocPage ? 'true' : 'false' }}"
                                 aria-controls="docMenu">
-                                <span>เอกสาร</span>
+                                <span><i class="bi bi-file-earmark-text me-2"></i>เอกสาร</span>
                                 <i class="bi bi-caret-down-fill arrow"></i>
                             </a>
 
                             <div class="collapse submenu {{ $isDocPage ? 'show' : '' }}" id="docMenu">
                                 <a href="{{ route('quotations.index') }}"
                                     class="sub-link {{ request()->routeIs('quotations.*') ? 'active' : '' }}">
-                                    ใบเสนอราคา
+                                    <i class="bi bi-file-earmark-ruled me-2"></i>ใบเสนอราคา
                                 </a>
                                 <a href="{{ route('invoices.index') }}"
                                     class="sub-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
-                                    ใบแจ้งหนี้
+                                    <i class="bi bi-receipt-cutoff me-2"></i>ใบแจ้งหนี้
                                 </a>
                                 <a href="{{ route('receipts.index') }}"
                                     class="sub-link {{ request()->routeIs('receipts.*') ? 'active' : '' }}">
-                                    ใบเสร็จ
+                                    <i class="bi bi-receipt me-2"></i>ใบเสร็จ
                                 </a>
                             </div>
                         </li>
 
-                        {{-- จัดการผู้ใช้งาน --}}
+                        {{-- จัดการข้อมูลบุคคล --}}
                         <li class="nav-item">
                             <a class="nav-link {{ $isUserPage ? 'active' : '' }}" data-bs-toggle="collapse"
                                 href="#userMenu" role="button" aria-expanded="{{ $isUserPage ? 'true' : 'false' }}"
                                 aria-controls="userMenu">
-                                <span>จัดการผู้ใช้งาน</span>
+                                <span><i class="bi bi-people me-2"></i>จัดการข้อมูลบุคคล</span>
                                 <i class="bi bi-caret-down-fill arrow"></i>
                             </a>
 
                             <div class="collapse submenu {{ $isUserPage ? 'show' : '' }}" id="userMenu">
-
-                                {{-- ยังไม่มี route roles.index — ปลดคอมเมนต์เมื่อสร้าง RoleController แล้ว --}}
-                                {{-- <a href="{{ route('roles.index') }}"
-                                    class="sub-link {{ request()->routeIs('roles.*') ? 'active' : '' }}">
-                                    บทบาท
-                                </a> --}}
-
                                 @if (auth()->check() && auth()->user()->isAdmin())
                                     <a href="{{ route('users.index') }}"
                                         class="sub-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
-                                        พนักงานบริษัท
+                                        <i class="bi bi-person-badge me-2"></i>ผู้ใช้งานระบบ
                                     </a>
                                 @endif
 
                                 <a href="{{ route('drivers.index') }}"
                                     class="sub-link {{ request()->routeIs('drivers.*') ? 'active' : '' }}">
-                                    พนักงานขับรถ
+                                    <i class="bi bi-person-vcard me-2"></i>พนักงานขับรถ
                                 </a>
 
                                 <a href="{{ route('customers.index') }}"
                                     class="sub-link {{ request()->routeIs('customers.*') ? 'active' : '' }}">
-                                    ลูกค้าประจำ
+                                    <i class="bi bi-person-heart me-2"></i>ลูกค้า
                                 </a>
                             </div>
                         </li>
@@ -304,28 +293,25 @@
 
                     @auth
                         <div class="dropdown pb-3">
-                            <a href="#" class="text-white text-decoration-none dropdown-toggle"
-                                data-bs-toggle="dropdown">
-                                {{ Auth::user()->name ?? Auth::user()->email }}
+                            <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
+                                <span><i
+                                        class="bi bi-person-circle me-2"></i>{{ Auth::user()->name ?? Auth::user()->email }}</span>
                             </a>
 
-                            <ul class="dropdown-menu dropdown-menu-dark shadow user-menu">
+                            <ul class="dropdown-menu dropdown-menu-dark shadow user-menu w-100">
                                 @if (auth()->user()->isAdmin())
                                     <li>
                                         <a class="dropdown-item" href="{{ route('settings.index') }}">
-                                            ตั้งค่า
+                                            <i class="bi bi-gear me-2"></i>ตั้งค่า
                                         </a>
-                                    </li>
-                                    <li>
-                                        <hr class="dropdown-divider">
                                     </li>
                                 @endif
 
                                 <li>
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
-                                        <button type="submit" class="dropdown-item">
-                                            ออกจากระบบ
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="bi bi-box-arrow-right me-2"></i>ออกจากระบบ
                                         </button>
                                     </form>
                                 </li>
@@ -339,6 +325,51 @@
                 <div class="content-area">
                     @yield('namepage')
                     <hr>
+
+                    {{-- ===== แจ้งเตือนผลการทำรายการ ===== --}}
+                    @if (session('ok') || session('success'))
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            {{ session('ok') ?? session('success') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="ปิด"></button>
+                        </div>
+                    @endif
+
+                    @if (session('error'))
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            {{ session('error') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="ปิด"></button>
+                        </div>
+                    @endif
+
+                    @if (session('warning'))
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            {{ session('warning') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="ปิด"></button>
+                        </div>
+                    @endif
+
+                    {{-- แจ้งเตือนข้อผิดพลาดจากการกรอกฟอร์ม --}}
+                    @if ($errors->any() && !$errors->hasBag('updateUser') && !$errors->hasBag('updatePassword'))
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-circle-fill me-2"></i>
+                            <strong>กรุณาตรวจสอบข้อมูลอีกครั้ง</strong>
+                            <ul class="mb-0 mt-2">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="ปิด"></button>
+                        </div>
+                    @endif
+                    {{-- ===== จบส่วนแจ้งเตือน ===== --}}
+
                     @yield('content')
                 </div>
             </div>
@@ -353,4 +384,5 @@
     <script src="{{ asset('js/confirm.js') }}"></script>
 
 </body>
+
 </html>

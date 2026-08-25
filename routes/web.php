@@ -17,7 +17,8 @@ use App\Http\Controllers\{
     SettingController,
     ReceiptController,
     CampController,
-    UserController
+    UserController,
+    CompanySettingController
 };
 
 /*
@@ -25,6 +26,7 @@ use App\Http\Controllers\{
 | หน้าแรก
 |--------------------------------------------------------------------------
 */
+
 Route::get('/', function () {
     return auth()->check()
         ? redirect()->route('dashboard')
@@ -91,7 +93,6 @@ Route::middleware([
         ->middleware('role:admin,staff')
         ->name('maintenances.finish');
 
-
     /* ==================== มอบหมายรถเข้าแคมป์ ==================== */
 
     Route::post('camps/{camp}/trucks', [CampController::class, 'assignTruck'])
@@ -105,8 +106,8 @@ Route::middleware([
 
     /* ==================== Operations ==================== */
 
-    Route::resource('transport-jobs', TransportJobController::class)
-        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+    // Route::resource('transport-jobs', TransportJobController::class)
+    //     ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
     Route::resource('fuel_records', FuelRecordController::class)
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');

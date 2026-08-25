@@ -25,9 +25,7 @@
     </style>
 
     <div class="container py-3">
-        @if (session('ok'))
-            <div class="alert alert-success shadow-sm">{{ session('ok') }}</div>
-        @endif
+
 
         @if (session('info'))
             <div class="alert alert-info shadow-sm">{{ session('info') }}</div>
@@ -95,7 +93,7 @@
                                         </a>
 
                                         <form method="POST" action="{{ route('trucks.destroy', $t->id_truck) }}"
-                                            data-confirm="ทะเบียน {{ $t->id_truck }} จะถูกลบออกจากระบบถาวร และไม่สามารถกู้คืนได้"
+                                            data-confirm="รถบรรทุกทะเบียน {{ $t->id_truck }} จะถูกลบออกจากระบบ"
                                             data-confirm-title="ยืนยันการลบรถบรรทุก"
                                             data-confirm-variant="danger"
                                             data-confirm-ok="ลบข้อมูล">

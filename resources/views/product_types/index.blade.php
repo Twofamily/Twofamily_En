@@ -8,10 +8,7 @@
 
 @section('content')
     <div class="container py-3">
-        {{-- แสดงข้อความแจ้งเตือนเมื่อบันทึก/ลบสำเร็จ --}}
-        @if (session('ok'))
-            <div class="alert alert-success">{{ session('ok') }}</div>
-        @endif
+
 
         <div class="d-flex justify-content-end mb-3">
             <a href="{{ route('product_types.create') }}" class="btn btn-dark">
@@ -37,8 +34,8 @@
                                 <a href="{{ route('product_types.edit', $t) }}"
                                     class="btn btn-sm btn-outline-primary">แก้ไข</a>
 
-                                <form method="POST" action="{{ route('product_types.destroy', $item) }}" class="d-inline"
-                                    data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                                <form method="POST" action="{{ route('product_types.destroy', $t) }}" class="d-inline"
+                                    data-confirm="ข้อมูล {{ $t->name_product_type }} จะถูกลบออกจากระบบ"
                                     data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
                                     data-confirm-ok="ลบข้อมูล">
                                     @csrf @method('DELETE')

@@ -9,20 +9,20 @@
 @section('content')
     <div class="container py-3">
 
-        <div class="table-responsive shadow-sm">
-            <table class="table table-bordered">
-                <thead>
+        <div class="table-responsive shadow-sm rounded-3">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
                     <tr>
-                        <th>เลขที่</th>
+                        <th>เลขที่ใบเสร็จ</th>
                         <th>ลูกค้า</th>
-                        <th>อ้างอิง</th>
+                        <th>อ้างอิงใบแจ้งหนี้</th>
                         <th class="text-end">ยอดสุทธิ</th>
                         <th class="text-center">จัดการ</th>
                     </tr>
                 </thead>
 
                 <tbody>
-                    @foreach ($receipts as $r)
+                    @forelse ($receipts as $r)
                         @php
                             $inv = $r->invoice;
                             $subTotal = $inv->quotation->subtotal ?? 0;
@@ -35,36 +35,58 @@
                         @endphp
 
                         <tr>
-                            <td>RC{{ str_pad($r->id_receipt, 5, '0', STR_PAD_LEFT) }}</td>
+                            <td>
+                                <strong>
+                                    RC{{ str_pad($r->id_receipt, 5, '0', STR_PAD_LEFT) }}
+                                </strong>
+                            </td>
 
-                            <td>{{ $inv->customer->name_customer }}</td>
+                            <td>
+                                {{ $inv->customer->name_customer ?? '-' }}
+                            </td>
 
-                            <td>INV{{ str_pad($inv->id_invoice, 5, '0', STR_PAD_LEFT) }}</td>
+                            <td>
+                                INV{{ str_pad($inv->id_invoice ?? 0, 5, '0', STR_PAD_LEFT) }}
+                            </td>
 
                             <td class="text-end">
                                 {{ number_format($grandTotal, 2) }}
                             </td>
 
                             <td class="text-center">
-                                <a href="{{ route('receipts.show', $r->id_receipt) }}" class="btn btn-sm btn-primary">
-                                    ดู
-                                </a>
+                                <div class="btn-group">
+                                    <!-- ดู -->
+                                    <a href="{{ route('receipts.show', $r->id_receipt) }}" class="btn btn-sm btn-outline-primary">
+                                        ดู
+                                    </a>
 
-                                <form method="POST" action="{{ route('receipts.destroy', $item) }}" class="d-inline"
-                                    data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
-                                    data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
-                                    data-confirm-ok="ลบข้อมูล">
-                                    @csrf @method('DELETE')
-                                    <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
-                                </form>
+                                    <!-- ลบ -->
+                                    <form method="POST" action="{{ route('receipts.destroy', $r) }}" class="d-inline"
+                                        data-confirm="ข้อมูล RC{{ str_pad($r->id_receipt, 5, '0', STR_PAD_LEFT) }} จะถูกลบออกจากระบบ"
+                                        data-confirm-title="ยืนยันการลบข้อมูล" 
+                                        data-confirm-variant="danger"
+                                        data-confirm-ok="ลบข้อมูล">
+                                        @csrf 
+                                        @method('DELETE')
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                — ยังไม่มีรายการใบเสร็จ —
+                            </td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
 
-        {{ $receipts->links() }}
+        <div class="mt-3">
+            {{ $receipts->links() }}
+        </div>
 
     </div>
 @endsection

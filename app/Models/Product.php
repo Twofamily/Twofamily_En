@@ -17,6 +17,7 @@ class Product extends Model
         'detail_product',
         'unit_price',
         'product_type_id',
+        'image',
     ];
 
     public function type()
