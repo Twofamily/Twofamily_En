@@ -42,27 +42,42 @@
                 <tbody>
                     @forelse ($records as $r)
                         <tr>
-                            <td>{{ $r->date_record }}</td>
+                            <td>
+                                {{ $r->date_record }}
+                            </td>
 
                             <td>
-                                {{ $r->truck->brand_truck }}
+                                {{ $r->truck?->brand_truck ?? 'ไม่พบข้อมูลรถ' }}
                                 ({{ $r->trucks_id_truck }})
                             </td>
 
-                            <td>{{ $r->start_point }}</td>
+                            <td>
+                                {{ $r->start_point }}
+                            </td>
 
-                            <td>{{ $r->destination }}</td>
+                            <td>
+                                {{ $r->destination }}
+                            </td>
 
-                            <td>{{ $r->distance }}</td>
+                            <td>
+                                {{ number_format((float) $r->distance, 2) }}
+                            </td>
 
-                            <td>{{ $r->cost_fuel }}</td>
+                            <td>
+                                {{ number_format((float) $r->cost_fuel, 2) }}
+                            </td>
 
-                            <td>{{ $r->cost_fuel_total }}</td>
+                            <td>
+                                {{ number_format((float) $r->cost_fuel_total, 2) }}
+                            </td>
 
                             <td>
                                 <div class="d-flex gap-2 flex-nowrap">
                                     <a
-                                        href="{{ route('fuel_records.edit', $r->id_fuel_record) }}"
+                                        href="{{ route(
+                                            'fuel_records.edit',
+                                            $r->id_fuel_record
+                                        ) }}"
                                         class="btn btn-outline-primary btn-sm"
                                     >
                                         แก้ไข
@@ -70,9 +85,18 @@
 
                                     <form
                                         method="POST"
-                                        action="{{ route('fuel_records.destroy', $r->id_fuel_record) }}"
+                                        action="{{ route(
+                                            'fuel_records.destroy',
+                                            $r->id_fuel_record
+                                        ) }}"
                                         class="m-0"
-                                        onsubmit="return confirm('ยืนยันลบข้อมูล?')"
+                                        data-confirm="ข้อมูลบันทึกน้ำมันนี้จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                                        data-confirm-title="ยืนยันการลบข้อมูล"
+                                        data-confirm-variant="danger"
+                                        data-confirm-ok="ลบข้อมูล"
+                                        onsubmit="return window.confirmDeleteHandled
+                                            ? true
+                                            : confirm('ยืนยันลบข้อมูล?')"
                                     >
                                         @csrf
                                         @method('DELETE')
@@ -91,7 +115,7 @@
                         <tr>
                             <td
                                 colspan="8"
-                                class="text-center text-muted"
+                                class="text-center text-muted py-4"
                             >
                                 — ไม่พบข้อมูล —
                             </td>
@@ -100,7 +124,9 @@
                 </tbody>
             </table>
 
-            {{ $records->links() }}
+            <div class="p-3">
+                {{ $records->links() }}
+            </div>
         </div>
     </div>
 @endsection

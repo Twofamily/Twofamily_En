@@ -18,7 +18,8 @@
 
         <form method="GET" class="row g-3 mb-3">
             <div class="col-md-4">
-                <input type="text" name="q" value="{{ $q }}" class="form-control" placeholder="ค้นหายี่ห้อ">
+                <input type="text" name="q" value="{{ $q }}" class="form-control"
+                    placeholder="ค้นหายี่ห้อ">
             </div>
             <div class="col-md-8">
                 <button class="btn btn-dark">ค้นหา</button>
@@ -42,17 +43,21 @@
                         <td class="text-center">{{ $brand->models_count }}</td>
                         <td class="text-end">
                             <a href="{{ route('truck_brands.edit', $brand) }}"
-                               class="btn btn-sm btn-outline-secondary">แก้ไข</a>
+                                class="btn btn-sm btn-outline-secondary">แก้ไข</a>
 
-                            <form method="POST" action="{{ route('truck_brands.destroy', $brand) }}"
-                                  class="d-inline" onsubmit="return confirm('ยืนยันลบยี่ห้อนี้?')">
+                            <form method="POST" action="{{ route('truck_brands.destroy', $brand) }}" class="d-inline"
+                                data-confirm="ยี่ห้อ {{ $brand->name_brand }} จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                                data-confirm-title="ยืนยันการลบยี่ห้อรถบรรทุก" data-confirm-variant="danger"
+                                data-confirm-ok="ลบข้อมูล">
                                 @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">ลบ</button>
+                                <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
                             </form>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="3" class="text-center text-muted">ยังไม่มีข้อมูล</td></tr>
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">ยังไม่มีข้อมูล</td>
+                    </tr>
                 @endforelse
             </tbody>
         </table>

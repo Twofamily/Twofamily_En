@@ -44,7 +44,6 @@
                     <th class="text-center">ล้อ</th>
                     <th class="text-end">คิว</th>
                     <th class="text-end">กม./ลิตร</th>
-                    {{-- <th class="text-center">รถที่ใช้</th> --}}
                     <th class="text-end">จัดการ</th>
                 </tr>
             </thead>
@@ -57,20 +56,23 @@
                         <td class="text-center">{{ $m->wheels ?? '-' }}</td>
                         <td class="text-end">{{ $m->cubic_capacity ?? '-' }}</td>
                         <td class="text-end">{{ $m->fuel_rate ?? '-' }}</td>
-                        {{-- <td class="text-center">{{ $m->trucks_count }}</td> --}}
                         <td class="text-end">
                             <a href="{{ route('truck_models.edit', $m) }}"
-                               class="btn btn-sm btn-outline-secondary">แก้ไข</a>
+                                class="btn btn-sm btn-outline-secondary">แก้ไข</a>
 
-                            <form method="POST" action="{{ route('truck_models.destroy', $m) }}"
-                                  class="d-inline" onsubmit="return confirm('ยืนยันลบรุ่นนี้?')">
+                            <form method="POST" action="{{ route('truck_models.destroy', $m) }}" class="d-inline"
+                                data-confirm="รุ่น {{ $m->name_model }} จะถูกลบถาวร ไม่สามารถกู้คืนได้"
+                                data-confirm-title="ยืนยันการลบรุ่นรถบรรทุก" data-confirm-variant="danger"
+                                data-confirm-ok="ลบข้อมูล">
                                 @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">ลบ</button>
+                                <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
                             </form>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="text-center text-muted">ยังไม่มีข้อมูล</td></tr>
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">ยังไม่มีข้อมูล</td>
+                    </tr>
                 @endforelse
             </tbody>
         </table>

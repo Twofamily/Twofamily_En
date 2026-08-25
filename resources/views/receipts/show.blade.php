@@ -129,13 +129,11 @@
                     ดาวน์โหลด PDF
                 </a>
 
-                <form action="{{ route('receipts.destroy', $receipt->id_receipt) }}" method="POST" style="display:inline;"
-                    onsubmit="return confirm('ยืนยันลบใบเสร็จ?')">
-                    @csrf
-                    @method('DELETE')
-                    <button class="btn btn-outline-danger">
-                        ลบ
-                    </button>
+                <form method="POST" action="{{ route('receipts.destroy', $item) }}" class="d-inline"
+                    data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้" data-confirm-title="ยืนยันการลบข้อมูล"
+                    data-confirm-variant="danger" data-confirm-ok="ลบข้อมูล">
+                    @csrf @method('DELETE')
+                    <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
                 </form>
 
             </div>

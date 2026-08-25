@@ -9,10 +9,16 @@ class ProductTypesSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('product_types')->insert([
-            ['name_product_type' => 'หิน', 'createAt' => now()],
-            ['name_product_type' => 'ดิน', 'createAt' => now()],
-            ['name_product_type' => 'ทราย', 'createAt' => now()],
-        ]);
+        $types = ['หิน', 'ดิน', 'ทราย'];
+
+        foreach ($types as $type) {
+            DB::table('product_types')->updateOrInsert(
+                ['name_product_type' => $type],
+                [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
     }
 }
