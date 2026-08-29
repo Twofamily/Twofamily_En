@@ -9,22 +9,21 @@ return new class extends Migration
     {
         // ดึงค่าสเปคจากรถที่มีอยู่ ขึ้นไปเก็บที่ระดับรุ่น
         // ใช้ MAX() เผื่อรถรุ่นเดียวกันกรอกมาไม่เท่ากัน จะได้ค่าที่มากที่สุด
-        DB::statement("
-            UPDATE truck_models tm
-            INNER JOIN (
-                SELECT truck_model_id,
-                       MAX(weight_truck)       AS w,
-                       MAX(fuelfactory_truck)  AS ff,
-                       MAX(fuel_rate)          AS fr
-                FROM trucks
-                WHERE truck_model_id IS NOT NULL
-                  AND deleted_at IS NULL
-                GROUP BY truck_model_id
-            ) t ON t.truck_model_id = tm.id
-            SET tm.load_capacity = COALESCE(tm.load_capacity, t.w),
-                tm.engine_cc     = COALESCE(tm.engine_cc, t.ff),
-                tm.fuel_rate     = COALESCE(tm.fuel_rate, t.fr)
-        ");
+        $specifications = DB::table('trucks')
+            ->selectRaw('truck_model_id, MAX(weight_truck) as load_capacity, MAX(fuelfactory_truck) as engine_cc, MAX(fuel_rate) as fuel_rate')
+            ->whereNotNull('truck_model_id')
+            ->whereNull('deleted_at')
+            ->groupBy('truck_model_id')
+            ->get();
+
+        foreach ($specifications as $specification) {
+            foreach (['load_capacity', 'engine_cc', 'fuel_rate'] as $column) {
+                DB::table('truck_models')
+                    ->where('id', $specification->truck_model_id)
+                    ->whereNull($column)
+                    ->update([$column => $specification->{$column}]);
+            }
+        }
     }
 
     public function down(): void

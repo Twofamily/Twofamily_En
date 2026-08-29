@@ -71,6 +71,9 @@
 
             <td class="text-right">
                 เลขที่: INV{{ str_pad($invoice->id_invoice, 5, '0', STR_PAD_LEFT) }}<br>
+                @if ($invoice->deliveryNote)
+                    อ้างอิงใบส่งของ: DN{{ str_pad($invoice->deliveryNote->id_delivery_note, 5, '0', STR_PAD_LEFT) }}<br>
+                @endif
                 วันที่: {{ \Carbon\Carbon::parse($invoice->created_at)->format('d/m/Y') }}<br>
                 ครบกำหนด:
                 {{ \Carbon\Carbon::parse($invoice->created_at)->addDays((int) ($settings['credit_term'] ?? 7))->format('d/m/Y') }}
@@ -84,7 +87,7 @@
         <tr>
             <td width="60%">
                 <b>ลูกค้า:</b> {{ $invoice->customer->name_customer }}<br>
-                <b>ที่อยู่:</b> {{ $invoice->customer->address_detail }}<br>
+                <b>ที่อยู่:</b> {{ customer_address($invoice->customer) }}<br>
                 <b>โทร:</b> {{ $invoice->customer->phone_customer }}<br>
             </td>
 

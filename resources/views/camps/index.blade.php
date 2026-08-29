@@ -110,21 +110,7 @@
 
     <div class="container py-3">
         {{-- ข้อความแจ้งผลการทำงาน --}}
-        @if (session('ok'))
-            <div
-                class="alert alert-success alert-dismissible fade show shadow-sm"
-                role="alert"
-            >
-                {{ session('ok') }}
-
-                <button
-                    type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"
-                    aria-label="ปิด"
-                ></button>
-            </div>
-        @endif
+        
 
         @if (session('info'))
             <div

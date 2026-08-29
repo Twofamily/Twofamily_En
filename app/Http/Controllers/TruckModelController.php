@@ -16,8 +16,8 @@ class TruckModelController extends Controller
 
         $models = TruckModel::with('brand')
             ->withCount('trucks')
-            ->when($q, fn($x) => $x->where('name_model', 'like', "%$q%"))
-            ->when($brandId, fn($x) => $x->where('truck_brand_id', $brandId))
+            ->when($q, fn($query) => $query->where('name_model', 'like', "%{$q}%"))
+            ->when($brandId, fn($query) => $query->where('truck_brand_id', $brandId))
             ->orderBy('truck_brand_id')
             ->orderBy('name_model')
             ->paginate(10);
@@ -41,7 +41,9 @@ class TruckModelController extends Controller
 
         TruckModel::create($data);
 
-        return redirect()->route('truck_models.index')->with('ok', 'เพิ่มรุ่นรถเรียบร้อย');
+        return redirect()
+            ->route('truck_models.index')
+            ->with('ok', 'เพิ่มรุ่นรถเรียบร้อย');
     }
 
     public function edit(TruckModel $truck_model)
@@ -54,29 +56,31 @@ class TruckModelController extends Controller
 
     public function update(Request $request, TruckModel $truck_model)
     {
-        $data = $this->validateData($request, $truck_model->id);
+        $data = $this->validateData($request, $truck_model->getKey());
 
         $truck_model->update($data);
 
-        return redirect()->route('truck_models.index')->with('ok', 'แก้ไขรุ่นรถเรียบร้อย');
+        return redirect()
+            ->route('truck_models.index')
+            ->with('ok', 'แก้ไขรุ่นรถเรียบร้อย');
     }
 
     public function destroy(TruckModel $truck_model)
     {
-        $count = $truck_model->trucks()->count();
-
-        if ($count > 0) {
-            return back()->with('error', "ลบไม่ได้ มีรถ {$count} คันใช้รุ่นนี้อยู่");
+        if ($truck_model->trucks()->exists()) {
+            $count = $truck_model->trucks()->count();
+            return back()->with('error', "ไม่สามารถลบได้ เนื่องจากมีรถ {$count} คันใช้งานรุ่นนี้อยู่");
         }
 
         $truck_model->delete();
 
-        return back()->with('ok', 'ลบรุ่นรถแล้ว');
+        return back()->with('ok', 'ลบรุ่นรถเรียบร้อยแล้ว');
     }
 
-    private function validateData(Request $request, $ignoreId = null)
+    private function validateData(Request $request, mixed $ignoreId = null): array
     {
         $yearMax = (int) now()->year + 1;
+        $brandKey = (new TruckBrand())->getKeyName();
 
         $request->merge([
             'name_model' => trim((string) $request->name_model),
@@ -84,20 +88,21 @@ class TruckModelController extends Controller
         ]);
 
         return $request->validate([
-            'truck_brand_id' => ['required', 'exists:truck_brands,id'],
+            'truck_brand_id' => ['required', Rule::exists('truck_brands', $brandKey)],
 
             'name_model' => [
-                'required', 'string', 'max:100',
-                // ซ้ำได้ถ้าคนละยี่ห้อหรือคนละปี และไม่นับแถวที่ถูกลบไปแล้ว
+                'required',
+                'string',
+                'max:100',
                 Rule::unique('truck_models', 'name_model')
-                    ->where(fn($x) => $x
+                    ->where(fn($query) => $query
                         ->where('truck_brand_id', $request->truck_brand_id)
                         ->where('model_year', $request->model_year)
                         ->whereNull('deleted_at'))
                     ->ignore($ignoreId),
             ],
 
-            'model_year'     => ['required', 'integer', "between:1980,$yearMax"],
+            'model_year'     => ['required', 'integer', "between:1980,{$yearMax}"],
             'truck_type'     => ['nullable', 'string', 'max:50'],
             'wheels'         => ['nullable', 'integer', 'min:4', 'max:24'],
             'cubic_capacity' => ['nullable', 'numeric', 'min:0', 'max:100'],

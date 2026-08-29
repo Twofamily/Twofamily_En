@@ -117,20 +117,22 @@
 
     <div class="col-md-3">
         <label class="form-label">ความจุกระบะ (คิว)</label>
-        <input type="number" name="cubic_capacity" id="spec_cubic" min="0" max="100" step="0.1"
+        <input type="number" name="cubic_capacity" id="spec_cubic"
             value="{{ old('cubic_capacity', $truck->cubic_capacity ?? '') }}"
-            class="form-control @error('cubic_capacity') is-invalid @enderror" placeholder="เช่น 10">
+            class="form-control bg-light @error('cubic_capacity') is-invalid @enderror" placeholder="รอเลือกรุ่นรถ..."
+            readonly tabindex="-1">
         @error('cubic_capacity')
             <div class="invalid-feedback">{{ $message }}</div>
         @enderror
-        <div class="form-text text-muted">ใช้คิดค่าขนส่งต่อเที่ยว</div>
+        <div class="form-text text-muted">ดึงจากสเปครุ่นอัตโนมัติ</div>
     </div>
 
     <div class="col-md-3">
         <label class="form-label">น้ำหนักรถเปล่า (กก.)</label>
-        <input type="number" name="weight_truck" id="spec_weight" min="0" max="50000" step="1"
+        <input type="number" name="weight_truck" id="spec_weight"
             value="{{ old('weight_truck', $truck->weight_truck ?? '') }}"
-            class="form-control @error('weight_truck') is-invalid @enderror" placeholder="เช่น 9000">
+            class="form-control bg-light @error('weight_truck') is-invalid @enderror" placeholder="รอเลือกรุ่นรถ..."
+            readonly tabindex="-1">
         @error('weight_truck')
             <div class="invalid-feedback">{{ $message }}</div>
         @enderror
@@ -138,9 +140,10 @@
 
     <div class="col-md-3">
         <label class="form-label">ความจุถังน้ำมัน (ลิตร)</label>
-        <input type="number" name="fuelfactory_truck" id="spec_tank" min="0" max="1000" step="1"
+        <input type="number" name="fuelfactory_truck" id="spec_tank"
             value="{{ old('fuelfactory_truck', $truck->fuelfactory_truck ?? '') }}"
-            class="form-control @error('fuelfactory_truck') is-invalid @enderror" placeholder="เช่น 300">
+            class="form-control bg-light @error('fuelfactory_truck') is-invalid @enderror"
+            placeholder="รอเลือกรุ่นรถ..." readonly tabindex="-1">
         @error('fuelfactory_truck')
             <div class="invalid-feedback">{{ $message }}</div>
         @enderror
@@ -148,9 +151,10 @@
 
     <div class="col-md-3">
         <label class="form-label">อัตราสิ้นเปลือง (กม./ลิตร)</label>
-        <input type="number" name="fuel_rate" id="spec_rate" min="0.1" max="50" step="0.01" required
+        <input type="number" name="fuel_rate" id="spec_rate"
             value="{{ old('fuel_rate', $truck->fuel_rate ?? '') }}"
-            class="form-control @error('fuel_rate') is-invalid @enderror" placeholder="เช่น 3.5">
+            class="form-control bg-light @error('fuel_rate') is-invalid @enderror" placeholder="รอเลือกรุ่นรถ..."
+            readonly tabindex="-1">
         @error('fuel_rate')
             <div class="invalid-feedback">{{ $message }}</div>
         @enderror
@@ -210,7 +214,7 @@
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
-
+{{-- 
                 <div class="col-md-3">
                     <label class="form-label">คาดว่าเสร็จ</label>
                     <input type="date" name="expected_return" value="{{ old('expected_return') }}"
@@ -218,7 +222,7 @@
                     @error('expected_return')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
-                </div>
+                </div> --}}
 
                 <div class="col-md-3">
                     <label class="form-label">อู่ / ผู้ซ่อม</label>
@@ -370,6 +374,10 @@
                 const model = findModel(modelSelect.value);
 
                 if (!model) {
+                    // เคลียร์ค่าว่างในฟิลด์สเปคกรณีที่ไม่ได้เลือกรุ่น หรือยกเลิกการเลือก
+                    Object.keys(specFields).forEach(key => {
+                        if (specFields[key]) specFields[key].value = '';
+                    });
                     filterYearOptions(1980);
                     return;
                 }
@@ -380,6 +388,8 @@
                         el.value = intFields.includes(key) ?
                             Math.round(model[key]) :
                             model[key];
+                    } else if (el) {
+                        el.value = '';
                     }
                 });
 

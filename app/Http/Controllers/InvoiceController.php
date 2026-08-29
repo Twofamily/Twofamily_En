@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Quotation;
+use App\Models\DeliveryNote;
 use App\Models\Invoice;
 use App\Models\InvoiceDetail;
 use App\Models\Setting;
@@ -11,25 +11,30 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceController extends Controller
 {
-    public function createFromQuotation($id)
+    public function createFromDeliveryNote(DeliveryNote $deliveryNote)
     {
-        $q = Quotation::with('details')->findOrFail($id);
+        $deliveryNote->load('details', 'quotation');
+
+        if ($deliveryNote->invoice) {
+            return redirect()->route('invoices.show', $deliveryNote->invoice);
+        }
 
         $invoice = Invoice::create([
-            'id_customer' => $q->id_customer,
-            'id_quotation' => $q->id_quot,
-            'discount' => $q->discount ?? 0,
-            'total' => $q->total_amount,
-            'status' => 'unpaid'
+            'id_customer' => $deliveryNote->id_customer,
+            'id_quotation' => $deliveryNote->id_quotation,
+            'id_delivery_note' => $deliveryNote->id_delivery_note,
+            'discount' => $deliveryNote->quotation->discount ?? 0,
+            'total' => $deliveryNote->quotation->total_amount,
+            'status' => 'unpaid',
         ]);
 
-        foreach ($q->details as $d) {
+        foreach ($deliveryNote->details as $detail) {
             InvoiceDetail::create([
                 'id_invoice' => $invoice->id_invoice,
-                'id_product' => $d->id_product,
-                'quantity' => $d->quantity,
-                'price' => $d->price_per_unit,
-                'total' => $d->total_price
+                'id_product' => $detail->id_product,
+                'quantity' => $detail->quantity,
+                'price' => $detail->price_per_unit,
+                'total' => $detail->total_price,
             ]);
         }
 
@@ -38,7 +43,7 @@ class InvoiceController extends Controller
 
     public function show($id)
     {
-        $invoice = Invoice::with('details.product', 'customer', 'quotation')
+        $invoice = Invoice::with('details.product', 'customer', 'quotation', 'deliveryNote')
             ->findOrFail($id);
 
         return view('invoices.show', compact('invoice'));
@@ -64,7 +69,7 @@ class InvoiceController extends Controller
 
     public function pdf($id)
     {
-        $invoice = Invoice::with('details.product', 'customer', 'quotation')
+        $invoice = Invoice::with('details.product', 'customer', 'quotation', 'deliveryNote')
             ->findOrFail($id);
 
         $settings = Setting::pluck('value', 'key');

@@ -34,13 +34,8 @@ class QuotationController extends Controller
 
     public function store(Request $request)
     {
-        $subtotal = 0;
-        foreach ($request->items as $item) {
-            $subtotal += $item['quantity'] * $item['price'];
-        }
-
-        $discount = $request->discount ?? 0;
-        $total = max($subtotal - $discount, 0);
+        $this->validateQuotation($request);
+        [$subtotal, $discount, $total] = $this->calculateTotals($request->items, $request->discount);
 
         $quotation = Quotation::create([
             'id_customer'  => $request->id_customer,
@@ -65,7 +60,7 @@ class QuotationController extends Controller
 
     public function show(Quotation $quotation)
     {
-        $quotation->load('customer', 'details.product');
+        $quotation->load('customer', 'details.product', 'camps');
         return view('quotations.show', compact('quotation'));
     }
 
@@ -82,13 +77,8 @@ class QuotationController extends Controller
 
     public function update(Request $request, Quotation $quotation)
     {
-        $subtotal = 0;
-        foreach ($request->items as $item) {
-            $subtotal += $item['quantity'] * $item['price'];
-        }
-
-        $discount = $request->discount ?? 0;
-        $total = max($subtotal - $discount, 0);
+        $this->validateQuotation($request);
+        [$subtotal, $discount, $total] = $this->calculateTotals($request->items, $request->discount);
 
         $quotation->update([
             'id_customer'  => $request->id_customer,
@@ -112,6 +102,30 @@ class QuotationController extends Controller
         return redirect()
             ->route('quotations.show', $quotation)
             ->with('ok', 'อัปเดตใบเสนอราคาเรียบร้อย');
+    }
+
+    private function validateQuotation(Request $request): void
+    {
+        $request->validate([
+            'id_customer' => ['required', 'exists:customers,id_customer'],
+            'discount' => ['nullable', 'numeric', 'min:0'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.id_product' => ['required', 'exists:products,id_product'],
+            'items.*.quantity' => ['required', 'numeric', 'gt:0'],
+            'items.*.price' => ['required', 'numeric', 'min:0'],
+        ]);
+    }
+
+    private function calculateTotals(array $items, mixed $discount): array
+    {
+        $subtotal = round(collect($items)->sum(
+            fn(array $item) => (float) $item['quantity'] * (float) $item['price']
+        ), 2);
+        $discount = min((float) $discount, $subtotal);
+        $afterDiscount = round($subtotal - $discount, 2);
+        $total = round($afterDiscount + round($afterDiscount * 0.07, 2), 2);
+
+        return [$subtotal, $discount, $total];
     }
 
     public function downloadPDF(Quotation $quotation)
@@ -139,24 +153,36 @@ class QuotationController extends Controller
     public function approve($id)
     {
         $q = Quotation::findOrFail($id);
+
+        if ($q->status !== 'draft') {
+            return back()->with('error', 'ใบเสนอราคานี้ไม่อยู่ในสถานะร่าง ไม่สามารถอนุมัติได้');
+        }
+
+        if ($q->details()->count() === 0) {
+            return back()->with('error', 'ไม่มีรายการสินค้า ไม่สามารถอนุมัติได้');
+        }
+
         $q->status = 'approved';
         $q->save();
 
-        return back()->with('success', 'อนุมัติแล้ว');
+        return back()->with('ok', 'อนุมัติใบเสนอราคาเรียบร้อย');
     }
 
     public function cancel($id)
     {
         $q = Quotation::findOrFail($id);
 
-        if ($q->status != 'draft') {
-            return back()->with('ok', 'ไม่สามารถยกเลิกได้');
+        if ($q->camps()->exists()) {
+            return back()->with('error', 'มีแคมป์อ้างอิงใบเสนอราคานี้อยู่ ไม่สามารถยกเลิกได้');
+        }
+
+        if (! in_array($q->status, ['draft', 'approved'])) {
+            return back()->with('error', 'ไม่สามารถยกเลิกได้');
         }
 
         $q->status = 'rejected';
         $q->save();
 
-        return redirect()->route('quotations.show', $q->id_quot)
-            ->with('ok', 'ยกเลิกใบเสนอราคาแล้ว');
+        return back()->with('ok', 'ยกเลิกใบเสนอราคาแล้ว');
     }
 }

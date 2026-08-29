@@ -9,8 +9,6 @@
 @section('content')
     <div class="container py-3">
 
-
-
         <div class="d-flex justify-content-between align-items-center mb-3">
             <form class="d-flex gap-2" method="GET" action="{{ route('drivers.index') }}">
                 <input type="text" name="q" value="{{ $q }}" class="form-control"
@@ -31,33 +29,37 @@
                         <th>ที่อยู่</th>
                         <th>เบอร์</th>
                         <th>เลขบัตร</th>
-                        <th style="width:160px">จัดการ</th>
+                        <th style="width:200px">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($drivers as $d)
-                        <tr onclick="window.location='{{ route('drivers.show', $d) }}'" style="cursor:pointer">
-
+                        <tr>
                             <td>{{ $d->fname_driver }} {{ $d->lname_driver }}</td>
                             <td class="small text-muted">
+                                {{ $d->address_no ? 'บ้านเลขที่ ' . $d->address_no : '' }}
+                                {{ $d->moo ? 'หมู่ ' . $d->moo : '' }}
                                 {{ $d->address_detail }}
-                                {{ $d->subdistrict }}
-                                {{ $d->district }}
-                                {{ $d->province }}
+                                {{ $d->subdistrict ? 'ต.' . $d->subdistrict : '' }}
+                                {{ $d->district ? 'อ.' . $d->district : '' }}
+                                {{ $d->province ? 'จ.' . $d->province : '' }}
                                 {{ $d->zipcode }}
                             </td>
 
                             <td>{{ $d->phone_driver ?: '-' }}</td>
                             <td>{{ $d->citizenid_driver ?: '-' }}</td>
 
-                            {{-- ปุ่มต้องกันไม่ให้ trigger onclick --}}
-                            <td onclick="event.stopPropagation()">
-                                <div class="d-flex gap-2">
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ route('drivers.show', $d) }}" class="btn btn-sm btn-outline-secondary">
+                                        ดู
+                                    </a>
+
                                     <a href="{{ route('drivers.edit', $d) }}" class="btn btn-sm btn-outline-primary">
                                         แก้ไข
                                     </a>
 
-                                    <form method="POST" action="{{ route('drivers.destroy', $d) }}"class="d-inline"
+                                    <form method="POST" action="{{ route('drivers.destroy', $d) }}" class="d-inline"
                                         data-confirm="ข้อมูล {{ $d->lname_driver }} จะถูกลบออกจากระบบ"
                                         data-confirm-title="ยืนยันการลบข้อมูล" 
                                         data-confirm-variant="danger"

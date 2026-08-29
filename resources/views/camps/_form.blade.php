@@ -1,10 +1,5 @@
 @extends('layout')
 
-@php
-    // ห้ามใช้เพียง isset($camp) เพราะหน้า create อาจส่ง new Camp() มาให้
-    $isEdit = isset($camp) && $camp->exists;
-@endphp
-
 @section('namepage')
     <div class="container">
         <h3>{{ $isEdit ? 'แก้ไขข้อมูลแคมป์' : 'เพิ่มข้อมูลแคมป์' }}</h3>
@@ -54,6 +49,10 @@
     </style>
 
     <div class="container py-3">
+        @if (session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
+
         @if ($errors->any())
             <div class="alert alert-danger">
                 <div class="fw-semibold mb-1">กรุณาตรวจสอบข้อมูล</div>
@@ -84,6 +83,36 @@
                             <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">
                                 ข้อมูลแคมป์
                             </h6>
+
+                            <div class="mb-3">
+                                <label for="id_quot" class="form-label">
+                                    อ้างอิงใบเสนอราคา
+                                    <span class="text-muted fw-normal">(ไม่บังคับ)</span>
+                                </label>
+                                <select
+                                    id="id_quot"
+                                    name="id_quot"
+                                    class="form-select @error('id_quot') is-invalid @enderror"
+                                >
+                                    <option value="">— ไม่อ้างอิงใบเสนอราคา —</option>
+                                    @foreach ($quotations ?? [] as $quotation)
+                                        <option
+                                            value="{{ $quotation->id_quot }}"
+                                            @selected(old('id_quot', $camp->id_quot ?? '') == $quotation->id_quot)
+                                        >
+                                            QT{{ str_pad($quotation->id_quot, 5, '0', STR_PAD_LEFT) }}
+                                            — {{ $quotation->customer->name_customer ?? '-' }}
+                                            ({{ number_format($quotation->total_amount, 2) }} บาท)
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="form-text">
+                                    แสดงเฉพาะใบเสนอราคาที่อนุมัติแล้ว เมื่อเลือกแล้วระบบจะเติมลูกค้าให้อัตโนมัติ
+                                </div>
+                                @error('id_quot')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
 
                             <div class="mb-3">
                                 <label for="id_customer" class="form-label">ลูกค้า</label>
@@ -376,10 +405,19 @@
                 'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api/latest/province_with_district_and_sub_district.json';
 
             const defaultPosition = { lat: 16.4419, lng: 102.8360 };
+
+            const quotationMap = @json(
+                ($quotations ?? collect())->mapWithKeys(fn($q) => [
+                    $q->id_quot => ['id_customer' => $q->id_customer],
+                ])
+            );
+
             const oldProvince = @json(old('province', $camp->province ?? ''));
             const oldDistrict = @json(old('district', $camp->district ?? ''));
             const oldSubdistrict = @json(old('subdistrict', $camp->subdistrict ?? ''));
 
+            const quotationSelect = document.getElementById('id_quot');
+            const customerSelect = document.getElementById('id_customer');
             const provinceSelect = document.getElementById('province');
             const districtSelect = document.getElementById('district');
             const subdistrictSelect = document.getElementById('subdistrict');
@@ -402,6 +440,16 @@
             let placesService = null;
             let autocomplete = null;
 
+            /* ---------- เลือกใบเสนอราคาแล้วเติมลูกค้าอัตโนมัติ ---------- */
+
+            quotationSelect.addEventListener('change', function () {
+                const info = quotationMap[this.value];
+                if (!info) return;
+                customerSelect.value = String(info.id_customer);
+            });
+
+            /* ---------- แจ้งเตือน ---------- */
+
             function showStatus(message) {
                 errorElement.classList.add('d-none');
                 statusElement.textContent = message;
@@ -423,6 +471,8 @@
                 errorElement.textContent = '';
                 errorElement.classList.add('d-none');
             }
+
+            /* ---------- ที่อยู่ไทย ---------- */
 
             function normalizeThaiAddress(value) {
                 return String(value || '')
@@ -550,6 +600,8 @@
 
                 return addressDataPromise;
             }
+
+            /* ---------- Google Maps ---------- */
 
             function findAddressComponent(components, types) {
                 return components.find(component =>

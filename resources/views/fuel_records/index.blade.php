@@ -56,21 +56,7 @@
     </style>
 
     <div class="container py-3">
-        @if (session('ok'))
-            <div
-                class="alert alert-success alert-dismissible fade show"
-                role="alert"
-            >
-                {{ session('ok') }}
-
-                <button
-                    type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"
-                    aria-label="ปิด"
-                ></button>
-            </div>
-        @endif
+       
 
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
             <div class="text-muted">

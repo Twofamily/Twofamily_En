@@ -87,7 +87,7 @@
         <tr>
             <td width="60%">
                 <b>ลูกค้า:</b> {{ $inv->customer->name_customer }}<br>
-                <b>ที่อยู่:</b> {{ $inv->customer->address_detail }}<br>
+                <b>ที่อยู่:</b> {{ customer_address($inv->customer) }}<br>
                 <b>โทร:</b> {{ $inv->customer->phone_customer }}<br>
             </td>
 

@@ -9,7 +9,6 @@
 @section('content')
     <div class="container py-4">
 
-
         @if ($errors->any())
             <div class="alert alert-danger shadow-sm">
                 <div class="fw-semibold mb-1">กรุณาตรวจสอบข้อมูล:</div>
@@ -24,6 +23,34 @@
         <form method="POST" action="{{ route('drivers.update', $driver) }}" enctype="multipart/form-data">
             @csrf @method('PUT')
 
+            <!-- ส่วนพรีวิวและอัปโหลดรูปใบขับขี่ -->
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-body">
+                    <label class="form-label fw-bold">รูปใบขับขี่</label>
+
+                    <div class="mb-3 text-center">
+                        <div id="preview_wrapper" class="{{ $driver->citizen_image ? '' : 'd-none' }}">
+                            <img src="{{ $driver->citizen_image ? asset('storage/' . $driver->citizen_image) : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' }}"
+                                id="driver_preview" class="img-thumbnail rounded shadow-sm"
+                                style="max-height: 220px; object-fit: cover;">
+                        </div>
+                        <div id="placeholder_box" class="p-4 border rounded text-muted bg-light {{ $driver->citizen_image ? 'd-none' : '' }}">
+                            ยังไม่ได้อัปโหลดรูปภาพใบขับขี่
+                        </div>
+                    </div>
+
+                    <input type="file" name="citizen_image" id="citizen_image_input"
+                        class="form-control @error('citizen_image') is-invalid @enderror"
+                        accept="image/jpeg,image/png,image/webp">
+
+                    @error('citizen_image')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                    <div class="form-text text-muted">รองรับไฟล์ JPG, PNG, WEBP ขนาดไม่เกิน 2MB (เว้นว่างไว้หากไม่ต้องการเปลี่ยนรูป)</div>
+                </div>
+            </div>
+
+            <!-- ส่วนข้อมูลชื่อ-นามสกุล -->
             <div class="row g-3 mb-3">
                 <div class="col-md-6">
                     <label class="form-label">ชื่อ <span class="text-danger">*</span></label>
@@ -46,14 +73,38 @@
                 </div>
             </div>
 
+            <!-- ส่วนข้อมูลที่อยู่ -->
             <div class="row g-3 mt-2">
+                <hr class="mt-2 mb-1">
 
-                <div class="col-md-12">
-                    <label class="form-label">รายละเอียดที่อยู่ (บ้านเลขที่ / หมู่ / ซอย)</label>
+                <div class="col-md-3">
+                    <label class="form-label">บ้านเลขที่</label>
+                    <input type="text" name="address_no"
+                        class="form-control @error('address_no') is-invalid @enderror"
+                        value="{{ old('address_no', $driver->address_no ?? '') }}"
+                        placeholder="เช่น 123/45">
+                    @error('address_no')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">หมู่ที่</label>
+                    <input type="text" name="moo"
+                        class="form-control @error('moo') is-invalid @enderror"
+                        value="{{ old('moo', $driver->moo ?? '') }}"
+                        placeholder="เช่น 5">
+                    @error('moo')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">ซอย / ถนน / อาคาร</label>
                     <input type="text" name="address_detail"
                         class="form-control @error('address_detail') is-invalid @enderror"
                         value="{{ old('address_detail', $driver->address_detail ?? '') }}"
-                        placeholder="เช่น 123/4 หมู่ 5 ซอยสุขสมบูรณ์">
+                        placeholder="เช่น ซอยสุขสมบูรณ์ ถนนมิตรภาพ">
                     @error('address_detail')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -106,6 +157,7 @@
                 </div>
             </div>
 
+            <!-- ส่วนข้อมูลการติดต่อและบัตรประชาชน -->
             <div class="mb-3 mt-4">
                 <label class="form-label">เบอร์โทร (10 หลัก)</label>
                 <input type="text" name="phone_driver" class="form-control @error('phone_driver') is-invalid @enderror"
@@ -127,24 +179,6 @@
                 @enderror
             </div>
 
-            <div class="mb-3">
-                <label class="form-label">รูปใบขับขี่</label>
-
-                <input type="file" name="citizen_image"
-                    class="form-control @error('citizen_image') is-invalid @enderror">
-
-                @error('citizen_image')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-
-                @if ($driver->citizen_image)
-                    <div class="mt-2">
-                        <img src="{{ asset('storage/' . $driver->citizen_image) }}" width="150"
-                            class="border rounded">
-                    </div>
-                @endif
-            </div>
-
             <button class="btn btn-dark">บันทึกการแก้ไข</button>
             <a href="{{ route('drivers.index') }}" class="btn btn-outline-secondary">ยกเลิก</a>
         </form>
@@ -152,6 +186,28 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // === 1. ระบบ Preview รูปภาพใบขับขี่ ===
+            const imageInput = document.getElementById('citizen_image_input');
+            const imagePreview = document.getElementById('driver_preview');
+            const previewWrapper = document.getElementById('preview_wrapper');
+            const placeholderBox = document.getElementById('placeholder_box');
+
+            if (imageInput && imagePreview) {
+                imageInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            imagePreview.src = e.target.result;
+                            if (previewWrapper) previewWrapper.classList.remove('d-none');
+                            if (placeholderBox) placeholderBox.classList.add('d-none');
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            // === 2. ระบบจัดการ ที่อยู่ (จังหวัด/อำเภอ/ตำบล) ===
             const apiURL =
                 'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api/latest/province_with_district_and_sub_district.json';
             let thaiData = [];
@@ -161,12 +217,11 @@
             const subdistrictSelect = document.getElementById('subdistrict');
             const zipcodeInput = document.getElementById('zipcode');
 
-            // ดึงค่าเก่าออกมา (ในกรณีนี้จะเป็นค่าเก่าจาก Database)
             const oldProvince = document.getElementById('old_province').value;
             const oldDistrict = document.getElementById('old_district').value;
             const oldSubdistrict = document.getElementById('old_subdistrict').value;
 
-            // 1. โหลดข้อมูล JSON
+            // โหลดข้อมูล JSON
             fetch(apiURL)
                 .then(response => response.json())
                 .then(data => {
@@ -175,7 +230,7 @@
                 })
                 .catch(error => console.error('Error loading Thai Data:', error));
 
-            // 2. ใส่ข้อมูลจังหวัด
+            // ใส่ข้อมูลจังหวัด
             function populateProvinces() {
                 thaiData.forEach(prov => {
                     const option = new Option(prov.name_th, prov.name_th);
@@ -188,7 +243,7 @@
                 }
             }
 
-            // 3. เมื่อเปลี่ยนจังหวัด -> ใส่อำเภอ
+            // เมื่อเปลี่ยนจังหวัด -> ใส่อำเภอ
             provinceSelect.addEventListener('change', function() {
                 districtSelect.innerHTML = '<option value="">— เลือกอำเภอ —</option>';
                 subdistrictSelect.innerHTML = '<option value="">— เลือกตำบล —</option>';
@@ -220,7 +275,7 @@
                 }
             });
 
-            // 4. เมื่อเปลี่ยนอำเภอ -> ใส่ตำบล
+            // เมื่อเปลี่ยนอำเภอ -> ใส่ตำบล
             districtSelect.addEventListener('change', function() {
                 subdistrictSelect.innerHTML = '<option value="">— เลือกตำบล —</option>';
                 zipcodeInput.value = '';
@@ -256,7 +311,7 @@
                 }
             });
 
-            // 5. เมื่อเปลี่ยนตำบล -> ใส่รหัสไปรษณีย์
+            // เมื่อเปลี่ยนตำบล -> ใส่รหัสไปรษณีย์
             subdistrictSelect.addEventListener('change', function() {
                 zipcodeInput.value = '';
                 if (!this.value) return;

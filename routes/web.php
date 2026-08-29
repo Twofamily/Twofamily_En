@@ -16,6 +16,7 @@ use App\Http\Controllers\{
     TruckModelController,
     SettingController,
     ReceiptController,
+    DeliveryNoteController,
     CampController,
     UserController,
     CompanySettingController
@@ -54,6 +55,7 @@ Route::middleware([
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 
+
     /* ==================== Master Data ==================== */
 
     Route::resource('customers', CustomerController::class)
@@ -63,15 +65,19 @@ Route::middleware([
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
     Route::resource('products', ProductController::class)
+        ->except(['show'])
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
     Route::resource('product_types', ProductTypeController::class)
+        ->except(['show'])
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
     Route::resource('truck_brands', TruckBrandController::class)
+        ->except(['show'])
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
     Route::resource('truck_models', TruckModelController::class)
+        ->except(['show'])
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
     Route::resource('camps', CampController::class)
@@ -110,7 +116,7 @@ Route::middleware([
     //     ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
     Route::resource('fuel_records', FuelRecordController::class)
-        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+    ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
 
     /* ==================== ใบเสนอราคา ==================== */
@@ -118,17 +124,24 @@ Route::middleware([
     Route::resource('quotations', QuotationController::class)
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
+        // ต้องมาก่อน resource ไม่งั้น {deliveryNote} จะกิน "pdf"
+    Route::get('delivery-notes/{deliveryNote}/pdf', [DeliveryNoteController::class, 'pdf'])
+        ->name('delivery-notes.pdf');
+
+    Route::resource('delivery-notes', DeliveryNoteController::class)
+        ->only(['index', 'create', 'store', 'show', 'destroy'])
+        ->middlewareFor(['create', 'store', 'destroy'], 'role:admin,staff');
+
     Route::get('/quotation/{quotation}/pdf', [QuotationController::class, 'downloadPDF'])
         ->name('quotation.pdf');
 
-    Route::post('/quotations/{id}/cancel', [QuotationController::class, 'cancel'])
-        ->middleware('role:admin,staff')
-        ->name('quotations.cancel');
-
-    Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve'])
+    Route::patch('quotations/{quotation}/approve', [QuotationController::class, 'approve'])
         ->middleware('role:admin,staff')
         ->name('quotations.approve');
 
+    Route::patch('quotations/{quotation}/cancel', [QuotationController::class, 'cancel'])
+        ->middleware('role:admin,staff')
+        ->name('quotations.cancel');
 
     /* ==================== ใบแจ้งหนี้ ==================== */
 
@@ -139,9 +152,9 @@ Route::middleware([
     Route::get('/invoice/{id}/pdf', [InvoiceController::class, 'pdf'])
         ->name('invoice.pdf');
 
-    Route::post('/invoices/create/{id}', [InvoiceController::class, 'createFromQuotation'])
+    Route::post('/invoices/create/{deliveryNote}', [InvoiceController::class, 'createFromDeliveryNote'])
         ->middleware('role:admin,staff')
-        ->name('invoices.createFromQuotation');
+        ->name('invoices.createFromDeliveryNote');
 
     Route::post('/invoices/{id}/pay', [InvoiceController::class, 'pay'])
         ->middleware('role:admin,staff')

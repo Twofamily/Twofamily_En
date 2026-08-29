@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Driver;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class DriverController extends Controller
 {
@@ -13,13 +13,13 @@ class DriverController extends Controller
     {
         $q = $request->q;
 
-        $drivers = Driver::when($q, function ($query) use ($q) {
+        $drivers = Driver::when($q, fn($query) =>
             $query->where('fname_driver', 'like', "%{$q}%")
                 ->orWhere('lname_driver', 'like', "%{$q}%")
                 ->orWhere('phone_driver', 'like', "%{$q}%")
-                ->orWhere('citizenid_driver', 'like', "%{$q}%");
-        })
-            ->orderBy('id_driver', 'desc')
+                ->orWhere('citizenid_driver', 'like', "%{$q}%")
+        )
+            ->latest('id_driver')
             ->paginate(10)
             ->withQueryString();
 
@@ -28,63 +28,28 @@ class DriverController extends Controller
 
     public function create()
     {
-        $provinces = ['กรุงเทพมหานคร', 'กระบี่', 'กาญจนบุรี'];
-
-        return view('drivers.create', compact('provinces'));
+        return view('drivers.create');
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'fname_driver' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('drivers', 'fname_driver')
-                    ->where('lname_driver', $request->lname_driver)
-                    ->whereNull('deleted_at')
-            ],
-            'lname_driver' => 'required|string|max:255',
-            'address_detail' => 'nullable|string',
-            'province' => 'nullable|string|max:100',
-            'district' => 'nullable|string|max:100',
-            'subdistrict' => 'nullable|string|max:100',
-            'phone_driver' => 'nullable|digits:10',
-            'citizenid_driver' => 'nullable|digits:13|unique:drivers,citizenid_driver',
-            'zipcode' => 'nullable|digits:5',
-
-            'citizen_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-
-        ], [
-            'fname_driver.unique' => 'ชื่อและนามสกุลนี้ มีอยู่ในระบบแล้ว กรุณาตรวจสอบอีกครั้ง!',
-            'citizenid_driver.unique' => 'เลขบัตรประชาชนนี้ ถูกใช้งานไปแล้ว!'
-        ]);
-
-        $citizenPath = null;
+        $data = $this->validateDriver($request);
 
         if ($request->hasFile('citizen_image')) {
-            $citizenPath = $request->file('citizen_image')
-                ->store('citizens', 'public');
+            $data['citizen_image'] = $this->handleImageUpload($request);
         }
 
-        Driver::create([
-            'fname_driver' => $request->fname_driver,
-            'lname_driver' => $request->lname_driver,
-            'address_detail' => $request->address_detail,
-            'province' => $request->province,
-            'district' => $request->district,
-            'subdistrict' => $request->subdistrict,
-            'zipcode' => $request->zipcode,
-            'phone_driver' => $request->phone_driver,
-            'citizenid_driver' => $request->citizenid_driver,
-            'citizen_image' => $citizenPath,
-        ]);
+        Driver::create($data);
 
         return redirect()
             ->route('drivers.index')
             ->with('ok', 'เพิ่มข้อมูลพนักงานขับรถเรียบร้อย');
     }
 
+    public function show(Driver $driver)
+    {
+        return view('drivers.show', compact('driver'));
+    }
 
     public function edit(Driver $driver)
     {
@@ -93,50 +58,13 @@ class DriverController extends Controller
 
     public function update(Request $request, Driver $driver)
     {
-        $request->validate([
-            'fname_driver' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('drivers', 'fname_driver')
-                    ->where('lname_driver', $request->lname_driver)
-                    ->whereNull('deleted_at')
-                    ->ignore($driver->id_driver, 'id_driver')
-            ],
-            'lname_driver'  => 'required|string|max:255',
-            'province'      => 'nullable|string|max:100',
-            'phone_driver'  => 'nullable|digits:10',
-            'citizenid_driver' => 'nullable|digits:13|unique:drivers,citizenid_driver,' . $driver->id_driver . ',id_driver',
-            'zipcode'       => 'nullable|digits:5',
-
-            'citizen_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-        ], [
-            'fname_driver.unique' => 'ชื่อและนามสกุลนี้ มีอยู่ในระบบแล้ว กรุณาตรวจสอบอีกครั้ง!',
-            'citizenid_driver.unique' => 'เลขบัตรประชาชนนี้ ถูกใช้งานไปแล้ว!'
-        ]);
+        $data = $this->validateDriver($request, $driver);
 
         if ($request->hasFile('citizen_image')) {
-
-            if ($driver->citizen_image && Storage::disk('public')->exists($driver->citizen_image)) {
-                Storage::disk('public')->delete($driver->citizen_image);
-            }
-
-            $citizenPath = $request->file('citizen_image')->store('citizens', 'public');
+            $data['citizen_image'] = $this->handleImageUpload($request, $driver->citizen_image);
         }
 
-        $driver->update([
-            'fname_driver' => $request->fname_driver,
-            'lname_driver' => $request->lname_driver,
-            'address_detail' => $request->address_detail,
-            'subdistrict' => $request->subdistrict,
-            'district' => $request->district,
-            'province' => $request->province,
-            'zipcode' => $request->zipcode,
-            'phone_driver' => $request->phone_driver,
-            'citizenid_driver' => $request->citizenid_driver,
-
-            'citizen_image' => $citizenPath ?? $driver->citizen_image,
-        ]);
+        $driver->update($data);
 
         return redirect()
             ->route('drivers.index')
@@ -145,6 +73,10 @@ class DriverController extends Controller
 
     public function destroy(Driver $driver)
     {
+        if ($driver->citizen_image && Storage::disk('public')->exists($driver->citizen_image)) {
+            Storage::disk('public')->delete($driver->citizen_image);
+        }
+
         $driver->delete();
 
         return redirect()
@@ -152,8 +84,47 @@ class DriverController extends Controller
             ->with('ok', 'ลบข้อมูลเรียบร้อย');
     }
 
-    public function show(\App\Models\Driver $driver)
+    private function validateDriver(Request $request, ?Driver $driver = null): array
     {
-        return view('drivers.show', compact('driver'));
+        $driverId = $driver?->id_driver;
+
+        return $request->validate([
+            'fname_driver' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('drivers', 'fname_driver')
+                    ->where('lname_driver', $request->lname_driver)
+                    ->whereNull('deleted_at')
+                    ->ignore($driverId, 'id_driver'),
+            ],
+            'lname_driver'     => ['required', 'string', 'max:255'],
+            'address_no'       => ['nullable', 'string', 'max:50'],   // <-- เพิ่ม Validation บ้านเลขที่
+            'moo'              => ['nullable', 'string', 'max:20'],   // <-- เพิ่ม Validation หมู่ที่
+            'address_detail'   => ['nullable', 'string', 'max:255'],
+            'subdistrict'      => ['nullable', 'string', 'max:100'],
+            'district'         => ['nullable', 'string', 'max:100'],
+            'province'         => ['nullable', 'string', 'max:100'],
+            'zipcode'          => ['nullable', 'digits:5'],
+            'phone_driver'     => ['nullable', 'digits:10'],
+            'citizenid_driver' => [
+                'nullable',
+                'digits:13',
+                Rule::unique('drivers', 'citizenid_driver')->ignore($driverId, 'id_driver'),
+            ],
+            'citizen_image'    => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'fname_driver.unique'     => 'ชื่อและนามสกุลนี้ มีอยู่ในระบบแล้ว กรุณาตรวจสอบอีกครั้ง!',
+            'citizenid_driver.unique' => 'เลขบัตรประชาชนนี้ ถูกใช้งานไปแล้ว!',
+        ]);
+    }
+
+    private function handleImageUpload(Request $request, ?string $oldPath = null): string
+    {
+        if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        return $request->file('citizen_image')->store('citizens', 'public');
     }
 }

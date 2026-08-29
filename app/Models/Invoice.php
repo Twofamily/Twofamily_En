@@ -10,7 +10,9 @@ class Invoice extends Model
 
     protected $fillable = [
         'id_quotation',
+        'id_delivery_note',
         'id_customer',
+        'discount',
         'total',
         'status'
     ];
@@ -28,5 +30,10 @@ class Invoice extends Model
     public function quotation()
     {
         return $this->belongsTo(Quotation::class, 'id_quotation', 'id_quot');
+    }
+
+    public function deliveryNote()
+    {
+        return $this->belongsTo(DeliveryNote::class, 'id_delivery_note', 'id_delivery_note');
     }
 }

@@ -23,22 +23,22 @@ return new class extends Migration
         ]);
 
         // ดึงใหม่ให้ลงช่องถูก
-        DB::statement("
-            UPDATE truck_models tm
-            INNER JOIN (
-                SELECT truck_model_id,
-                       MAX(weight_truck)      AS cw,
-                       MAX(fuelfactory_truck) AS tank,
-                       MAX(fuel_rate)         AS fr
-                FROM trucks
-                WHERE truck_model_id IS NOT NULL
-                  AND deleted_at IS NULL
-                GROUP BY truck_model_id
-            ) t ON t.truck_model_id = tm.id
-            SET tm.curb_weight   = t.cw,
-                tm.tank_capacity = t.tank,
-                tm.fuel_rate     = t.fr
-        ");
+        $specifications = DB::table('trucks')
+            ->selectRaw('truck_model_id, MAX(weight_truck) as curb_weight, MAX(fuelfactory_truck) as tank_capacity, MAX(fuel_rate) as fuel_rate')
+            ->whereNotNull('truck_model_id')
+            ->whereNull('deleted_at')
+            ->groupBy('truck_model_id')
+            ->get();
+
+        foreach ($specifications as $specification) {
+            DB::table('truck_models')
+                ->where('id', $specification->truck_model_id)
+                ->update([
+                    'curb_weight' => $specification->curb_weight,
+                    'tank_capacity' => $specification->tank_capacity,
+                    'fuel_rate' => $specification->fuel_rate,
+                ]);
+        }
     }
 
     public function down(): void

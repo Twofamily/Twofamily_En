@@ -13,7 +13,7 @@ class TruckBrandController extends Controller
         $q = $request->q;
 
         $brands = TruckBrand::withCount('models')
-            ->when($q, fn($x) => $x->where('name_brand', 'like', "%$q%"))
+            ->when($q, fn($query) => $query->where('name_brand', 'like', "%{$q}%"))
             ->orderBy('name_brand')
             ->paginate(10);
 
@@ -23,6 +23,7 @@ class TruckBrandController extends Controller
     public function create()
     {
         $brand = new TruckBrand();
+
         return view('truck_brands.create', compact('brand'));
     }
 
@@ -32,49 +33,52 @@ class TruckBrandController extends Controller
 
         TruckBrand::create($data);
 
-        return redirect()->route('truck_brands.index')->with('ok', 'เพิ่มยี่ห้อเรียบร้อย');
+        return redirect()
+            ->route('truck_brands.index')
+            ->with('ok', 'เพิ่มยี่ห้อเรียบร้อย');
     }
 
     public function edit(TruckBrand $truckBrand)
     {
         $brand = $truckBrand;
+
         return view('truck_brands.edit', compact('brand'));
     }
 
     public function update(Request $request, TruckBrand $truckBrand)
     {
-        $data = $this->validateData($request, $truckBrand->id);
+        $data = $this->validateData($request, $truckBrand->getKey());
 
         $truckBrand->update($data);
 
-        return redirect()->route('truck_brands.index')->with('ok', 'แก้ไขยี่ห้อเรียบร้อย');
+        return redirect()
+            ->route('truck_brands.index')
+            ->with('ok', 'แก้ไขยี่ห้อเรียบร้อย');
     }
 
     public function destroy(TruckBrand $truckBrand)
     {
-        // กันลบยี่ห้อที่ยังมีรุ่นอยู่
-        $count = $truckBrand->models()->count();
-
-        if ($count > 0) {
-            return back()->with('error', "ลบไม่ได้ ยี่ห้อนี้มีรุ่นรถอยู่ {$count} รุ่น");
+        if ($truckBrand->models()->exists()) {
+            $count = $truckBrand->models()->count();
+            return back()->with('error', "ไม่สามารถลบได้ เนื่องจากยี่ห้อนี้มีรุ่นรถผูกไว้อยู่ {$count} รุ่น");
         }
 
         $truckBrand->delete();
 
-        return back()->with('ok', 'ลบยี่ห้อแล้ว');
+        return back()->with('ok', 'ลบยี่ห้อเรียบร้อยแล้ว');
     }
 
-    private function validateData(Request $request, $ignoreId = null)
+    private function validateData(Request $request, mixed $ignoreId = null): array
     {
-        // ตัดช่องว่างหน้า-หลัง และแปลงเป็นตัวพิมพ์ใหญ่ให้เหมือนกันทั้งระบบ
         $request->merge([
             'name_brand' => mb_strtoupper(trim((string) $request->name_brand)),
         ]);
 
         return $request->validate([
             'name_brand' => [
-                'required', 'string', 'max:100',
-                // เช็คซ้ำเฉพาะแถวที่ยังไม่ถูกลบ (soft delete)
+                'required',
+                'string',
+                'max:100',
                 Rule::unique('truck_brands', 'name_brand')
                     ->whereNull('deleted_at')
                     ->ignore($ignoreId),

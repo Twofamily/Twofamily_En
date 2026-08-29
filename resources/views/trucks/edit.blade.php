@@ -19,7 +19,6 @@
             </div>
         @endif
 
-        {{-- เพิ่ม enctype="multipart/form-data" เพื่อให้รองรับการอัปโหลดไฟล์รูปภาพ --}}
         <form method="POST" action="{{ route('trucks.update', $truck->id_truck) }}" enctype="multipart/form-data" autocomplete="off">
             @csrf 
             @method('PUT')

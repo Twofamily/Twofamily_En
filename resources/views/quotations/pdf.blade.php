@@ -148,6 +148,12 @@
         </tbody>
     </table>
 
+    @php
+        $afterDiscount = max($sum - $quotation->discount, 0);
+        $vat = round($afterDiscount * 0.07, 2);
+        $grandTotal = $afterDiscount + $vat;
+    @endphp
+
     <br>
 
     <table width="100%" class="small">
@@ -168,9 +174,17 @@
                         <td class="text-right">{{ number_format($quotation->discount, 2) }}</td>
                     </tr>
                     <tr>
+                        <td>ยอดหลังหักส่วนลด</td>
+                        <td class="text-right">{{ number_format($afterDiscount, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td>VAT 7%</td>
+                        <td class="text-right">{{ number_format($vat, 2) }}</td>
+                    </tr>
+                    <tr>
                         <td><b>สุทธิ (บาท)</b></td>
                         <td class="text-right">
-                            <b>{{ number_format($sum - $quotation->discount, 2) }}</b>
+                            <b>{{ number_format($grandTotal, 2) }}</b>
                         </td>
                     </tr>
                 </table>

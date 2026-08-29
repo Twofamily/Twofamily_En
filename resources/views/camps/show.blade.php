@@ -8,9 +8,11 @@
 
 @section('content')
     <div class="container py-2">
-
         @if (session('info'))
             <div class="alert alert-info shadow-sm">{{ session('info') }}</div>
+        @endif
+        @if (session('warning'))
+            <div class="alert alert-warning shadow-sm">{{ session('warning') }}</div>
         @endif
         @if ($errors->any())
             <div class="alert alert-danger shadow-sm">
@@ -50,6 +52,22 @@
                     <div class="col-md-6">
                         <div class="text-muted small">ลูกค้า</div>
                         <div>{{ $camp->customer->name_customer ?? '-' }}</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="text-muted small">อ้างอิงใบเสนอราคา</div>
+                        <div>
+                            @if ($camp->quotation)
+                                <a href="{{ route('quotations.show', $camp->quotation) }}" class="text-decoration-none">
+                                    {{ $camp->quotation->code_quot }}
+                                </a>
+                                <span class="text-muted">
+                                    · {{ number_format($camp->quotation->total_amount, 2) }} บาท
+                                </span>
+                            @else
+                                <span class="text-muted">ยังไม่ได้อ้างอิงใบเสนอราคา</span>
+                            @endif
+                        </div>
                     </div>
 
                     <div class="col-md-6">
@@ -96,7 +114,18 @@
                 </div>
 
                 @if ($camp->latitude && $camp->longitude)
-                    <div id="campShowMap" class="mt-3" style="width:100%;height:280px;border-radius:10px;"></div>
+                    <div id="campShowMap" class="mt-3"
+                         style="width:100%;height:320px;border-radius:10px;background:#e9ecef;"></div>
+
+                    <div id="campMapError" class="alert alert-danger mt-2 d-none" role="alert"></div>
+
+                    <div class="mt-2">
+                        <a href="https://www.google.com/maps/search/?api=1&query={{ $camp->latitude }},{{ $camp->longitude }}"
+                           target="_blank" rel="noopener"
+                           class="btn btn-sm btn-outline-secondary">
+                            เปิดใน Google Maps
+                        </a>
+                    </div>
                 @endif
 
             </div>
@@ -131,8 +160,8 @@
 
                             <div class="col-md-3">
                                 <label class="form-label small mb-1">วันที่เริ่มทำงาน</label>
-                                <input type="date" name="assigned_date" class="form-control"
-                                    value="{{ date('Y-m-d') }}" required>
+                                <input type="date" name="assigned_date" class="form-control" value="{{ date('Y-m-d') }}"
+                                    required>
                             </div>
 
                             <div class="col-md-3">
@@ -148,6 +177,109 @@
                 </div>
             </div>
         @endif
+
+        {{-- ความคืบหน้าการส่งของ --}}
+        @if ($progress->isNotEmpty())
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white fw-semibold">
+                    ความคืบหน้าการส่งของ (เทียบกับใบเสนอราคา)
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>รายการ</th>
+                                <th class="text-end">ตามสัญญา</th>
+                                <th class="text-end">ส่งแล้ว</th>
+                                <th class="text-end">คงเหลือ</th>
+                                <th style="width: 200px;">ความคืบหน้า</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($progress as $row)
+                                <tr>
+                                    <td>{{ $row['name_product'] }}</td>
+                                    <td class="text-end">{{ number_format($row['ordered'], 2) }}</td>
+                                    <td class="text-end">{{ number_format($row['delivered'], 2) }}</td>
+                                    <td class="text-end fw-semibold">
+                                        @if ($row['over'] > 0)
+                                            <span class="text-danger">
+                                                เกิน {{ number_format($row['over'], 2) }}
+                                            </span>
+                                        @else
+                                            {{ number_format($row['remaining'], 2) }}
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 18px;">
+                                            <div class="progress-bar bg-{{ $row['over'] > 0 ? 'danger' : ($row['percent'] >= 100 ? 'success' : 'dark') }}"
+                                                role="progressbar" style="width: {{ $row['percent'] }}%;">
+                                                {{ $row['percent'] }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
+        {{-- ใบส่งของของแคมป์นี้ --}}
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">ใบส่งของของแคมป์นี้</span>
+
+                @if ($camp->status_camp === 'active')
+                    <a href="{{ route('delivery-notes.create', ['camp' => $camp->id_camp]) }}"
+                        class="btn btn-sm btn-dark">+ สร้างใบส่งของ</a>
+                @endif
+            </div>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>เลขที่</th>
+                            <th>วันที่ส่ง</th>
+                            <th class="text-end">มูลค่า</th>
+                            <th class="text-center">ใบแจ้งหนี้</th>
+                            <th class="text-center" style="width: 100px;">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($deliveryNotes as $note)
+                            <tr>
+                                <td class="fw-semibold">{{ $note->code_delivery }}</td>
+                                <td>{{ $note->delivery_date->format('d/m/Y') }}</td>
+                                <td class="text-end">
+                                    {{ number_format($note->details->sum('total_price'), 2) }}
+                                </td>
+                                <td class="text-center">
+                                    @if ($note->invoice)
+                                        <span class="badge bg-success">ออกแล้ว</span>
+                                    @else
+                                        <span class="badge bg-secondary">รอออก</span>
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ route('delivery-notes.show', $note) }}"
+                                        class="btn btn-sm btn-outline-primary">ดู</a>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    ยังไม่มีใบส่งของจากแคมป์นี้
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white fw-semibold">
@@ -189,8 +321,9 @@
                                             action="{{ route('camps.trucks.release', [$camp->id_camp, $truck->pivot->id_assignment]) }}"
                                             class="d-flex gap-1 justify-content-center">
                                             @csrf @method('PATCH')
-                                            <input type="date" name="released_date" class="form-control form-control-sm"
-                                                value="{{ date('Y-m-d') }}" required>
+                                            <input type="date" name="released_date"
+                                                class="form-control form-control-sm" value="{{ date('Y-m-d') }}"
+                                                required>
                                             <button class="btn btn-sm btn-outline-danger">ถอนออก</button>
                                         </form>
                                     @else
@@ -210,27 +343,64 @@
     </div>
 
     @if ($camp->latitude && $camp->longitude)
-        <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const lat = {{ $camp->latitude }};
-                const lng = {{ $camp->longitude }};
+            (() => {
+                const campPosition = {
+                    lat: {{ $camp->latitude }},
+                    lng: {{ $camp->longitude }}
+                };
 
-                const showMap = L.map('campShowMap').setView([lat, lng], 15);
+                const campName = @json($camp->name_camp);
+                const campAddress = @json($camp->full_address ?: '');
+                const errorElement = document.getElementById('campMapError');
 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors'
-                }).addTo(showMap);
+                window.initCampShowMap = function() {
+                    const map = new google.maps.Map(document.getElementById('campShowMap'), {
+                        center: campPosition,
+                        zoom: 15,
+                        mapTypeControl: false,
+                        streetViewControl: false,
+                        fullscreenControl: true,
+                        gestureHandling: 'cooperative'
+                    });
 
-                L.marker([lat, lng]).addTo(showMap)
-                    .bindPopup(@json($camp->name_camp)).openPopup();
+                    const marker = new google.maps.Marker({
+                        map,
+                        position: campPosition,
+                        title: campName
+                    });
 
-                setTimeout(function() {
-                    showMap.invalidateSize();
-                }, 200);
-            });
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: '<div style="font-weight:600;margin-bottom:2px;">' + campName + '</div>' +
+                            (campAddress ?
+                                '<div style="font-size:12px;color:#666;">' + campAddress + '</div>' :
+                                '')
+                    });
+
+                    infoWindow.open(map, marker);
+
+                    marker.addListener('click', () => infoWindow.open(map, marker));
+                };
+
+                window.gm_authFailure = function() {
+                    errorElement.textContent =
+                        'Google Maps โหลดไม่ได้ กรุณาตรวจสอบ API Key, Billing และ Website restrictions';
+                    errorElement.classList.remove('d-none');
+                };
+            })();
         </script>
+
+        @if (config('services.google_maps.key'))
+            <script
+                async
+                src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&callback=initCampShowMap&loading=async&language=th&region=TH"
+            ></script>
+        @else
+            <script>
+                document.getElementById('campMapError').textContent =
+                    'ยังไม่ได้ตั้งค่า GOOGLE_MAPS_API_KEY ในไฟล์ .env';
+                document.getElementById('campMapError').classList.remove('d-none');
+            </script>
+        @endif
     @endif
 @endsection

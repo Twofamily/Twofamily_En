@@ -153,6 +153,7 @@
 
                         $isDocPage =
                             request()->routeIs('quotations.*') ||
+                            request()->routeIs('delivery-notes.*') ||
                             request()->routeIs('invoices.*') ||
                             request()->routeIs('receipts.*') ||
                             request()->routeIs('tax-invoices.*');
@@ -248,6 +249,10 @@
                                 <a href="{{ route('quotations.index') }}"
                                     class="sub-link {{ request()->routeIs('quotations.*') ? 'active' : '' }}">
                                     <i class="bi bi-file-earmark-ruled me-2"></i>ใบเสนอราคา
+                                </a>
+                                <a href="{{ route('delivery-notes.index') }}"
+                                    class="sub-link {{ request()->routeIs('delivery-notes.*') ? 'active' : '' }}">
+                                    <i class="bi bi-truck me-2"></i>ใบส่งของ
                                 </a>
                                 <a href="{{ route('invoices.index') }}"
                                     class="sub-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">

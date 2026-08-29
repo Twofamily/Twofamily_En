@@ -14,6 +14,7 @@ class Camp extends Model
 
     protected $fillable = [
         'id_customer',
+        'id_quot',
         'code_camp',
         'name_camp',
         'address_detail',
@@ -42,6 +43,17 @@ class Camp extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class, 'id_customer', 'id_customer');
+    }
+
+    /** แคมป์นี้เปิดมาจากใบเสนอราคาใบไหน */
+    public function quotation()
+    {
+        return $this->belongsTo(Quotation::class, 'id_quot', 'id_quot');
+    }
+
+        public function deliveryNotes()
+    {
+        return $this->hasMany(DeliveryNote::class, 'id_camp', 'id_camp');
     }
 
     public function scopeActive($query)
@@ -82,8 +94,8 @@ class Camp extends Model
     public function trucks()
     {
         return $this->belongsToMany(Truck::class, 'camp_truck', 'id_camp', 'id_truck')
-                    ->withPivot('id_assignment', 'assigned_date', 'released_date', 'note')
-                    ->withTimestamps();
+            ->withPivot('id_assignment', 'assigned_date', 'released_date', 'note')
+            ->withTimestamps();
     }
 
     public function activeTrucks()

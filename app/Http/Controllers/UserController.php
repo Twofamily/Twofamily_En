@@ -25,7 +25,7 @@ class UserController extends Controller
             })
             ->orderBy('name')
             ->paginate(10)
-            ->withQueryString();   // ให้คำค้นหาติดไปกับ pagination
+            ->withQueryString();
 
         return view('users.index', compact('users', 'q'));
     }
@@ -43,34 +43,32 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'      => ['required', 'string', 'max:255'],
-            'email'     => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role'      => ['required', Rule::in(array_keys(User::roleList()))],
-            'password'  => ['required', 'confirmed', Password::min(8)],
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
+            'role'     => ['required', Rule::in(array_keys(User::roleList()))],
+            'password' => ['required', 'confirmed', Password::min(8)],
         ], [
-            'name.required'      => 'กรุณากรอกชื่อ-นามสกุล',
-            'email.required'     => 'กรุณากรอกอีเมล',
-            'email.email'        => 'รูปแบบอีเมลไม่ถูกต้อง',
-            'email.unique'       => 'อีเมลนี้ถูกใช้งานแล้ว',
-            'role.required'      => 'กรุณาเลือกสิทธิ์การใช้งาน',
-            'password.required'  => 'กรุณากรอกรหัสผ่าน',
-            'password.confirmed' => 'รหัสผ่านยืนยันไม่ตรงกัน',
-            'password.min'       => 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
+            'name.required'     => 'กรุณากรอกชื่อ-นามสกุล',
+            'email.required'    => 'กรุณากรอกอีเมล',
+            'email.email'       => 'รูปแบบอีเมลไม่ถูกต้อง',
+            'email.unique'      => 'อีเมลนี้ถูกใช้งานแล้ว',
+            'role.required'     => 'กรุณาเลือกสิทธิ์การใช้งาน',
+            'password.required' => 'กรุณากรอกรหัสผ่าน',
+            'password.confirmed'=> 'รหัสผ่านยืนยันไม่ตรงกัน',
+            'password.min'      => 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
         ]);
 
-        // checkbox ที่ไม่ติ๊กจะไม่ถูกส่งมาใน request ต้องกำหนดค่าเอง
         $data['is_active'] = $request->boolean('is_active');
 
-        // password ถูกเข้ารหัสอัตโนมัติจาก casts ใน User.php
         User::create($data);
 
-        return redirect()->route('users.index')
+        return redirect()
+            ->route('users.index')
             ->with('ok', 'เพิ่มผู้ใช้งานเรียบร้อยแล้ว');
     }
 
     /* ============================================================
      |  1.2.3 แก้ไขผู้ใช้งาน / เปลี่ยนสิทธิ์
-     |  ใช้ error bag "updateUser" เพื่อไม่ให้ error ไปโผล่ที่ฟอร์มรีเซ็ตรหัสผ่าน
      ============================================================ */
     public function edit(User $user)
     {
@@ -84,7 +82,7 @@ class UserController extends Controller
     {
         $data = $request->validateWithBag('updateUser', [
             'name'  => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->getKey())],
             'role'  => ['required', Rule::in(array_keys(User::roleList()))],
         ], [
             'name.required'  => 'กรุณากรอกชื่อ-นามสกุล',
@@ -94,8 +92,7 @@ class UserController extends Controller
             'role.required'  => 'กรุณาเลือกสิทธิ์การใช้งาน',
         ]);
 
-        // ป้องกันลดสิทธิ์ตนเองจนระบบไม่เหลือผู้ดูแล
-        if ($user->id === auth()->id()
+        if ($user->getKey() === auth()->id()
             && $data['role'] !== User::ROLE_ADMIN
             && $this->countActiveAdmins() <= 1) {
 
@@ -106,13 +103,13 @@ class UserController extends Controller
 
         $user->update($data);
 
-        return redirect()->route('users.index')
+        return redirect()
+            ->route('users.index')
             ->with('ok', 'แก้ไขข้อมูลผู้ใช้งานเรียบร้อยแล้ว');
     }
 
     /* ============================================================
      |  1.2.4 รีเซ็ตรหัสผ่านให้ผู้ใช้
-     |  ใช้ error bag "updatePassword" แยกจากฟอร์มข้อมูลทั่วไป
      ============================================================ */
     public function resetPassword(Request $request, User $user)
     {
@@ -126,7 +123,8 @@ class UserController extends Controller
 
         $user->update(['password' => $request->password]);
 
-        return redirect()->route('users.index')
+        return redirect()
+            ->route('users.index')
             ->with('ok', "รีเซ็ตรหัสผ่านของ {$user->name} เรียบร้อยแล้ว");
     }
 
@@ -135,12 +133,10 @@ class UserController extends Controller
      ============================================================ */
     public function toggleStatus(User $user)
     {
-        // ห้ามระงับบัญชีตนเอง เพราะจะล็อกตัวเองออกจากระบบทันที
-        if ($user->id === auth()->id()) {
+        if ($user->getKey() === auth()->id()) {
             return back()->with('error', 'ไม่สามารถระงับบัญชีของตนเองได้');
         }
 
-        // ห้ามระงับผู้ดูแลระบบคนสุดท้าย
         if ($user->isAdmin() && $user->is_active && $this->countActiveAdmins() <= 1) {
             return back()->with('error', 'ไม่สามารถระงับผู้ดูแลระบบคนสุดท้ายได้');
         }
@@ -157,7 +153,7 @@ class UserController extends Controller
      ============================================================ */
     public function destroy(User $user)
     {
-        if ($user->id === auth()->id()) {
+        if ($user->getKey() === auth()->id()) {
             return back()->with('error', 'ไม่สามารถลบบัญชีของตนเองได้');
         }
 
@@ -168,13 +164,13 @@ class UserController extends Controller
         $name = $user->name;
         $user->delete();
 
-        return redirect()->route('users.index')
+        return redirect()
+            ->route('users.index')
             ->with('ok', "ลบผู้ใช้งาน {$name} เรียบร้อยแล้ว");
     }
 
     /* ============================================================
      |  นับผู้ดูแลระบบที่ยังใช้งานอยู่
-     |  ใช้ตรวจสอบก่อนลบ / ระงับ / ลดสิทธิ์
      ============================================================ */
     private function countActiveAdmins(): int
     {

@@ -32,24 +32,13 @@
                 <tbody>
                     @forelse ($quotations as $q)
                         <tr>
+                            <td><strong>{{ $q->code_quot }}</strong></td>
 
-                            <td>
-                                <strong>
-                                    QT{{ str_pad($q->id_quot, 5, '0', STR_PAD_LEFT) }}
-                                </strong>
-                            </td>
+                            <td>{{ $q->customer->name_customer ?? '-' }}</td>
 
-                            <td>
-                                {{ $q->customer->name_customer ?? '-' }}
-                            </td>
+                            <td>{{ \Carbon\Carbon::parse($q->date_quot)->format('d/m/Y') }}</td>
 
-                            <td>
-                                {{ \Carbon\Carbon::parse($q->date_quot)->format('d/m/Y') }}
-                            </td>
-
-                            <td class="text-end">
-                                {{ number_format($q->total_amount, 2) }}
-                            </td>
+                            <td class="text-end">{{ number_format($q->total_amount, 2) }}</td>
 
                             <td class="text-center">
                                 @if ($q->status == 'draft')
@@ -66,23 +55,45 @@
                             <td class="text-center">
                                 <div class="btn-group">
 
-                                    <!-- ดู -->
-                                    <a href="{{ route('quotations.show', $q) }}" class="btn btn-sm btn-outline-primary">
-                                        ดู
-                                    </a>
+                                    <a href="{{ route('quotations.show', $q) }}"
+                                       class="btn btn-sm btn-outline-primary">ดู</a>
 
-                                    <form method="POST" action="{{ route('quotations.destroy', $q) }}" class="d-inline"
-                                    data-confirm="ข้อมูล {{ $q->id_quot }} จะถูกลบออกจากระบบ"
-                                        data-confirm-title="ยืนยันการลบข้อมูล" 
-                                        data-confirm-variant="danger"
-                                        data-confirm-ok="ลบข้อมูล">
+                                    @if ($q->status === 'draft')
+                                        <form method="POST" action="{{ route('quotations.approve', $q) }}"
+                                              class="d-inline"
+                                              data-confirm="ใบเสนอราคา {{ $q->code_quot }} จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้"
+                                              data-confirm-title="ยืนยันการอนุมัติ"
+                                              data-confirm-variant="success"
+                                              data-confirm-ok="อนุมัติ">
+                                            @csrf @method('PATCH')
+                                            <button class="btn btn-sm btn-outline-success" type="submit">อนุมัติ</button>
+                                        </form>
+                                    @endif
+
+                                    @if (in_array($q->status, ['draft', 'approved']))
+                                        <form method="POST" action="{{ route('quotations.cancel', $q) }}"
+                                              class="d-inline"
+                                              data-confirm="ใบเสนอราคา {{ $q->code_quot }} จะถูกยกเลิก"
+                                              data-confirm-title="ยืนยันการยกเลิก"
+                                              data-confirm-variant="warning"
+                                              data-confirm-ok="ยกเลิกใบเสนอราคา">
+                                            @csrf @method('PATCH')
+                                            <button class="btn btn-sm btn-outline-warning" type="submit">ยกเลิก</button>
+                                        </form>
+                                    @endif
+
+                                    <form method="POST" action="{{ route('quotations.destroy', $q) }}"
+                                          class="d-inline"
+                                          data-confirm="ใบเสนอราคา {{ $q->code_quot }} จะถูกลบออกจากระบบ"
+                                          data-confirm-title="ยืนยันการลบข้อมูล"
+                                          data-confirm-variant="danger"
+                                          data-confirm-ok="ลบข้อมูล">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
                                     </form>
 
                                 </div>
                             </td>
-
                         </tr>
                     @empty
                         <tr>

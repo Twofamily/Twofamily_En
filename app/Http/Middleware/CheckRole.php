@@ -9,21 +9,23 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
-    public function handle(Request $request, Closure $next, ...$roles): Response
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     */
+    public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        // ใช้ web guard สำหรับระบบล็อกอินผ่านหน้าเว็บ
-        $guard = Auth::guard('web');
-
         // ยังไม่ได้ล็อกอิน
-        if (!$guard->check()) {
+        if (! Auth::guard('web')->check()) {
             return redirect()->route('login');
         }
 
-        $user = $guard->user();
+        $user = $request->user();
 
-        // บัญชีถูกระงับ
-        if (!$user->is_active) {
-            $guard->logout();
+        // บัญชีถูกระงับการใช้งาน
+        if (! $user->is_active) {
+            Auth::guard('web')->logout();
 
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -35,8 +37,8 @@ class CheckRole
                 ]);
         }
 
-        // สิทธิ์ไม่ตรงกับ Route
-        if (!in_array($user->role, $roles, true)) {
+        // สิทธิ์ไม่ตรงกับที่กำหนดไว้ใน Route
+        if (! in_array($user->role, $roles, true)) {
             abort(403, 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
         }
 

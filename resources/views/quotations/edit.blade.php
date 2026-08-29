@@ -78,6 +78,13 @@
                             </td>
                         </tr>
 
+                        <tr>
+                            <th class="text-end">VAT 7%</th>
+                            <td class="text-end">
+                                <span id="vatAmount">0.00</span> บาท
+                            </td>
+                        </tr>
+
                         <tr class="table-primary fw-bold">
                             <th class="text-end">ยอดสุทธิ</th>
                             <td class="text-end">
@@ -99,6 +106,7 @@
         let index = 1;
 
         const subTotalEl = document.getElementById('subTotal');
+        const vatEl = document.getElementById('vatAmount');
         const grandTotalEl = document.getElementById('grandTotal');
         const discountInput = document.getElementById('discount');
 
@@ -120,9 +128,12 @@
             });
 
             let discount = Number(discountInput.value || 0);
-            let grandTotal = Math.max(subTotal - discount, 0);
+            let afterDiscount = Math.max(subTotal - discount, 0);
+            let vat = afterDiscount * 0.07;
+            let grandTotal = afterDiscount + vat;
 
             subTotalEl.textContent = subTotal.toFixed(2);
+            vatEl.textContent = vat.toFixed(2);
             grandTotalEl.textContent = grandTotal.toFixed(2);
         }
 

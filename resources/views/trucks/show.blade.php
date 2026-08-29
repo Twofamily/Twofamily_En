@@ -9,11 +9,11 @@
 @section('content')
     <div class="container py-2">
 
-        @foreach (['ok' => 'success', 'info' => 'info'] as $key => $color)
+        {{-- @foreach (['ok' => 'success', 'info' => 'info'] as $key => $color)
             @if (session($key))
                 <div class="alert alert-{{ $color }} shadow-sm">{{ session($key) }}</div>
             @endif
-        @endforeach
+        @endforeach --}}
 
         @if ($errors->any())
             <div class="alert alert-danger shadow-sm">
@@ -227,11 +227,11 @@
                                 <input type="date" name="start_date" class="form-control"
                                     value="{{ old('start_date', date('Y-m-d')) }}">
                             </div>
-                            <div class="col-6 mb-2">
+                            {{-- <div class="col-6 mb-2">
                                 <label class="form-label">คาดว่าเสร็จ</label>
                                 <input type="date" name="expected_return" class="form-control"
                                     value="{{ old('expected_return') }}">
-                            </div>
+                            </div> --}}
                             <div class="col-6 mb-2">
                                 <label class="form-label">อู่ / ผู้ซ่อม</label>
                                 <input type="text" name="garage" class="form-control" value="{{ old('garage') }}">

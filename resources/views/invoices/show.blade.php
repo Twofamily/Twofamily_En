@@ -40,6 +40,12 @@
                     <strong>อ้างอิงใบเสนอราคา:</strong>
                     QT{{ str_pad($invoice->id_quotation, 5, '0', STR_PAD_LEFT) }}
                 </p>
+                @if ($invoice->deliveryNote)
+                    <p>
+                        <strong>อ้างอิงใบส่งของ:</strong>
+                        DN{{ str_pad($invoice->deliveryNote->id_delivery_note, 5, '0', STR_PAD_LEFT) }}
+                    </p>
+                @endif
             </div>
 
             <div class="table-responsive mb-4">

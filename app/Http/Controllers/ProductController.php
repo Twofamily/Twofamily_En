@@ -11,65 +11,44 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $q = $request->q;
+        $q      = $request->q;
         $typeId = $request->type;
 
-        $query = Product::with('type');
+        $products = Product::with('type')
+            ->when($q, fn($query) => $query->where(fn($subQuery) =>
+                $subQuery->where('name_product', 'like', "%{$q}%")
+                    ->orWhere('detail_product', 'like', "%{$q}%")
+            ))
+            ->when($typeId, fn($query) => $query->where('product_type_id', $typeId))
+            ->latest('id_product')
+            ->paginate(10)
+            ->withQueryString();
 
-        if ($q) {
-            $query->where(function ($qq) use ($q) {
-                $qq->where('name_product', 'like', "%{$q}%")
-                    ->orWhere('detail_product', 'like', "%{$q}%");
-            });
-        }
-
-        if ($typeId) {
-            $query->where('product_type_id', $typeId);
-        }
-
-        $products = $query->paginate(10)->withQueryString();
-        $types = ProductType::all();
+        $types = ProductType::orderBy('name_product_type')->get();
 
         return view('products.index', compact('products', 'types', 'q', 'typeId'));
     }
 
     public function create()
     {
-        $types = ProductType::all();
-        return view('products.create', compact('types'));
+        return view('products.create', [
+            'types' => ProductType::orderBy('name_product_type')->get(),
+        ]);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name_product'    => 'required|string|max:45',
-            'detail_product'  => 'nullable|string|max:255',
-            'unit_price'      => 'required|integer|min:0',
-            'product_type_id' => 'nullable|exists:product_types,id_product_type',
-            'new_type'        => 'nullable|string|max:255',
-            'image'           => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-        ]);
+        $data = $this->validateProduct($request);
 
         if ($request->filled('new_type')) {
             $newType = ProductType::create([
                 'name_product_type' => $request->new_type,
             ]);
-
-            $request->merge([
-                'product_type_id' => $newType->id_product_type
-            ]);
+            $data['product_type_id'] = $newType->id_product_type;
         }
 
-        $data = $request->only([
-            'name_product',
-            'detail_product',
-            'unit_price',
-            'product_type_id',
-        ]);
-
-        // จัดการอัปโหลดรูปภาพสินค้า
         if ($request->hasFile('image')) {
-            $data['image'] = $request->file('image')->store('products', 'public');
+            $data['image'] = $this->handleImageUpload($request);
         }
 
         Product::create($data);
@@ -81,33 +60,18 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
-        $types = ProductType::all();
-        return view('products.edit', compact('product', 'types'));
+        return view('products.edit', [
+            'product' => $product,
+            'types'   => ProductType::orderBy('name_product_type')->get(),
+        ]);
     }
 
     public function update(Request $request, Product $product)
     {
-        $request->validate([
-            'name_product'    => 'required|string|max:45',
-            'detail_product'  => 'nullable|string|max:255',
-            'unit_price'      => 'required|integer|min:0',
-            'product_type_id' => 'nullable|exists:product_types,id_product_type',
-            'image'           => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-        ]);
+        $data = $this->validateProduct($request);
 
-        $data = $request->only([
-            'name_product',
-            'detail_product',
-            'unit_price',
-            'product_type_id',
-        ]);
-
-        // จัดการอัปโหลดรูปภาพใหม่ และลบรูปภาพเดิมออกจาก Storage
         if ($request->hasFile('image')) {
-            if ($product->image && Storage::disk('public')->exists($product->image)) {
-                Storage::disk('public')->delete($product->image);
-            }
-            $data['image'] = $request->file('image')->store('products', 'public');
+            $data['image'] = $this->handleImageUpload($request, $product->image);
         }
 
         $product->update($data);
@@ -119,7 +83,6 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
-        // ลบไฟล์รูปภาพออกจาก Storage ก่อนลบข้อมูลใน DB
         if ($product->image && Storage::disk('public')->exists($product->image)) {
             Storage::disk('public')->delete($product->image);
         }
@@ -129,5 +92,26 @@ class ProductController extends Controller
         return redirect()
             ->route('products.index')
             ->with('ok', 'ลบสินค้าเรียบร้อย');
+    }
+
+    private function validateProduct(Request $request): array
+    {
+        return $request->validate([
+            'name_product'    => ['required', 'string', 'max:45'],
+            'detail_product'  => ['nullable', 'string', 'max:255'],
+            'unit_price'      => ['required', 'integer', 'min:0'],
+            'product_type_id' => ['nullable', 'exists:product_types,id_product_type'],
+            'new_type'        => ['nullable', 'string', 'max:255'],
+            'image'           => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+        ]);
+    }
+
+    private function handleImageUpload(Request $request, ?string $oldPath = null): string
+    {
+        if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        return $request->file('image')->store('products', 'public');
     }
 }

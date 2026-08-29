@@ -26,11 +26,7 @@
                     ];
                 })
                 ->all();
-        } elseif (
-            isset($fuel_record)
-            && isset($fuel_record->segments)
-            && $fuel_record->segments->count() > 0
-        ) {
+        } elseif (isset($fuel_record) && isset($fuel_record->segments) && $fuel_record->segments->count() > 0) {
             $initialSegments = $fuel_record->segments
                 ->sortBy('sequence')
                 ->values()
@@ -48,29 +44,17 @@
         } else {
             $initialSegments = [
                 [
-                    'destination' => old(
-                        'destination',
-                        $fuel_record->destination ?? ''
-                    ),
+                    'destination' => old('destination', $fuel_record->destination ?? ''),
 
-                    'load_weight' => old(
-                        'load_weight',
-                        $fuel_record->current_weight ?? 0
-                    ),
+                    'load_weight' => old('load_weight', $fuel_record->current_weight ?? 0),
 
-                    'distance' => old(
-                        'distance',
-                        $fuel_record->distance ?? ''
-                    ),
+                    'distance' => old('distance', $fuel_record->distance ?? ''),
 
                     'fuel_rate' => '',
 
                     'fuel_liters' => '',
 
-                    'fuel_cost' => old(
-                        'cost_fuel_total',
-                        $fuel_record->cost_fuel_total ?? ''
-                    ),
+                    'fuel_cost' => old('cost_fuel_total', $fuel_record->cost_fuel_total ?? ''),
                 ],
             ];
         }
@@ -277,13 +261,10 @@
             </div>
         @endif
 
-        <form
-            id="fuel_record_form"
-            method="POST"
+        <form id="fuel_record_form" method="POST"
             action="{{ isset($fuel_record)
                 ? route('fuel_records.update', $fuel_record->id_fuel_record)
-                : route('fuel_records.store') }}"
-        >
+                : route('fuel_records.store') }}">
             @csrf
 
             @if (isset($fuel_record))
@@ -293,26 +274,17 @@
             <div class="row g-4">
                 <div class="col-lg-6">
                     <div class="mb-3">
-                        <label
-                            for="date_record"
-                            class="form-label"
-                        >
+                        <label for="date_record" class="form-label">
                             วันที่
                         </label>
 
-                        <input
-                            type="date"
-                            id="date_record"
-                            name="date_record"
+                        <input type="date" id="date_record" name="date_record"
                             class="form-control @error('date_record') is-invalid @enderror"
                             value="{{ old(
                                 'date_record',
-                                isset($fuel_record)
-                                    ? $fuel_record->date_record?->format('Y-m-d')
-                                    : now()->format('Y-m-d')
+                                isset($fuel_record) ? $fuel_record->date_record?->format('Y-m-d') : now()->format('Y-m-d'),
                             ) }}"
-                            required
-                        >
+                            required>
 
                         @error('date_record')
                             <div class="invalid-feedback">
@@ -322,33 +294,17 @@
                     </div>
 
                     <div class="mb-3">
-                        <label
-                            for="truck_select"
-                            class="form-label"
-                        >
+                        <label for="truck_select" class="form-label">
                             รถบรรทุก
                         </label>
 
-                        <select
-                            id="truck_select"
-                            name="trucks_id_truck"
-                            class="form-select @error('trucks_id_truck') is-invalid @enderror"
-                            required
-                        >
+                        <select id="truck_select" name="trucks_id_truck"
+                            class="form-select @error('trucks_id_truck') is-invalid @enderror" required>
                             @forelse ($trucks as $truck)
-                                <option
-                                    value="{{ $truck->id_truck }}"
-                                    data-fuel-rate="{{ $truck->fuel_rate }}"
-                                    data-max-load="{{ $truck->weight_truck }}"
-                                    data-purchase-year="{{ $truck->year_truck }}"
-                                    @selected(
-                                        old(
-                                            'trucks_id_truck',
-                                            $fuel_record->trucks_id_truck ?? ''
-                                        ) == $truck->id_truck
-                                    )
-                                >
-                                    {{ $truck->brand_truck ?? $truck->brand?->name_brand ?? 'รถบรรทุก' }}
+                                <option value="{{ $truck->id_truck }}" data-fuel-rate="{{ $truck->fuel_rate }}"
+                                    data-max-load="{{ $truck->weight_truck }}" data-purchase-year="{{ $truck->year_truck }}"
+                                    @selected(old('trucks_id_truck', $fuel_record->trucks_id_truck ?? '') == $truck->id_truck)>
+                                    {{ $truck->brand_truck ?? ($truck->brand?->name_brand ?? 'รถบรรทุก') }}
                                     ({{ $truck->id_truck }})
                                 </option>
                             @empty
@@ -367,21 +323,13 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label
-                                for="max_load_weight"
-                                class="form-label"
-                            >
+                            <label for="max_load_weight" class="form-label">
                                 น้ำหนักบรรทุกสูงสุด
                             </label>
 
                             <div class="input-group">
-                                <input
-                                    type="number"
-                                    id="max_load_weight"
-                                    class="form-control bg-light"
-                                    step="0.01"
-                                    readonly
-                                >
+                                <input type="number" id="max_load_weight" class="form-control bg-light" step="0.01"
+                                    readonly>
 
                                 <span class="input-group-text">
                                     กก.
@@ -390,59 +338,36 @@
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label
-                                for="show_fuel_rate"
-                                class="form-label"
-                            >
+                            <label for="show_fuel_rate" class="form-label">
                                 อัตรารถเปล่าหลังปรับตามอายุ
                             </label>
 
                             <div class="input-group">
-                                <input
-                                    type="number"
-                                    id="show_fuel_rate"
-                                    class="form-control bg-light"
-                                    step="0.01"
-                                    readonly
-                                >
+                                <input type="number" id="show_fuel_rate" class="form-control bg-light" step="0.01"
+                                    readonly>
 
                                 <span class="input-group-text">
                                     กม./ลิตร
                                 </span>
                             </div>
 
-                            <div
-                                id="fuel_rate_age_help"
-                                class="form-text"
-                            >
+                            <div id="fuel_rate_age_help" class="form-text">
                                 คำนวณจากอัตราตอนรถใหม่และปีที่ซื้อ
                             </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label
-                            for="cost_fuel"
-                            class="form-label"
-                        >
+                        <label for="cost_fuel" class="form-label">
                             ราคาน้ำมัน
                         </label>
 
                         <div class="input-group">
-                            <input
-                                type="number"
-                                id="cost_fuel"
-                                name="cost_fuel"
-                                class="form-control bg-light @error('cost_fuel') is-invalid @enderror"
-                                min="0"
+                            <input type="number" id="cost_fuel" name="cost_fuel"
+                                class="form-control bg-light @error('cost_fuel') is-invalid @enderror" min="0"
                                 step="0.01"
-                                value="{{ old(
-                                    'cost_fuel',
-                                    $fuel_record->cost_fuel ?? ($dieselPrice ?? '')
-                                ) }}"
-                                readonly
-                                required
-                            >
+                                value="{{ old('cost_fuel', $fuel_record->cost_fuel ?? ($dieselPrice ?? '')) }}"
+                                readonly required>
 
                             <span class="input-group-text">
                                 บาท/ลิตร
@@ -459,10 +384,7 @@
                     <hr>
 
                     <div class="mb-3">
-                        <label
-                            for="start_point"
-                            class="form-label fw-semibold"
-                        >
+                        <label for="start_point" class="form-label fw-semibold">
                             จุดเริ่มต้น
 
                             <span class="text-danger">
@@ -470,19 +392,10 @@
                             </span>
                         </label>
 
-                        <input
-                            type="text"
-                            id="start_point"
-                            name="start_point"
-                            class="form-control @error('start_point') is-invalid @enderror"
-                            placeholder="ค้นหาจุดเริ่มต้น"
-                            value="{{ old(
-                                'start_point',
-                                $fuel_record->start_point ?? ''
-                            ) }}"
-                            autocomplete="off"
-                            required
-                        >
+                        <input type="text" id="start_point" name="start_point"
+                            class="form-control @error('start_point') is-invalid @enderror" placeholder="ค้นหาจุดเริ่มต้น"
+                            value="{{ old('start_point', $fuel_record->start_point ?? '') }}"
+                            autocomplete="off" required>
 
                         <small class="text-muted">
                             พิมพ์ชื่อสถานที่ หรือคลิกเลือกตำแหน่งบนแผนที่
@@ -495,56 +408,27 @@
                         @enderror
                     </div>
 
-                    <div
-                        id="segments_container"
-                        class="d-flex flex-column gap-3"
-                    ></div>
+                    <div id="segments_container" class="d-flex flex-column gap-3"></div>
 
-                    <div class="d-flex flex-wrap gap-2 my-3">
-                        <button
-                            type="button"
-                            id="add_segment_button"
-                            class="btn btn-outline-primary"
-                        >
-                            + เพิ่มสถานที่ถัดไป
+                    <div class="d-flex flex-wrap gap-2 my-3 justify-content-end">
+                        <button type="button" id="add_segment_button" class="btn btn-outline-primary">
+                            + เพิ่มปลายทางถัดไป
                         </button>
 
-                        <button
-                            type="button"
-                            id="calculate_all_routes_button"
-                            class="btn btn-primary"
-                        >
+                        <button type="button" id="calculate_all_routes_button" class="btn btn-primary">
                             คำนวณทุกช่วง
                         </button>
 
-                        <button
-                            type="button"
-                            id="clear_routes_button"
-                            class="btn btn-outline-secondary"
-                        >
+                        {{-- <button type="button" id="clear_routes_button" class="btn btn-outline-secondary">
                             ล้างเส้นทาง
-                        </button>
+                        </button> --}}
                     </div>
 
-                    <input
-                        type="hidden"
-                        id="legacy_destination"
-                        name="destination"
-                        value="{{ old(
-                            'destination',
-                            $fuel_record->destination ?? ''
-                        ) }}"
-                    >
+                    <input type="hidden" id="legacy_destination" name="destination"
+                        value="{{ old('destination', $fuel_record->destination ?? '') }}">
 
-                    <input
-                        type="hidden"
-                        id="legacy_load_weight"
-                        name="load_weight"
-                        value="{{ old(
-                            'load_weight',
-                            $fuel_record->current_weight ?? 0
-                        ) }}"
-                    >
+                    <input type="hidden" id="legacy_load_weight" name="load_weight"
+                        value="{{ old('load_weight', $fuel_record->current_weight ?? 0) }}">
 
                     <div class="fuel-summary mb-3">
                         <div class="fw-semibold mb-2">
@@ -553,11 +437,10 @@
 
                         <div class="fuel-summary-row">
                             <span>
-                                จำนวนช่วงเดินทาง
+                                จำนวนเส้นทาง
                             </span>
 
                             <strong id="segment_count_display">
-                                0 ช่วง
                             </strong>
                         </div>
 
@@ -596,28 +479,16 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label
-                                for="distance"
-                                class="form-label"
-                            >
+                            <label for="distance" class="form-label">
                                 ระยะทางรวม
                             </label>
 
                             <div class="input-group">
-                                <input
-                                    type="number"
-                                    id="distance"
-                                    name="distance"
-                                    class="form-control bg-light @error('distance') is-invalid @enderror"
-                                    min="0"
+                                <input type="number" id="distance" name="distance"
+                                    class="form-control bg-light @error('distance') is-invalid @enderror" min="0"
                                     step="0.01"
-                                    value="{{ old(
-                                        'distance',
-                                        $fuel_record->distance ?? ''
-                                    ) }}"
-                                    readonly
-                                    required
-                                >
+                                    value="{{ old('distance', $fuel_record->distance ?? '') }}"
+                                    readonly required>
 
                                 <span class="input-group-text">
                                     กม.
@@ -632,28 +503,16 @@
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label
-                                for="cost_fuel_total"
-                                class="form-label"
-                            >
+                            <label for="cost_fuel_total" class="form-label">
                                 ค่าน้ำมันรวม
                             </label>
 
                             <div class="input-group">
-                                <input
-                                    type="number"
-                                    id="cost_fuel_total"
-                                    name="cost_fuel_total"
+                                <input type="number" id="cost_fuel_total" name="cost_fuel_total"
                                     class="form-control bg-light @error('cost_fuel_total') is-invalid @enderror"
-                                    min="0"
-                                    step="0.01"
-                                    value="{{ old(
-                                        'cost_fuel_total',
-                                        $fuel_record->cost_fuel_total ?? ''
-                                    ) }}"
-                                    readonly
-                                    required
-                                >
+                                    min="0" step="0.01"
+                                    value="{{ old('cost_fuel_total', $fuel_record->cost_fuel_total ?? '') }}"
+                                    readonly required>
 
                                 <span class="input-group-text">
                                     บาท
@@ -668,28 +527,15 @@
                         </div>
                     </div>
 
-                    <input
-                        type="hidden"
-                        id="total_fuel_liters"
-                        name="total_fuel_liters"
-                        value="{{ old(
-                            'total_fuel_liters',
-                            $fuel_record->total_fuel_liters ?? ''
-                        ) }}"
-                    >
+                    <input type="hidden" id="total_fuel_liters" name="total_fuel_liters"
+                        value="{{ old('total_fuel_liters', $fuel_record->total_fuel_liters ?? '') }}">
 
-                    <div class="d-flex gap-2">
-                        <button
-                            type="submit"
-                            class="btn btn-success"
-                        >
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="submit" class="btn btn-success">
                             บันทึก
                         </button>
 
-                        <a
-                            href="{{ route('fuel_records.index') }}"
-                            class="btn btn-outline-secondary"
-                        >
+                        <a href="{{ route('fuel_records.index') }}" class="btn btn-outline-secondary">
                             ย้อนกลับ
                         </a>
                     </div>
@@ -698,27 +544,11 @@
                 <div class="col-lg-6">
                     <div id="map"></div>
 
-                    <div class="map-help mt-2">
-                        คลิกช่องจุดเริ่มต้นหรือปลายทางที่ต้องการก่อน
-                        แล้วคลิกตำแหน่งบนแผนที่
-                    </div>
+                    <div id="map_legend" class="map-legend mt-3"></div>
 
-                    <div
-                        id="map_legend"
-                        class="map-legend mt-3"
-                    ></div>
+                    <div id="map_status" class="alert alert-info mt-3 d-none" role="status"></div>
 
-                    <div
-                        id="map_status"
-                        class="alert alert-info mt-3 d-none"
-                        role="status"
-                    ></div>
-
-                    <div
-                        id="map_error"
-                        class="alert alert-danger mt-3 d-none"
-                        role="alert"
-                    ></div>
+                    <div id="map_error" class="alert alert-danger mt-3 d-none" role="alert"></div>
                 </div>
             </div>
         </form>
@@ -735,17 +565,14 @@
                     </span>
                 </div>
 
-                <button
-                    type="button"
-                    class="btn btn-sm btn-outline-danger remove-segment-button"
-                >
+                <button type="button" class="btn btn-sm btn-outline-danger remove-segment-button">
                     ลบ
                 </button>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">
-                    ต้นทางของช่วงนี้
+                    ต้นทาง
                 </label>
 
                 <div class="segment-origin-box">
@@ -762,13 +589,8 @@
                     </span>
                 </label>
 
-                <input
-                    type="text"
-                    class="form-control segment-destination"
-                    placeholder="ค้นหาปลายทาง"
-                    autocomplete="off"
-                    required
-                >
+                <input type="text" class="form-control segment-destination" placeholder="ค้นหาปลายทาง"
+                    autocomplete="off" required>
 
                 <small class="text-muted">
                     เลือกจากรายการค้นหา หรือคลิกเลือกบนแผนที่
@@ -778,18 +600,12 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">
-                        น้ำหนักบรรทุกช่วงนี้
+                        น้ำหนักบรรทุก
                     </label>
 
                     <div class="input-group">
-                        <input
-                            type="number"
-                            class="form-control segment-load-weight"
-                            min="0"
-                            step="0.01"
-                            value="0"
-                            required
-                        >
+                        <input type="number" class="form-control segment-load-weight" min="0" step="0.01"
+                            value="0" required>
 
                         <span class="input-group-text">
                             กก.
@@ -797,7 +613,7 @@
                     </div>
 
                     <small class="text-muted">
-                        รถเปล่ากรอก 0
+                        (รถเปล่ากรอก 0)
                     </small>
                 </div>
 
@@ -807,14 +623,8 @@
                     </label>
 
                     <div class="input-group">
-                        <input
-                            type="number"
-                            class="form-control bg-light segment-distance"
-                            min="0"
-                            step="0.01"
-                            readonly
-                            required
-                        >
+                        <input type="number" class="form-control bg-light segment-distance" min="0"
+                            step="0.01" readonly required>
 
                         <span class="input-group-text">
                             กม.
@@ -865,25 +675,13 @@
                 </div>
             </div>
 
-            <input
-                type="hidden"
-                class="segment-start-point"
-            >
+            <input type="hidden" class="segment-start-point">
 
-            <input
-                type="hidden"
-                class="segment-fuel-rate"
-            >
+            <input type="hidden" class="segment-fuel-rate">
 
-            <input
-                type="hidden"
-                class="segment-fuel-liters"
-            >
+            <input type="hidden" class="segment-fuel-liters">
 
-            <input
-                type="hidden"
-                class="segment-fuel-cost"
-            >
+            <input type="hidden" class="segment-fuel-cost">
 
             <div class="route-options-box d-none">
                 <div class="fw-semibold mb-2">
@@ -1114,9 +912,9 @@
                     purchaseYear > 0;
 
                 // หากไม่มีปีที่ซื้อ จะใช้ค่าเดิมโดยไม่หักตามอายุ
-                const truckAge = hasPurchaseYear
-                    ? Math.max(calculationYear - purchaseYear, 0)
-                    : 0;
+                const truckAge = hasPurchaseYear ?
+                    Math.max(calculationYear - purchaseYear, 0) :
+                    0;
 
                 const ageLossRatio = Math.min(
                     truckAge * ANNUAL_AGE_EFFICIENCY_LOSS,
@@ -1128,9 +926,9 @@
 
                 return {
                     calculationYear,
-                    purchaseYear: hasPurchaseYear
-                        ? purchaseYear
-                        : null,
+                    purchaseYear: hasPurchaseYear ?
+                        purchaseYear :
+                        null,
                     truckAge,
                     ageLossRatio,
                     baseFuelRate,
@@ -1199,7 +997,7 @@
                         'กรุณาเลือกรถบรรทุก';
 
                     segments.forEach(
-                        function (segment) {
+                        function(segment) {
                             segment.weightInput.removeAttribute(
                                 'max'
                             );
@@ -1213,27 +1011,27 @@
                     Number.isFinite(
                         information.maximumLoad
                     ) &&
-                    information.maximumLoad > 0
-                        ? information.maximumLoad.toFixed(2)
-                        : '';
+                    information.maximumLoad > 0 ?
+                    information.maximumLoad.toFixed(2) :
+                    '';
 
                 emptyFuelRateInput.value =
                     Number.isFinite(
                         information.fuelRate
                     ) &&
-                    information.fuelRate > 0
-                        ? information.fuelRate.toFixed(2)
-                        : '';
+                    information.fuelRate > 0 ?
+                    information.fuelRate.toFixed(2) :
+                    '';
 
                 if (
                     Number.isFinite(information.baseFuelRate) &&
                     information.baseFuelRate > 0
                 ) {
                     if (information.purchaseYear) {
-                        fuelRateAgeHelp.textContent =
-                            `ค่าตอนรถใหม่ ${information.baseFuelRate.toFixed(2)} กม./ลิตร | ` +
-                            `ซื้อปี ${information.purchaseYear} | ` +
-                            `อายุ ณ ปี ${information.calculationYear} = ${information.truckAge} ปี | ` +
+                        fuelRateAgeHelp.innerHTML =
+                            `ค่าตอนรถใหม่ ${information.baseFuelRate.toFixed(2)} กม./ลิตร<br>` +
+                            `ซื้อปี ${information.purchaseYear}<br>` +
+                            `อายุ ณ ปี ${information.calculationYear} = ${information.truckAge} ปี<br>` +
                             `ลดตามอายุ ${(information.ageLossRatio * 100).toFixed(2)}%`;
                     } else {
                         fuelRateAgeHelp.textContent =
@@ -1245,7 +1043,7 @@
                 }
 
                 segments.forEach(
-                    function (segment) {
+                    function(segment) {
                         if (
                             Number.isFinite(
                                 information.maximumLoad
@@ -1267,7 +1065,7 @@
 
             function getSegmentIndex(segmentId) {
                 return segments.findIndex(
-                    function (segment) {
+                    function(segment) {
                         return segment.id === segmentId;
                     }
                 );
@@ -1275,7 +1073,7 @@
 
             function getSegment(segmentId) {
                 return segments.find(
-                    function (segment) {
+                    function(segment) {
                         return segment.id === segmentId;
                     }
                 ) || null;
@@ -1318,7 +1116,7 @@
                 );
 
                 segments.forEach(
-                    function (segment) {
+                    function(segment) {
                         const isActive =
                             type === 'destination' &&
                             segment.id === segmentId;
@@ -1474,8 +1272,7 @@
 
                     weightInput,
 
-                    distanceInput:
-                        distanceInputElement,
+                    distanceInput: distanceInputElement,
 
                     startPointInput,
 
@@ -1499,16 +1296,13 @@
 
                     routeOptionsContainer,
 
-                    destinationLocation:
-                        null,
+                    destinationLocation: null,
 
-                    autocomplete:
-                        null,
+                    autocomplete: null,
 
                     routes: [],
 
-                    selectedRouteIndex:
-                        0,
+                    selectedRouteIndex: 0,
 
                     polylines: [],
                 };
@@ -1524,7 +1318,7 @@
                 destinationInput.addEventListener(
                     'focus',
 
-                    function () {
+                    function() {
                         setActiveField(
                             'destination',
 
@@ -1536,7 +1330,7 @@
                 destinationInput.addEventListener(
                     'input',
 
-                    function () {
+                    function() {
                         handleDestinationInput(
                             segment.id
                         );
@@ -1546,7 +1340,7 @@
                 weightInput.addEventListener(
                     'input',
 
-                    function () {
+                    function() {
                         handleWeightInput(
                             segment.id
                         );
@@ -1556,7 +1350,7 @@
                 removeButton.addEventListener(
                     'click',
 
-                    function () {
+                    function() {
                         removeSegment(
                             segment.id
                         );
@@ -1587,7 +1381,7 @@
 
             function refreshSegmentIndexes() {
                 segments.forEach(
-                    function (
+                    function(
                         segment,
 
                         index
@@ -1631,7 +1425,7 @@
                             segments.length === 1;
 
                         segment.polylines.forEach(
-                            function (
+                            function(
                                 polyline,
 
                                 routeIndex
@@ -1641,7 +1435,7 @@
                                         index,
 
                                         routeIndex ===
-                                            segment.selectedRouteIndex
+                                        segment.selectedRouteIndex
                                     )
                                 );
                             }
@@ -1658,7 +1452,7 @@
 
             function refreshSegmentOrigins() {
                 segments.forEach(
-                    function (
+                    function(
                         segment,
 
                         index
@@ -1671,9 +1465,9 @@
                         segment.originBox.textContent =
                             originText ||
                             (
-                                index === 0
-                                    ? 'กรุณาเลือกจุดเริ่มต้น'
-                                    : 'กรุณาเลือกปลายทางของช่วงก่อนหน้า'
+                                index === 0 ?
+                                'กรุณาเลือกจุดเริ่มต้น' :
+                                'กรุณาเลือกปลายทางของช่วงก่อนหน้า'
                             );
 
                         segment.startPointInput.value =
@@ -1705,17 +1499,17 @@
 
                 const weights =
                     segments.map(
-                        function (segment) {
+                        function(segment) {
                             const weight =
                                 Number.parseFloat(
                                     segment.weightInput.value || '0'
                                 );
 
                             return Number.isFinite(
-                                weight
-                            )
-                                ? weight
-                                : 0;
+                                    weight
+                                ) ?
+                                weight :
+                                0;
                         }
                     );
 
@@ -1754,18 +1548,16 @@
 
             function clearSegmentRoute(segment) {
                 segment.polylines.forEach(
-                    function (polyline) {
+                    function(polyline) {
                         polyline.setMap(
                             null
                         );
                     }
                 );
 
-                segment.polylines =
-                    [];
+                segment.polylines = [];
 
-                segment.routes =
-                    [];
+                segment.routes = [];
 
                 segment.selectedRouteIndex =
                     0;
@@ -1791,7 +1583,7 @@
                 routeCalculationVersion += 1;
 
                 segments.forEach(
-                    function (
+                    function(
                         segment,
 
                         index
@@ -1946,7 +1738,7 @@
                     loadWeight < 0
                 ) {
                     throw new Error(
-                        `กรุณาตรวจสอบน้ำหนักบรรทุกช่วงที่ ${segmentIndex + 1}`
+                        `กรุณาตรวจสอบน้ำหนักบรรทุก ${segmentIndex + 1}`
                     );
                 }
 
@@ -1954,7 +1746,7 @@
                     loadWeight > maximumLoad
                 ) {
                     throw new Error(
-                        `น้ำหนักบรรทุกช่วงที่ ${segmentIndex + 1} ต้องไม่เกิน ${maximumLoad.toFixed(2)} กก.`
+                        `น้ำหนักบรรทุก ${segmentIndex + 1} ต้องไม่เกิน ${maximumLoad.toFixed(2)} กก.`
                     );
                 }
 
@@ -2190,7 +1982,7 @@
                 let calculatedSegments = 0;
 
                 segments.forEach(
-                    function (segment) {
+                    function(segment) {
                         const distance =
                             Number.parseFloat(
                                 segment.distanceInput.value
@@ -2218,7 +2010,7 @@
 
                         if (
                             Number.isFinite(
-                            fuelLiters
+                                fuelLiters
                             ) &&
                             fuelLiters >= 0
                         ) {
@@ -2266,19 +2058,19 @@
                     `${totalFuelCost.toFixed(2)} บาท`;
 
                 distanceInput.value =
-                    totalDistance > 0
-                        ? totalDistance.toFixed(2)
-                        : '';
+                    totalDistance > 0 ?
+                    totalDistance.toFixed(2) :
+                    '';
 
                 totalFuelLitersInput.value =
-                    calculatedSegments > 0
-                        ? totalFuelLiters.toFixed(2)
-                        : '';
+                    calculatedSegments > 0 ?
+                    totalFuelLiters.toFixed(2) :
+                    '';
 
                 fuelTotalInput.value =
-                    calculatedSegments > 0
-                        ? totalFuelCost.toFixed(2)
-                        : '';
+                    calculatedSegments > 0 ?
+                    totalFuelCost.toFixed(2) :
+                    '';
 
                 updateLegacyFields();
             }
@@ -2287,7 +2079,7 @@
                 options = {}
             ) {
                 segments.forEach(
-                    function (segment) {
+                    function(segment) {
                         calculateSegmentFuel(
                             segment,
 
@@ -2417,15 +2209,14 @@
 
             function removeMapMarkers() {
                 mapMarkers.forEach(
-                    function (marker) {
+                    function(marker) {
                         marker.setMap(
                             null
                         );
                     }
                 );
 
-                mapMarkers =
-                    [];
+                mapMarkers = [];
             }
 
             function refreshMapMarkers() {
@@ -2457,21 +2248,18 @@
                         new google.maps.Marker({
                             map,
 
-                            position:
-                                startPosition,
+                            position: startPosition,
 
-                            label:
-                                '1',
+                            label: '1',
 
-                            title:
-                                startInput.value.trim() ||
+                            title: startInput.value.trim() ||
                                 'จุดเริ่มต้น',
                         })
                     );
                 }
 
                 segments.forEach(
-                    function (
+                    function(
                         segment,
 
                         index
@@ -2500,16 +2288,13 @@
                             new google.maps.Marker({
                                 map,
 
-                                position:
-                                    destinationPosition,
+                                position: destinationPosition,
 
-                                label:
-                                    String(
-                                        index + 2
-                                    ),
+                                label: String(
+                                    index + 2
+                                ),
 
-                                title:
-                                    segment.destinationInput.value.trim(),
+                                title: segment.destinationInput.value.trim(),
                             })
                         );
                     }
@@ -2614,21 +2399,20 @@
                     return route.overview_path;
                 }
 
-                const path =
-                    [];
+                const path = [];
 
                 (
                     route?.legs || []
                 ).forEach(
-                    function (leg) {
+                    function(leg) {
                         (
                             leg.steps || []
                         ).forEach(
-                            function (step) {
+                            function(step) {
                                 (
                                     step.path || []
                                 ).forEach(
-                                    function (point) {
+                                    function(point) {
                                         path.push(
                                             point
                                         );
@@ -2648,30 +2432,25 @@
                 isSelected
             ) {
                 return {
-                    strokeColor:
-                        isSelected
-                            ? getRouteColor(
-                                segmentIndex
-                            )
-                            : '#9aa4af',
+                    strokeColor: isSelected ?
+                        getRouteColor(
+                            segmentIndex
+                        ) :
+                        '#9aa4af',
 
-                    strokeOpacity:
-                        isSelected
-                            ? 0.90
-                            : 0.45,
+                    strokeOpacity: isSelected ?
+                        0.90 :
+                        0.45,
 
-                    strokeWeight:
-                        isSelected
-                            ? 7
-                            : 4,
+                    strokeWeight: isSelected ?
+                        7 :
+                        4,
 
-                    zIndex:
-                        isSelected
-                            ? 100 + segmentIndex
-                            : 10,
+                    zIndex: isSelected ?
+                        100 + segmentIndex :
+                        10,
 
-                    clickable:
-                        true,
+                    clickable: true,
                 };
             }
 
@@ -2682,18 +2461,17 @@
                     );
 
                 segment.polylines.forEach(
-                    function (polyline) {
+                    function(polyline) {
                         polyline.setMap(
                             null
                         );
                     }
                 );
 
-                segment.polylines =
-                    [];
+                segment.polylines = [];
 
                 segment.routes.forEach(
-                    function (
+                    function(
                         route,
 
                         routeIndex
@@ -2719,14 +2497,14 @@
                                     segmentIndex,
 
                                     routeIndex ===
-                                        segment.selectedRouteIndex
+                                    segment.selectedRouteIndex
                                 ),
                             });
 
                         polyline.addListener(
                             'click',
 
-                            function () {
+                            function() {
                                 selectSegmentRoute(
                                     segment.id,
 
@@ -2751,7 +2529,7 @@
                     );
 
                 segment.polylines.forEach(
-                    function (
+                    function(
                         polyline,
 
                         routeIndex
@@ -2761,7 +2539,7 @@
                                 segmentIndex,
 
                                 routeIndex ===
-                                    segment.selectedRouteIndex
+                                segment.selectedRouteIndex
                             )
                         );
                     }
@@ -2772,14 +2550,14 @@
                         '[data-route-index]'
                     )
                     .forEach(
-                        function (button) {
+                        function(button) {
                             button.classList.toggle(
                                 'active',
 
                                 Number(
                                     button.dataset.routeIndex
                                 ) ===
-                                    segment.selectedRouteIndex
+                                segment.selectedRouteIndex
                             );
                         }
                     );
@@ -2818,7 +2596,7 @@
                 }
 
                 segment.routes.forEach(
-                    function (
+                    function(
                         route,
 
                         routeIndex
@@ -2860,7 +2638,7 @@
                             'active',
 
                             routeIndex ===
-                                segment.selectedRouteIndex
+                            segment.selectedRouteIndex
                         );
 
                         const title =
@@ -2912,7 +2690,7 @@
                         button.addEventListener(
                             'click',
 
-                            function () {
+                            function() {
                                 selectSegmentRoute(
                                     segment.id,
 
@@ -3066,17 +2844,13 @@
 
                         destination,
 
-                        travelMode:
-                            google.maps.TravelMode.DRIVING,
+                        travelMode: google.maps.TravelMode.DRIVING,
 
-                        region:
-                            'TH',
+                        region: 'TH',
 
-                        provideRouteAlternatives:
-                            true,
+                        provideRouteAlternatives: true,
 
-                        avoidFerries:
-                            true,
+                        avoidFerries: true,
                     });
 
                 if (
@@ -3138,7 +2912,7 @@
                     false;
 
                 segments.forEach(
-                    function (segment) {
+                    function(segment) {
                         const route =
                             segment.routes[
                                 segment.selectedRouteIndex
@@ -3156,7 +2930,7 @@
                             );
 
                         path.forEach(
-                            function (position) {
+                            function(position) {
                                 bounds.extend(
                                     position
                                 );
@@ -3253,7 +3027,7 @@
 
                 const incompleteSegment =
                     segments.find(
-                        function (segment) {
+                        function(segment) {
                             return !segment.destinationInput.value.trim();
                         }
                     );
@@ -3290,9 +3064,7 @@
 
                 try {
                     for (
-                        let index = 0;
-                        index < segments.length;
-                        index += 1
+                        let index = 0; index < segments.length; index += 1
                     ) {
                         const segment =
                             segments[
@@ -3366,7 +3138,7 @@
                     '';
 
                 segments.forEach(
-                    function (
+                    function(
                         segment,
 
                         index
@@ -3456,7 +3228,7 @@
                 if (
                     segments.length &&
                     segments.every(
-                        function (segment) {
+                        function(segment) {
                             return Boolean(
                                 segment.destinationInput.value.trim()
                             );
@@ -3534,7 +3306,7 @@
                 if (
                     startInput.value.trim() &&
                     segments.every(
-                        function (item) {
+                        function(item) {
                             return Boolean(
                                 item.destinationInput.value.trim()
                             );
@@ -3563,8 +3335,7 @@
 
                         {
                             componentRestrictions: {
-                                country:
-                                    'th',
+                                country: 'th',
                             },
 
                             fields: [
@@ -3588,7 +3359,7 @@
                 startAutocomplete.addListener(
                     'place_changed',
 
-                    async function () {
+                    async function() {
                         const place =
                             startAutocomplete.getPlace();
 
@@ -3630,8 +3401,7 @@
 
                         {
                             componentRestrictions: {
-                                country:
-                                    'th',
+                                country: 'th',
                             },
 
                             fields: [
@@ -3655,7 +3425,7 @@
                 autocomplete.addListener(
                     'place_changed',
 
-                    async function () {
+                    async function() {
                         const place =
                             autocomplete.getPlace();
 
@@ -3748,8 +3518,7 @@
                     ...activeField,
                 };
 
-                placesService.getDetails(
-                    {
+                placesService.getDetails({
                         placeId,
 
                         fields: [
@@ -3763,14 +3532,14 @@
                         ],
                     },
 
-                    async function (
+                    async function(
                         place,
 
                         status
                     ) {
                         if (
                             status !==
-                                google.maps.places.PlacesServiceStatus.OK ||
+                            google.maps.places.PlacesServiceStatus.OK ||
                             !place?.geometry?.location
                         ) {
                             activeField =
@@ -3865,7 +3634,7 @@
                     null;
 
                 segments.forEach(
-                    function (segment) {
+                    function(segment) {
                         clearSegmentRoute(
                             segment
                         );
@@ -3954,7 +3723,7 @@
                 }
 
                 segments.forEach(
-                    function (
+                    function(
                         segment,
 
                         index
@@ -3986,7 +3755,7 @@
             }
 
             window.initGoogleMap =
-                function () {
+                function() {
                     map =
                         new google.maps.Map(
                             document.getElementById(
@@ -3994,23 +3763,17 @@
                             ),
 
                             {
-                                center:
-                                    defaultCenter,
+                                center: defaultCenter,
 
-                                zoom:
-                                    11,
+                                zoom: 11,
 
-                                mapTypeControl:
-                                    false,
+                                mapTypeControl: false,
 
-                                streetViewControl:
-                                    false,
+                                streetViewControl: false,
 
-                                fullscreenControl:
-                                    true,
+                                fullscreenControl: true,
 
-                                clickableIcons:
-                                    true,
+                                clickableIcons: true,
                             }
                         );
 
@@ -4028,7 +3791,7 @@
                         initializeStartAutocomplete();
 
                         segments.forEach(
-                            function (segment) {
+                            function(segment) {
                                 initializeSegmentAutocomplete(
                                     segment
                                 );
@@ -4054,7 +3817,7 @@
                         startInput.value.trim() &&
                         segments.length &&
                         segments.every(
-                            function (segment) {
+                            function(segment) {
                                 return Boolean(
                                     segment.destinationInput.value.trim()
                                 );
@@ -4066,14 +3829,14 @@
                 };
 
             window.gm_authFailure =
-                function () {
+                function() {
                     showError(
                         'Google Maps โหลดไม่ได้ กรุณาตรวจสอบ API Key, Billing และ Website restrictions'
                     );
                 };
 
             initialSegments.forEach(
-                function (segmentData) {
+                function(segmentData) {
                     createSegment(
                         segmentData
                     );
@@ -4089,7 +3852,7 @@
             startInput.addEventListener(
                 'focus',
 
-                function () {
+                function() {
                     setActiveField(
                         'start'
                     );
@@ -4099,7 +3862,7 @@
             startInput.addEventListener(
                 'input',
 
-                function () {
+                function() {
                     startLocation =
                         null;
 
@@ -4116,7 +3879,7 @@
             addSegmentButton.addEventListener(
                 'click',
 
-                function () {
+                function() {
                     const lastSegment =
                         segments[
                             segments.length - 1
@@ -4171,7 +3934,7 @@
             truckSelect.addEventListener(
                 'change',
 
-                function () {
+                function() {
                     updateTruckInformation();
 
                     clearError();
@@ -4186,7 +3949,7 @@
             dateRecordInput.addEventListener(
                 'change',
 
-                function () {
+                function() {
                     updateTruckInformation();
 
                     clearError();
@@ -4200,7 +3963,7 @@
             fuelPriceInput.addEventListener(
                 'input',
 
-                function () {
+                function() {
                     clearError();
 
                     updateAllFuelCalculations({
@@ -4212,7 +3975,7 @@
             form.addEventListener(
                 'keydown',
 
-                function (event) {
+                function(event) {
                     if (
                         event.key === 'Enter' &&
                         event.target !== startInput &&
@@ -4228,7 +3991,7 @@
             form.addEventListener(
                 'submit',
 
-                function (event) {
+                function(event) {
                     try {
                         validateBeforeSubmit();
                     } catch (error) {
@@ -4245,7 +4008,7 @@
             updateTruckInformation();
 
             segments.forEach(
-                function (segment) {
+                function(segment) {
                     updateSegmentPreview(
                         segment
                     );
@@ -4263,10 +4026,9 @@
     </script>
 
     @if (config('services.google_maps.key'))
-        <script
-            async
-            src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&libraries=places&callback=initGoogleMap&loading=async&language=th&region=TH"
-        ></script>
+        <script async
+            src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&libraries=places&callback=initGoogleMap&loading=async&language=th&region=TH">
+        </script>
     @else
         <script>
             const mapError =

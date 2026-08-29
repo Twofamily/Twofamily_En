@@ -17,16 +17,5 @@
             </a>
         </div>
 
-        {{-- เพิ่มใหม่ : จัดการผู้ใช้งาน --}}
-        <div class="col-md-4">
-            <a href="{{ route('users.index') }}" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body text-center">
-                        <h5>จัดการผู้ใช้งาน</h5>
-                    </div>
-                </div>
-            </a>
-        </div>
-
     </div>
 @endsection
