@@ -18,14 +18,9 @@
         .table thead th {
             background: #f7f7f9;
         }
-
-        .action-col {
-            width: 220px;
-        }
     </style>
 
     <div class="container py-3">
-
 
         @if (session('info'))
             <div class="alert alert-info shadow-sm">{{ session('info') }}</div>
@@ -43,10 +38,14 @@
                     @endforeach
                 </select>
 
-                <button class="btn btn-outline-secondary" type="submit">ค้นหา</button>
+                <button class="btn btn-outline-secondary text-nowrap" type="submit">
+                    <i class="bi bi-search me-1"></i>
+                    ค้นหา
+                </button>
             </form>
 
-            <a href="{{ route('trucks.create') }}" class="btn btn-dark">
+            <a href="{{ route('trucks.create') }}" class="btn btn-dark text-nowrap">
+                <i class="bi bi-plus-lg me-1"></i>
                 เพิ่มรถบรรทุก
             </a>
         </div>
@@ -81,26 +80,39 @@
                                 </td>
 
                                 <td class="text-center">
-                                    <div class="d-inline-flex gap-2">
+                                    <div class="action-buttons">
+                                        {{-- ดูข้อมูล --}}
                                         <a href="{{ route('trucks.show', $t->id_truck) }}"
-                                            class="btn btn-sm btn-outline-dark">
-                                            ดู
+                                            class="btn action-button action-view"
+                                            title="ดูข้อมูล"
+                                            aria-label="ดูข้อมูลรถบรรทุก {{ $t->id_truck }}">
+                                            <i class="bi bi-eye" aria-hidden="true"></i>
                                         </a>
 
+                                        {{-- แก้ไขข้อมูล --}}
                                         <a href="{{ route('trucks.edit', $t->id_truck) }}"
-                                            class="btn btn-sm btn-outline-primary">
-                                            แก้ไข
+                                            class="btn btn-outline-primary action-button"
+                                            title="แก้ไขข้อมูล"
+                                            aria-label="แก้ไขข้อมูลรถบรรทุก {{ $t->id_truck }}">
+                                            <i class="bi bi-pencil-square" aria-hidden="true"></i>
                                         </a>
 
-                                        <form method="POST" action="{{ route('trucks.destroy', $t->id_truck) }}"
+                                        {{-- ลบข้อมูล --}}
+                                        <form method="POST"
+                                            action="{{ route('trucks.destroy', $t->id_truck) }}"
+                                            class="delete-form"
                                             data-confirm="รถบรรทุกทะเบียน {{ $t->id_truck }} จะถูกลบออกจากระบบ"
                                             data-confirm-title="ยืนยันการลบรถบรรทุก"
                                             data-confirm-variant="danger"
                                             data-confirm-ok="ลบข้อมูล">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                ลบ
+
+                                            <button type="submit"
+                                                class="btn btn-outline-danger action-button"
+                                                title="ลบข้อมูล"
+                                                aria-label="ลบข้อมูลรถบรรทุก {{ $t->id_truck }}">
+                                                <i class="bi bi-trash" aria-hidden="true"></i>
                                             </button>
                                         </form>
                                     </div>
@@ -108,7 +120,10 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">ไม่พบข้อมูล</td>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                    ไม่พบข้อมูล
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>

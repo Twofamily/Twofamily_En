@@ -12,6 +12,7 @@ use App\Http\Controllers\{
     ProductTypeController,
     TransportJobController,
     QuotationController,
+    SalesOrderController,
     TruckBrandController,
     TruckModelController,
     SettingController,
@@ -142,6 +143,32 @@ Route::middleware([
     Route::patch('quotations/{quotation}/cancel', [QuotationController::class, 'cancel'])
         ->middleware('role:admin,staff')
         ->name('quotations.cancel');
+
+        /* ==================== ใบสั่งขาย ==================== */
+
+    // ต้องมาก่อน resource ไม่งั้น {salesOrder} จะกินคำว่า "pdf"
+    Route::get('sales-orders/{salesOrder}/pdf', [SalesOrderController::class, 'pdf'])
+        ->name('sales-orders.pdf');
+
+    Route::resource('sales-orders', SalesOrderController::class)
+        ->parameters(['sales-orders' => 'salesOrder'])
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+
+    Route::patch('sales-orders/{salesOrder}/confirm', [SalesOrderController::class, 'confirm'])
+        ->middleware('role:admin,staff')
+        ->name('sales-orders.confirm');
+
+    Route::patch('sales-orders/{salesOrder}/revert', [SalesOrderController::class, 'revertToDraft'])
+        ->middleware('role:admin,staff')
+        ->name('sales-orders.revert');
+
+    Route::patch('sales-orders/{salesOrder}/cancel', [SalesOrderController::class, 'cancel'])
+        ->middleware('role:admin,staff')
+        ->name('sales-orders.cancel');
+
+    Route::patch('sales-orders/{salesOrder}/close', [SalesOrderController::class, 'close'])
+        ->middleware('role:admin,staff')
+        ->name('sales-orders.close');
 
     /* ==================== ใบแจ้งหนี้ ==================== */
 

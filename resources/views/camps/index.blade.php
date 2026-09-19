@@ -371,11 +371,6 @@
                                             data-confirm-title="ยืนยันการลบข้อมูล"
                                             data-confirm-variant="danger"
                                             data-confirm-ok="ลบข้อมูล"
-                                            onsubmit="return window.confirmDeleteHandled
-                                                ? true
-                                                : confirm(
-                                                    'ยืนยันลบข้อมูล {{ $camp->code_camp }}?'
-                                                )"
                                         >
                                             @csrf
                                             @method('DELETE')

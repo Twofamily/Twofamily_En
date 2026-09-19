@@ -21,7 +21,7 @@ class User extends Authenticatable
     use TwoFactorAuthenticatable;
 
     /* ============================================================
-     |  ค่าคงที่ของสิทธิ์  (เพิ่มใหม่)
+     |  ค่าคงที่ของสิทธิ์
      |  ใช้แทนการพิมพ์ string ตรง ๆ กันพิมพ์ผิด
      |  เรียกใช้:  User::ROLE_ADMIN
      ============================================================ */
@@ -30,7 +30,7 @@ class User extends Authenticatable
     public const ROLE_VIEWER = 'viewer';
 
     /**
-     * รายการสิทธิ์ทั้งหมด + ชื่อภาษาไทย (เพิ่มใหม่)
+     * รายการสิทธิ์ทั้งหมด + ชื่อภาษาไทย
      * ใช้ทำ dropdown ในหน้าเพิ่ม/แก้ไขผู้ใช้
      */
     public static function roleList(): array
@@ -51,8 +51,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',        // เพิ่มใหม่
-        'is_active',   // เพิ่มใหม่
+        'role',
+        'is_active',
+        'signature_path',   // เพิ่มใหม่ - path รูปลายเซ็น สัมพัทธ์จาก public/
+        'position',         // เพิ่มใหม่ - ตำแหน่งที่พิมพ์ใต้ชื่อในเอกสาร
     ];
 
     /**
@@ -86,12 +88,12 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
-            'is_active'         => 'boolean',   // เพิ่มใหม่
+            'is_active'         => 'boolean',
         ];
     }
 
     /* ============================================================
-     |  เมธอดช่วยตรวจสอบสิทธิ์  (เพิ่มใหม่)
+     |  เมธอดช่วยตรวจสอบสิทธิ์
      |  ใช้ใน Blade เช่น  @if(auth()->user()->isAdmin())
      ============================================================ */
 
@@ -135,5 +137,31 @@ class User extends Authenticatable
     public function getRoleNameAttribute(): string
     {
         return self::roleList()[$this->role] ?? 'ไม่ระบุ';
+    }
+
+    /* ============================================================
+     |  ลายเซ็นอิเล็กทรอนิกส์  (เพิ่มใหม่)
+     ============================================================ */
+
+    /**
+     * มีไฟล์ลายเซ็นที่ใช้งานได้จริงหรือไม่
+     * เช็คถึงระดับไฟล์ เพราะ path ในฐานข้อมูลอาจชี้ไปหาไฟล์ที่ถูกลบไปแล้ว
+     */
+    public function hasSignature(): bool
+    {
+        return $this->signature_path
+            && file_exists(public_path($this->signature_path));
+    }
+
+    /**
+     * path เต็มของไฟล์ลายเซ็น สำหรับ dompdf
+     * คืน null ถ้าไม่มีไฟล์ เพื่อให้ Blade ข้ามการแสดงรูปไปเลย
+     *
+     * หมายเหตุ: dompdf อ่าน URL ไม่ได้ ต้องใช้ path ในเครื่องเท่านั้น
+     * จึงใช้ public_path() ไม่ใช่ asset()
+     */
+    public function getSignatureFullPathAttribute(): ?string
+    {
+        return $this->hasSignature() ? public_path($this->signature_path) : null;
     }
 }

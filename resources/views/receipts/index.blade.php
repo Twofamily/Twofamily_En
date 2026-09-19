@@ -17,7 +17,7 @@
                         <th>ลูกค้า</th>
                         <th>อ้างอิงใบแจ้งหนี้</th>
                         <th class="text-end">ยอดสุทธิ</th>
-                        <th class="text-center">จัดการ</th>
+                        <th class="text-center" style="width:140px;">จัดการ</th>
                     </tr>
                 </thead>
 
@@ -32,13 +32,13 @@
                             $vat = $afterDiscount * 0.07;
 
                             $grandTotal = $afterDiscount + $vat;
+
+                            $receiptCode = 'RC' . str_pad($r->id_receipt, 5, '0', STR_PAD_LEFT);
                         @endphp
 
                         <tr>
                             <td>
-                                <strong>
-                                    RC{{ str_pad($r->id_receipt, 5, '0', STR_PAD_LEFT) }}
-                                </strong>
+                                <strong>{{ $receiptCode }}</strong>
                             </td>
 
                             <td>
@@ -54,21 +54,32 @@
                             </td>
 
                             <td class="text-center">
-                                <div class="btn-group">
-                                    <!-- ดู -->
-                                    <a href="{{ route('receipts.show', $r->id_receipt) }}" class="btn btn-sm btn-outline-primary">
-                                        ดู
+                                <div class="action-buttons">
+                                    {{-- ดูข้อมูล --}}
+                                    <a href="{{ route('receipts.show', $r->id_receipt) }}"
+                                        class="btn action-button action-view"
+                                        title="ดูข้อมูล"
+                                        aria-label="ดูใบเสร็จ {{ $receiptCode }}">
+                                        <i class="bi bi-eye" aria-hidden="true"></i>
                                     </a>
 
-                                    <!-- ลบ -->
-                                    <form method="POST" action="{{ route('receipts.destroy', $r) }}" class="d-inline"
-                                        data-confirm="ข้อมูล RC{{ str_pad($r->id_receipt, 5, '0', STR_PAD_LEFT) }} จะถูกลบออกจากระบบ"
-                                        data-confirm-title="ยืนยันการลบข้อมูล" 
+                                    {{-- ลบข้อมูล --}}
+                                    <form method="POST"
+                                        action="{{ route('receipts.destroy', $r) }}"
+                                        class="delete-form"
+                                        data-confirm="ใบเสร็จ {{ $receiptCode }} จะถูกลบออกจากระบบ"
+                                        data-confirm-title="ยืนยันการลบข้อมูล"
                                         data-confirm-variant="danger"
                                         data-confirm-ok="ลบข้อมูล">
-                                        @csrf 
+                                        @csrf
                                         @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
+
+                                        <button class="btn btn-outline-danger action-button"
+                                            type="submit"
+                                            title="ลบข้อมูล"
+                                            aria-label="ลบใบเสร็จ {{ $receiptCode }}">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                        </button>
                                     </form>
                                 </div>
                             </td>
@@ -76,7 +87,8 @@
                     @empty
                         <tr>
                             <td colspan="5" class="text-center text-muted py-4">
-                                — ยังไม่มีรายการใบเสร็จ —
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                ยังไม่มีรายการใบเสร็จ
                             </td>
                         </tr>
                     @endforelse
@@ -85,7 +97,7 @@
         </div>
 
         <div class="mt-3">
-            {{ $receipts->links() }}
+            {{ $receipts->withQueryString()->links() }}
         </div>
 
     </div>

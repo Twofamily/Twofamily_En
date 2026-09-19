@@ -9,16 +9,20 @@
 @section('content')
     <div class="container py-3">
 
-
-        <div class="d-flex justify-content-between mb-3">
-            <form class="d-flex gap-2">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <form class="d-flex gap-2" style="max-width: 500px;">
                 <input type="text" name="q" value="{{ $q }}" class="form-control"
                     placeholder="ค้นหาชื่อ / อีเมล">
-                <button class="btn btn-outline-secondary">ค้นหา</button>
+
+                <button class="btn btn-outline-secondary text-nowrap">
+                    <i class="bi bi-search me-1"></i>
+                    ค้นหา
+                </button>
             </form>
 
-            <a href="{{ route('users.create') }}" class="btn btn-dark">
-                + เพิ่มผู้ใช้งาน
+            <a href="{{ route('users.create') }}" class="btn btn-dark text-nowrap">
+                <i class="bi bi-plus-lg me-1"></i>
+                เพิ่มผู้ใช้งาน
             </a>
         </div>
 
@@ -29,7 +33,7 @@
                         <th>ชื่อ-นามสกุล</th>
                         <th>สิทธิ์การใช้งาน</th>
                         <th>สถานะ</th>
-                        <th style="width:260px">จัดการ</th>
+                        <th class="text-center" style="width:190px">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -42,7 +46,11 @@
                                         <span class="badge bg-secondary ms-1">คุณ</span>
                                     @endif
                                 </div>
-                                <div class="small text-muted">📧 {{ $u->email }}</div>
+
+                                <div class="small text-muted">
+                                    <i class="bi bi-envelope me-1"></i>
+                                    {{ $u->email }}
+                                </div>
                             </td>
 
                             <td>{{ $u->role_name }}</td>
@@ -55,34 +63,58 @@
                                 @endif
                             </td>
 
-                            <td>
-                                <div class="d-flex gap-2">
-                                    <a href="{{ route('users.edit', $u) }}" class="btn btn-sm btn-outline-primary">แก้ไข</a>
+                            <td class="text-center">
+                                <div class="action-buttons">
+                                    {{-- แก้ไขข้อมูล --}}
+                                    <a href="{{ route('users.edit', $u) }}"
+                                        class="btn btn-outline-primary action-button"
+                                        title="แก้ไขข้อมูล"
+                                        aria-label="แก้ไขผู้ใช้งาน {{ $u->name }}">
+                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                    </a>
 
                                     {{-- ปุ่มระงับและลบ ไม่แสดงในแถวของตนเอง --}}
                                     @if ($u->id !== auth()->id())
-                                        <form method="POST" action="{{ route('users.toggleStatus', $u) }}" class="d-inline"
+                                        {{-- ระงับ / เปิดใช้งาน --}}
+                                        <form method="POST"
+                                            action="{{ route('users.toggleStatus', $u) }}"
+                                            class="delete-form"
                                             data-confirm="{{ $u->is_active
                                                 ? $u->name . ' จะไม่สามารถเข้าสู่ระบบได้ทันที จนกว่าจะเปิดใช้งานอีกครั้ง'
                                                 : $u->name . ' จะสามารถเข้าสู่ระบบได้ทันที' }}"
                                             data-confirm-title="{{ $u->is_active ? 'ยืนยันการระงับบัญชี' : 'ยืนยันการเปิดใช้งานบัญชี' }}"
                                             data-confirm-variant="{{ $u->is_active ? 'warning' : 'success' }}"
                                             data-confirm-ok="{{ $u->is_active ? 'ระงับบัญชี' : 'เปิดใช้งาน' }}">
-                                            @csrf @method('PATCH')
+                                            @csrf
+                                            @method('PATCH')
+
                                             <button
-                                                class="btn btn-sm btn-outline-{{ $u->is_active ? 'warning' : 'success' }}"
-                                                type="submit">
-                                                {{ $u->is_active ? 'ระงับ' : 'เปิดใช้งาน' }}
+                                                class="btn btn-outline-{{ $u->is_active ? 'warning' : 'success' }} action-button"
+                                                type="submit"
+                                                title="{{ $u->is_active ? 'ระงับบัญชี' : 'เปิดใช้งานบัญชี' }}"
+                                                aria-label="{{ $u->is_active ? 'ระงับบัญชี' : 'เปิดใช้งานบัญชี' }} {{ $u->name }}">
+                                                <i class="bi bi-person-{{ $u->is_active ? 'x' : 'check' }}"
+                                                    aria-hidden="true"></i>
                                             </button>
                                         </form>
 
-                                        <form method="POST" action="{{ route('users.destroy', $u) }}" class="d-inline"
+                                        {{-- ลบบัญชี --}}
+                                        <form method="POST"
+                                            action="{{ route('users.destroy', $u) }}"
+                                            class="delete-form"
                                             data-confirm="บัญชี {{ $u->name }} ({{ $u->email }}) จะถูกลบออกจากระบบ"
-                                            data-confirm-title="ยืนยันการลบผู้ใช้งาน" 
+                                            data-confirm-title="ยืนยันการลบผู้ใช้งาน"
                                             data-confirm-variant="danger"
                                             data-confirm-ok="ลบบัญชี">
-                                            @csrf @method('DELETE')
-                                            <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
+                                            @csrf
+                                            @method('DELETE')
+
+                                            <button class="btn btn-outline-danger action-button"
+                                                type="submit"
+                                                title="ลบบัญชี"
+                                                aria-label="ลบบัญชี {{ $u->name }}">
+                                                <i class="bi bi-trash" aria-hidden="true"></i>
+                                            </button>
                                         </form>
                                     @endif
                                 </div>
@@ -91,7 +123,8 @@
                     @empty
                         <tr>
                             <td colspan="4" class="text-center text-muted py-4">
-                                — ไม่พบข้อมูล —
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                ไม่พบข้อมูล
                             </td>
                         </tr>
                     @endforelse
@@ -99,7 +132,9 @@
             </table>
         </div>
 
-        {{ $users->links() }}
+        <div class="mt-3">
+            {{ $users->withQueryString()->links() }}
+        </div>
 
     </div>
 @endsection

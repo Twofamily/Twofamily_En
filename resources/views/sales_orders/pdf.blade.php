@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 
 <head>
     <meta charset="utf-8">
+    <title>ใบสั่งขาย {{ $salesOrder->code_so }}</title>
 
     <style>
         @font-face {
@@ -75,7 +76,7 @@
             margin: 10px 0 12px 0;
         }
 
-        /* ---------- ข้อมูลลูกค้า ---------- */
+        /* ---------- ข้อมูลลูกค้า / อ้างอิง ---------- */
         .info {
             width: 100%;
             border: 1px solid #bfb3a8;
@@ -87,7 +88,6 @@
         }
 
         .info .label {
-            width: 70px;
             color: #666;
         }
 
@@ -95,6 +95,10 @@
             background-color: #efe9e3;
             font-weight: bold;
             border-bottom: 1px solid #bfb3a8;
+        }
+
+        .info .divider {
+            border-left: 1px solid #bfb3a8;
         }
 
         /* ---------- ตารางรายการ ---------- */
@@ -177,7 +181,7 @@
         <table width="100%">
             <tr>
                 <td>{{ setting('company_name') }}</td>
-                <td class="text-right">ใบเสนอราคาเลขที่ {{ $quotation->code_quot }}</td>
+                <td class="text-right">ใบสั่งขายเลขที่ {{ $salesOrder->code_so }}</td>
             </tr>
         </table>
     </div>
@@ -201,24 +205,21 @@
                 <table class="doc-box small">
                     <tr>
                         <td colspan="2" class="doc-title">
-                            ใบเสนอราคา<br><span>QUOTATION</span>
+                            ใบสั่งขาย<br><span>SALES ORDER</span>
                         </td>
                     </tr>
                     <tr>
                         <td class="muted" style="padding-top: 6px;">เลขที่</td>
-                        <td class="text-right" style="padding-top: 6px;"><b>{{ $quotation->code_quot }}</b></td>
+                        <td class="text-right" style="padding-top: 6px;"><b>{{ $salesOrder->code_so }}</b></td>
                     </tr>
                     <tr>
-                        <td class="muted">วันที่</td>
-                        <td class="text-right">{{ \Carbon\Carbon::parse($quotation->date_quot)->format('d/m/Y') }}</td>
+                        <td class="muted">วันที่สั่งซื้อ</td>
+                        <td class="text-right">{{ $salesOrder->order_date?->format('d/m/Y') ?? '-' }}</td>
                     </tr>
                     <tr>
-                        {{-- ใช้ end_quot ที่บันทึกไว้ในเอกสาร ไม่คำนวณสดตอนพิมพ์ --}}
-                        <td class="muted" style="padding-bottom: 6px;">ยืนราคาถึง</td>
+                        <td class="muted" style="padding-bottom: 6px;">กำหนดส่งมอบ</td>
                         <td class="text-right" style="padding-bottom: 6px;">
-                            {{ $quotation->end_quot
-                                ? \Carbon\Carbon::parse($quotation->end_quot)->format('d/m/Y')
-                                : '-' }}
+                            {{ $salesOrder->due_date?->format('d/m/Y') ?? '-' }}
                         </td>
                     </tr>
                 </table>
@@ -228,22 +229,37 @@
 
     <div class="rule"></div>
 
-    {{-- ===== ข้อมูลลูกค้า ===== --}}
+    {{-- ===== ข้อมูลลูกค้า (ซ้าย) / เอกสารอ้างอิง (ขวา) ===== --}}
     <table class="info small">
         <tr>
-            <td colspan="2" class="head">เสนอราคาให้ (ลูกค้า)</td>
+            <td colspan="2" class="head" width="62%">ลูกค้า</td>
+            <td colspan="2" class="head divider" width="38%">เอกสารอ้างอิง</td>
         </tr>
         <tr>
-            <td class="label">ชื่อ</td>
-            <td><b>{{ $quotation->customer->name_customer }}</b></td>
+            <td class="label" width="12%">ชื่อ</td>
+            <td width="50%"><b>{{ $salesOrder->customer->name_customer ?? '-' }}</b></td>
+            <td class="label divider" width="16%">ใบเสนอราคา</td>
+            <td width="22%">{{ $salesOrder->quotation->code_quot ?? '-' }}</td>
         </tr>
         <tr>
             <td class="label">ที่อยู่</td>
-            <td>{{ customer_address($quotation->customer) }}</td>
+            <td>
+                {{ $salesOrder->customer ? customer_address($salesOrder->customer) : '-' }}
+            </td>
+            <td class="label divider">เลขที่ PO</td>
+            <td>{{ $salesOrder->po_number ?: '-' }}</td>
+        </tr>
+        <tr>
+            <td class="label">เลขภาษี</td>
+            <td>{{ $salesOrder->customer->tax_id ?? '-' }}</td>
+            <td class="divider"></td>
+            <td></td>
         </tr>
         <tr>
             <td class="label">โทร</td>
-            <td>{{ $quotation->customer->phone_customer ?: '-' }}</td>
+            <td>{{ $salesOrder->customer->phone_customer ?? '-' }}</td>
+            <td class="divider"></td>
+            <td></td>
         </tr>
     </table>
 
@@ -263,15 +279,15 @@
         <tbody>
             @php $i = 1; @endphp
 
-            @foreach ($quotation->details as $d)
+            @foreach ($salesOrder->details as $detail)
                 <tr class="{{ $i % 2 === 0 ? 'row-alt' : '' }}">
                     <td class="text-center">{{ $i++ }}</td>
-                    <td>{{ $d->product->name_product }}</td>
-                    <td class="text-center">{{ $d->quantity }}</td>
+                    <td>{{ $detail->product->name_product ?? '-' }}</td>
+                    <td class="text-center">{{ number_format($detail->quantity, 2) }}</td>
                     <td class="text-center">คิว</td>
-                    <td class="text-right">{{ number_format($d->price_per_unit, 2) }}</td>
+                    <td class="text-right">{{ number_format($detail->price_per_unit, 2) }}</td>
                     {{-- อ่านจาก total_price ที่บันทึกไว้ ไม่คูณใหม่ตอนพิมพ์ --}}
-                    <td class="text-right">{{ number_format($d->total_price, 2) }}</td>
+                    <td class="text-right">{{ number_format($detail->total_price, 2) }}</td>
                 </tr>
             @endforeach
 
@@ -301,8 +317,8 @@
         <tr>
             <td width="55%" style="vertical-align: top; padding-right: 12px;">
                 <div class="note">
-                    <b>หมายเหตุ / เงื่อนไข</b><br>
-                    {!! nl2br(e(setting('quotation_note'))) !!}
+                    <b>หมายเหตุ</b><br>
+                    {!! $salesOrder->note ? nl2br(e($salesOrder->note)) : '-' !!}
                 </div>
             </td>
 
@@ -310,28 +326,31 @@
                 {{--
                     ยอดเงินทุกบรรทัดอ่านจากคอลัมน์ที่บันทึกไว้ตอนออกเอกสาร
                     ไม่คำนวณสดตอนพิมพ์ เพื่อให้เอกสารเก่าพิมพ์ซ้ำได้เหมือนเดิม
-                    แม้ราคาสินค้าหรืออัตรา VAT จะเปลี่ยนไปแล้ว
                 --}}
                 <table class="summary">
                     <tr>
                         <td>รวมเป็นเงิน</td>
-                        <td class="text-right">{{ number_format($quotation->subtotal, 2) }}</td>
+                        <td class="text-right">{{ number_format($salesOrder->subtotal, 2) }}</td>
                     </tr>
                     <tr>
                         <td>หักส่วนลด</td>
-                        <td class="text-right">{{ number_format($quotation->discount, 2) }}</td>
+                        <td class="text-right">{{ number_format($salesOrder->discount, 2) }}</td>
                     </tr>
+                    {{-- แสดงเฉพาะเมื่อตารางมีคอลัมน์ after_discount --}}
+                    @isset($salesOrder->after_discount)
+                        <tr>
+                            <td>ยอดหลังหักส่วนลด</td>
+                            <td class="text-right">{{ number_format($salesOrder->after_discount, 2) }}</td>
+                        </tr>
+                    @endisset
                     <tr>
-                        <td>ยอดหลังหักส่วนลด</td>
-                        <td class="text-right">{{ number_format($quotation->after_discount, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td>ภาษีมูลค่าเพิ่ม {{ rtrim(rtrim(number_format($quotation->vat_rate, 2), '0'), '.') }}%</td>
-                        <td class="text-right">{{ number_format($quotation->vat_amount, 2) }}</td>
+                        {{-- ใช้ vat_rate ที่บันทึกไว้ถ้ามีคอลัมน์ ไม่มีก็แสดง 7 ตามเดิม --}}
+                        <td>ภาษีมูลค่าเพิ่ม {{ rtrim(rtrim(number_format($salesOrder->vat_rate ?? 7, 2), '0'), '.') }}%</td>
+                        <td class="text-right">{{ number_format($salesOrder->vat_amount, 2) }}</td>
                     </tr>
                     <tr class="grand">
                         <td>จำนวนเงินสุทธิ (บาท)</td>
-                        <td class="text-right">{{ number_format($quotation->total_amount, 2) }}</td>
+                        <td class="text-right">{{ number_format($salesOrder->total_amount, 2) }}</td>
                     </tr>
                 </table>
             </td>
@@ -340,26 +359,18 @@
 
     @if (function_exists('baht_text'))
         <div class="baht-text small" style="margin-top: 8px;">
-            ({{ baht_text($quotation->total_amount) }})
+            ({{ baht_text($salesOrder->total_amount) }})
         </div>
     @endif
 
     @include('pdf.partials.signatures', ['slots' => [
         [
             'party' => 'customer',
-            'label' => 'ผู้รับใบเสนอราคา',
+            'label' => 'ผู้สั่งซื้อ',
         ],
         [
             'party' => 'company',
-            'label' => 'ผู้จัดทำ',
-            'user'  => $quotation->issuer,
-            'date'  => $quotation->issued_at,
-        ],
-        [
-            'party' => 'company',
-            'label' => 'ผู้อนุมัติ',
-            'user'  => $quotation->approver,
-            'date'  => $quotation->approved_at,
+            'label' => 'ผู้รับคำสั่งซื้อ',
         ],
     ]])
 

@@ -1,0 +1,68 @@
+/*
+ * สไตล์ปุ่มจัดการ (ดู / แก้ไข / ลบ) แบบไอคอน
+ * ใช้ร่วมกันทุกหน้าที่มีตารางข้อมูล
+ * เรียกใช้ผ่าน layout.blade.php
+ */
+
+/* กลุ่มปุ่มจัดการ */
+.action-buttons {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+/* คอลัมน์ "จัดการ" ในตาราง */
+.action-col {
+    width: 190px;
+    min-width: 190px;
+}
+
+/* ปุ่มสี่เหลี่ยมมุมโค้ง ขนาดเท่ากันทุกปุ่ม */
+.action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 45px;
+    height: 45px;
+    padding: 0;
+    border-radius: 10px;
+    background-color: #fff;
+    transition:
+        transform 0.15s ease-in-out,
+        box-shadow 0.15s ease-in-out,
+        background-color 0.15s ease-in-out;
+}
+
+.action-button i {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.action-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.12);
+}
+
+.action-button:focus {
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+/* ปุ่มดูข้อมูล (ใช้สีฟ้าอ่อน ซึ่ง Bootstrap ไม่มี outline ให้) */
+.action-view {
+    color: #0dcaf0;
+    border: 1px solid #0dcaf0;
+}
+
+.action-view:hover {
+    color: #fff;
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+}
+
+/* ทำให้ฟอร์มปุ่มลบไม่ดันระยะขอบ */
+.delete-form {
+    display: inline-flex;
+    margin: 0;
+}

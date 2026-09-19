@@ -7,11 +7,11 @@
 @endsection
 
 @php
-    $subTotal      = $quotation->details->sum('total_price');
-    $discount      = $quotation->discount ?? 0;
+    $subTotal = $quotation->details->sum('total_price');
+    $discount = $quotation->discount ?? 0;
     $afterDiscount = max($subTotal - $discount, 0);
-    $vat           = round($afterDiscount * 0.07, 2);
-    $grandTotal    = $afterDiscount + $vat;
+    $vat = round($afterDiscount * 0.07, 2);
+    $grandTotal = $afterDiscount + $vat;
 @endphp
 
 @section('content')
@@ -98,57 +98,70 @@
 
         </div>
 
-        {{-- แคมป์ที่เปิดจากใบเสนอราคานี้ --}}
+        {{-- ขั้นถัดไป: ใบสั่งขาย --}}
         @if ($quotation->status === 'approved')
             <div class="border rounded-3 mb-4">
                 <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-                    <span class="fw-semibold">แคมป์ที่เปิดจากใบเสนอราคานี้</span>
+                    <span class="fw-semibold">ใบสั่งขายจากใบเสนอราคานี้</span>
 
-                    <a href="{{ route('camps.create') }}" class="btn btn-sm btn-dark">
-                        + เปิดแคมป์ใหม่
-                    </a>
+                    @if (!$quotation->salesOrder)
+                        <a href="{{ route('sales-orders.create', ['quotation' => $quotation->id_quot]) }}"
+                            class="btn btn-sm btn-dark">
+                            + ออกใบสั่งขาย
+                        </a>
+                    @endif
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>รหัสแคมป์</th>
-                                <th>ชื่อแคมป์</th>
-                                <th>ที่ตั้ง</th>
-                                <th class="text-center">สถานะ</th>
-                                <th class="text-center" style="width:100px;">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($quotation->camps as $camp)
+                @if ($quotation->salesOrder)
+                    @php $so = $quotation->salesOrder; @endphp
+
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead class="table-light">
                                 <tr>
-                                    <td class="fw-semibold">{{ $camp->code_camp }}</td>
-                                    <td>{{ $camp->name_camp }}</td>
-                                    <td class="small text-muted">{{ $camp->full_address ?: '-' }}</td>
+                                    <th>เลขที่ใบสั่งขาย</th>
+                                    <th>วันที่สั่งซื้อ</th>
+                                    <th class="text-end">ยอดสุทธิ</th>
+                                    <th class="text-center">สถานะ</th>
+                                    <th>แคมป์งาน</th>
+                                    <th class="text-center" style="width:100px;">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="fw-semibold">{{ $so->code_so }}</td>
+                                    <td>{{ $so->order_date?->format('d/m/Y') ?? '-' }}</td>
+                                    <td class="text-end">{{ number_format($so->total_amount, 2) }}</td>
                                     <td class="text-center">
-                                        <span class="badge bg-{{ $camp->status_camp === 'active' ? 'success' : 'secondary' }}">
-                                            {{ $camp->status_label }}
-                                        </span>
+                                        <span class="badge bg-{{ $so->status_color }}">{{ $so->status_label }}</span>
+                                    </td>
+                                    <td>
+                                        @if ($so->camp)
+                                            <a href="{{ route('camps.show', $so->camp->id_camp) }}"
+                                                class="text-decoration-none">
+                                                {{ $so->camp->code_camp }}
+                                            </a>
+                                            <div class="small text-muted">{{ $so->camp->name_camp }}</div>
+                                        @else
+                                            <span class="text-muted small">ยังไม่ได้เปิดแคมป์</span>
+                                        @endif
                                     </td>
                                     <td class="text-center">
-                                        <a href="{{ route('camps.show', $camp->id_camp) }}"
-                                           class="btn btn-sm btn-outline-primary">ดู</a>
+                                        <a href="{{ route('sales-orders.show', $so->id_so) }}"
+                                            class="btn btn-sm btn-outline-primary">ดู</a>
                                     </td>
                                 </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">
-                                        ยังไม่ได้เปิดแคมป์จากใบเสนอราคานี้
-                                        <div class="small mt-1">
-                                            กด "เปิดแคมป์ใหม่" แล้วเลือกใบเสนอราคานี้เพื่ออ้างอิง
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="text-center text-muted py-4">
+                        ยังไม่ได้ออกใบสั่งขายจากใบเสนอราคานี้
+                        <div class="small mt-1">
+                            เมื่อลูกค้าตกลงสั่งซื้อ กด "ออกใบสั่งขาย" เพื่อเริ่มงาน
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
 
@@ -169,10 +182,8 @@
                 </a>
 
                 <form method="POST" action="{{ route('quotations.approve', $quotation) }}" style="display:inline;"
-                      data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้"
-                      data-confirm-title="ยืนยันการอนุมัติ"
-                      data-confirm-variant="success"
-                      data-confirm-ok="อนุมัติ">
+                    data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้"
+                    data-confirm-title="ยืนยันการอนุมัติ" data-confirm-variant="success" data-confirm-ok="อนุมัติ">
                     @csrf @method('PATCH')
                     <button class="btn btn-success" type="submit">
                         อนุมัติ
@@ -182,10 +193,8 @@
 
             @if (in_array($quotation->status, ['draft', 'approved']))
                 <form method="POST" action="{{ route('quotations.cancel', $quotation) }}" style="display:inline;"
-                      data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกยกเลิก"
-                      data-confirm-title="ยืนยันการยกเลิก"
-                      data-confirm-variant="warning"
-                      data-confirm-ok="ยกเลิกใบเสนอราคา">
+                    data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกยกเลิก" data-confirm-title="ยืนยันการยกเลิก"
+                    data-confirm-variant="warning" data-confirm-ok="ยกเลิกใบเสนอราคา">
                     @csrf @method('PATCH')
                     <button class="btn btn-outline-warning" type="submit">
                         ยกเลิก
@@ -195,10 +204,8 @@
 
             @if ($quotation->status === 'draft')
                 <form method="POST" action="{{ route('quotations.destroy', $quotation) }}" style="display:inline;"
-                      data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกลบออกจากระบบ"
-                      data-confirm-title="ยืนยันการลบข้อมูล"
-                      data-confirm-variant="danger"
-                      data-confirm-ok="ลบข้อมูล">
+                    data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกลบออกจากระบบ"
+                    data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger" data-confirm-ok="ลบข้อมูล">
                     @csrf @method('DELETE')
                     <button class="btn btn-outline-danger" type="submit">
                         ลบ

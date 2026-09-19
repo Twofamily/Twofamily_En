@@ -10,14 +10,20 @@
     <div class="container py-3">
 
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <form class="d-flex gap-2" method="GET" action="{{ route('drivers.index') }}">
+            <form class="d-flex gap-2" method="GET" action="{{ route('drivers.index') }}"
+                style="max-width: 500px;">
                 <input type="text" name="q" value="{{ $q }}" class="form-control"
                     placeholder="ค้นหาชื่อ / เบอร์ / เลขบัตร">
-                <button class="btn btn-outline-secondary">ค้นหา</button>
+
+                <button class="btn btn-outline-secondary text-nowrap">
+                    <i class="bi bi-search me-1"></i>
+                    ค้นหา
+                </button>
             </form>
 
-            <a href="{{ route('drivers.create') }}" class="btn btn-dark">
-                + เพิ่มพนักงานขับรถ
+            <a href="{{ route('drivers.create') }}" class="btn btn-dark text-nowrap">
+                <i class="bi bi-plus-lg me-1"></i>
+                เพิ่มพนักงานขับรถ
             </a>
         </div>
 
@@ -29,13 +35,14 @@
                         <th>ที่อยู่</th>
                         <th>เบอร์</th>
                         <th>เลขบัตร</th>
-                        <th style="width:200px">จัดการ</th>
+                        <th class="action-col text-center">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($drivers as $d)
                         <tr>
                             <td>{{ $d->fname_driver }} {{ $d->lname_driver }}</td>
+
                             <td class="small text-muted">
                                 {{ $d->address_no ? 'บ้านเลขที่ ' . $d->address_no : '' }}
                                 {{ $d->moo ? 'หมู่ ' . $d->moo : '' }}
@@ -49,24 +56,40 @@
                             <td>{{ $d->phone_driver ?: '-' }}</td>
                             <td>{{ $d->citizenid_driver ?: '-' }}</td>
 
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ route('drivers.show', $d) }}" class="btn btn-sm btn-outline-secondary">
-                                        ดู
+                            <td class="text-center">
+                                <div class="action-buttons">
+                                    {{-- ดูข้อมูล --}}
+                                    <a href="{{ route('drivers.show', $d) }}"
+                                        class="btn action-button action-view"
+                                        title="ดูข้อมูล"
+                                        aria-label="ดูข้อมูลพนักงานขับรถ {{ $d->fname_driver }} {{ $d->lname_driver }}">
+                                        <i class="bi bi-eye" aria-hidden="true"></i>
                                     </a>
 
-                                    <a href="{{ route('drivers.edit', $d) }}" class="btn btn-sm btn-outline-primary">
-                                        แก้ไข
+                                    {{-- แก้ไขข้อมูล --}}
+                                    <a href="{{ route('drivers.edit', $d) }}"
+                                        class="btn btn-outline-primary action-button"
+                                        title="แก้ไขข้อมูล"
+                                        aria-label="แก้ไขข้อมูลพนักงานขับรถ {{ $d->fname_driver }} {{ $d->lname_driver }}">
+                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
                                     </a>
 
-                                    <form method="POST" action="{{ route('drivers.destroy', $d) }}" class="d-inline"
-                                        data-confirm="ข้อมูล {{ $d->lname_driver }} จะถูกลบออกจากระบบ"
-                                        data-confirm-title="ยืนยันการลบข้อมูล" 
+                                    {{-- ลบข้อมูล --}}
+                                    <form method="POST"
+                                        action="{{ route('drivers.destroy', $d) }}"
+                                        class="delete-form"
+                                        data-confirm="ข้อมูล {{ $d->fname_driver }} {{ $d->lname_driver }} จะถูกลบออกจากระบบ"
+                                        data-confirm-title="ยืนยันการลบข้อมูล"
                                         data-confirm-variant="danger"
                                         data-confirm-ok="ลบข้อมูล">
-                                        @csrf @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger">
-                                            ลบ
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button class="btn btn-outline-danger action-button"
+                                            type="submit"
+                                            title="ลบข้อมูล"
+                                            aria-label="ลบข้อมูลพนักงานขับรถ {{ $d->fname_driver }} {{ $d->lname_driver }}">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
                                     </form>
                                 </div>
@@ -75,7 +98,8 @@
                     @empty
                         <tr>
                             <td colspan="5" class="text-center text-muted py-4">
-                                — ไม่พบข้อมูล —
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                ไม่พบข้อมูล
                             </td>
                         </tr>
                     @endforelse
@@ -83,6 +107,8 @@
             </table>
         </div>
 
-        {{ $drivers->links() }}
+        <div class="mt-3">
+            {{ $drivers->withQueryString()->links() }}
+        </div>
     </div>
 @endsection

@@ -1,6 +1,9 @@
 {
     "sarabun": {
         "normal": "C:\\xampp\\htdocs\\Twofamily_En\\storage\\fonts\/sarabun_normal_7e951c0c8ecfa7ce163935699859ee8f",
-        "bold": "sarabun_bold_7e951c0c8ecfa7ce163935699859ee8f"
+        "bold": "sarabun_bold_073f016864073a0b67d9b7ecd31a62c7"
+    },
+    "thsarabun": {
+        "normal": "thsarabun_normal_24f1e4de26170c8f485a01470bd1a700"
     }
 }

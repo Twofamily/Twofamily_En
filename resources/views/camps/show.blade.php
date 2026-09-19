@@ -25,6 +25,7 @@
         @endif
 
         <a href="{{ route('camps.index') }}" class="btn btn-sm btn-light mb-3">
+            <i class="bi bi-arrow-left me-1"></i>
             กลับหน้ารายการ
         </a>
 
@@ -42,7 +43,8 @@
                             {{ $camp->status_label }}
                         </span>
                         <br>
-                        <a href="{{ route('camps.edit', $camp->id_camp) }}" class="btn btn-outline-primary btn-sm">
+                        <a href="{{ route('camps.edit', $camp->id_camp) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-pencil-square me-1"></i>
                             แก้ไขข้อมูล
                         </a>
                     </div>
@@ -115,14 +117,13 @@
 
                 @if ($camp->latitude && $camp->longitude)
                     <div id="campShowMap" class="mt-3"
-                         style="width:100%;height:320px;border-radius:10px;background:#e9ecef;"></div>
+                        style="width:100%;height:320px;border-radius:10px;background:#e9ecef;"></div>
 
                     <div id="campMapError" class="alert alert-danger mt-2 d-none" role="alert"></div>
 
                     <div class="mt-2">
                         <a href="https://www.google.com/maps/search/?api=1&query={{ $camp->latitude }},{{ $camp->longitude }}"
-                           target="_blank" rel="noopener"
-                           class="btn btn-sm btn-outline-secondary">
+                            target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
                             เปิดใน Google Maps
                         </a>
                     </div>
@@ -170,7 +171,7 @@
                             </div>
 
                             <div class="col-md-2">
-                                <button class="btn btn-dark w-100">เพิ่มรถ</button>
+                                <button class="btn btn-dark w-100">+ เพิ่มรถ</button>
                             </div>
                         </form>
                     @endif
@@ -391,10 +392,9 @@
         </script>
 
         @if (config('services.google_maps.key'))
-            <script
-                async
-                src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&callback=initCampShowMap&loading=async&language=th&region=TH"
-            ></script>
+            <script async
+                src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&callback=initCampShowMap&loading=async&language=th&region=TH">
+            </script>
         @else
             <script>
                 document.getElementById('campMapError').textContent =

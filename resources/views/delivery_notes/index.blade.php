@@ -9,10 +9,10 @@
 @section('content')
     <div class="container py-3">
 
-
-        <div class="d-flex justify-content-end mb-3">
-            <a href="{{ route('delivery-notes.create') }}" class="btn btn-dark">
-                + สร้างใบส่งของ
+        <div class="d-flex justify-content-end align-items-center mb-3">
+            <a href="{{ route('delivery-notes.create') }}" class="btn btn-dark text-nowrap">
+                <i class="bi bi-plus-lg me-1"></i>
+                สร้างใบส่งของ
             </a>
         </div>
 
@@ -26,7 +26,7 @@
                         <th>อ้างอิงใบเสนอราคา</th>
                         <th>วันที่ส่ง</th>
                         <th class="text-center">สถานะใบแจ้งหนี้</th>
-                        <th class="text-center">จัดการ</th>
+                        <th class="text-center" style="width:140px;">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -67,20 +67,33 @@
                             </td>
 
                             <td class="text-center">
-                                <div class="btn-group">
+                                <div class="action-buttons">
+                                    {{-- ดูข้อมูล --}}
                                     <a href="{{ route('delivery-notes.show', $deliveryNote) }}"
-                                       class="btn btn-sm btn-outline-primary">ดู</a>
+                                        class="btn action-button action-view"
+                                        title="ดูข้อมูล"
+                                        aria-label="ดูใบส่งของ {{ $deliveryNote->code_delivery }}">
+                                        <i class="bi bi-eye" aria-hidden="true"></i>
+                                    </a>
 
+                                    {{-- ลบข้อมูล (เฉพาะที่ยังไม่ออกใบแจ้งหนี้) --}}
                                     @if (!$deliveryNote->invoice)
                                         <form method="POST"
-                                              action="{{ route('delivery-notes.destroy', $deliveryNote) }}"
-                                              class="d-inline"
-                                              data-confirm="ใบส่งของ {{ $deliveryNote->code_delivery }} จะถูกลบออกจากระบบ"
-                                              data-confirm-title="ยืนยันการลบข้อมูล"
-                                              data-confirm-variant="danger"
-                                              data-confirm-ok="ลบข้อมูล">
-                                            @csrf @method('DELETE')
-                                            <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
+                                            action="{{ route('delivery-notes.destroy', $deliveryNote) }}"
+                                            class="delete-form"
+                                            data-confirm="ใบส่งของ {{ $deliveryNote->code_delivery }} จะถูกลบออกจากระบบ"
+                                            data-confirm-title="ยืนยันการลบข้อมูล"
+                                            data-confirm-variant="danger"
+                                            data-confirm-ok="ลบข้อมูล">
+                                            @csrf
+                                            @method('DELETE')
+
+                                            <button class="btn btn-outline-danger action-button"
+                                                type="submit"
+                                                title="ลบข้อมูล"
+                                                aria-label="ลบใบส่งของ {{ $deliveryNote->code_delivery }}">
+                                                <i class="bi bi-trash" aria-hidden="true"></i>
+                                            </button>
                                         </form>
                                     @endif
                                 </div>
@@ -88,13 +101,16 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">ยังไม่มีใบส่งของ</td>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                ยังไม่มีใบส่งของ
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
 
-        <div class="mt-3">{{ $deliveryNotes->links() }}</div>
+        <div class="mt-3">{{ $deliveryNotes->withQueryString()->links() }}</div>
     </div>
 @endsection
