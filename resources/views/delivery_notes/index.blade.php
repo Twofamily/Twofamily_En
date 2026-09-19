@@ -50,7 +50,7 @@
 
                             <td>
                                 @if ($deliveryNote->id_quotation)
-                                    QT{{ str_pad($deliveryNote->id_quotation, 5, '0', STR_PAD_LEFT) }}
+                                    {{ $deliveryNote->quotation?->code_quot ?? '-' }}
                                 @else
                                     <span class="text-muted">-</span>
                                 @endif

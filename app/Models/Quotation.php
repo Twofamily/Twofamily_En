@@ -2,16 +2,22 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasDocumentCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Quotation extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, HasDocumentCode;
+
+    // เลขที่เอกสารรูปแบบ QT-2569-0001 สร้างให้อัตโนมัติตอน create
+    protected static string $codePrefix = 'QT';
+    protected static string $codeColumn = 'code_quot';
 
     protected $primaryKey = 'id_quot';
 
     protected $fillable = [
+        'code_quot',
         'id_customer',
         'date_quot',
         'end_quot',
@@ -65,10 +71,12 @@ class Quotation extends Model
         return $this->status === 'approved';
     }
 
-    public function getCodeQuotAttribute(): string
-    {
-        return 'QT' . str_pad($this->id_quot, 5, '0', STR_PAD_LEFT);
-    }
+    /*
+     * getCodeQuotAttribute() เดิมถูกลบออกแล้ว
+     * code_quot เป็นคอลัมน์จริงในตาราง quotations
+     * ถ้ายังมี accessor ชื่อเดียวกันอยู่ Laravel จะใช้ accessor แทนค่าในคอลัมน์
+     * เลขใหม่จะไม่ถูกแสดง และ where('code_quot', ...) กับหน้าจอจะได้เลขคนละชุดกัน
+     */
 
     /* ==================== Relations ==================== */
 

@@ -5,7 +5,8 @@
     <meta charset="utf-8">
 
     @php
-        $invCode = 'INV' . str_pad($invoice->id_invoice, 5, '0', STR_PAD_LEFT);
+        // เลขที่อ่านจากคอลัมน์ code_inv (สร้างอัตโนมัติตอนบันทึก รูปแบบ INV-2569-0001)
+        $invCode = $invoice->code_inv ?? '-';
 
         /*
          * ยอดเงิน: ใช้คอลัมน์ที่บันทึกไว้ในตาราง invoices ก่อน
@@ -271,9 +272,7 @@
             <td width="50%"><b>{{ $invoice->customer->name_customer ?? '-' }}</b></td>
             <td class="label divider" width="16%">ใบส่งของ</td>
             <td width="22%">
-                {{ $invoice->deliveryNote
-                    ? 'DN' . str_pad($invoice->deliveryNote->id_delivery_note, 5, '0', STR_PAD_LEFT)
-                    : '-' }}
+                {{ $invoice->deliveryNote?->code_dn ?? '-' }}
             </td>
         </tr>
         <tr>

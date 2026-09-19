@@ -100,7 +100,7 @@
                                             value="{{ $quotation->id_quot }}"
                                             @selected(old('id_quot', $camp->id_quot ?? '') == $quotation->id_quot)
                                         >
-                                            QT{{ str_pad($quotation->id_quot, 5, '0', STR_PAD_LEFT) }}
+                                            {{ $quotation->code_quot }}
                                             — {{ $quotation->customer->name_customer ?? '-' }}
                                             ({{ number_format($quotation->total_amount, 2) }} บาท)
                                         </option>

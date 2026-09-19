@@ -6,7 +6,8 @@
 
     @php
         $inv    = $receipt->invoice;
-        $rcCode = 'RC' . str_pad($receipt->id_receipt, 5, '0', STR_PAD_LEFT);
+        // เลขที่อ่านจากคอลัมน์ code_rc (สร้างอัตโนมัติตอนบันทึก รูปแบบ RC-2569-0001)
+        $rcCode = $receipt->code_rc ?? '-';
 
         /*
          * ยอดเงิน: ใช้ยอดที่บันทึกไว้ในใบแจ้งหนี้ก่อน ให้ตรงกับใบแจ้งหนี้ใบที่อ้างอิง
@@ -289,7 +290,7 @@
             <td width="50%"><b>{{ $inv?->customer->name_customer ?? '-' }}</b></td>
             <td class="label divider" width="16%">ใบแจ้งหนี้</td>
             <td width="22%">
-                {{ $inv ? 'INV' . str_pad($inv->id_invoice, 5, '0', STR_PAD_LEFT) : '-' }}
+                {{ $inv?->code_inv ?? '-' }}
             </td>
         </tr>
         <tr>
@@ -297,9 +298,7 @@
             <td>{{ $inv?->customer ? customer_address($inv->customer) : '-' }}</td>
             <td class="label divider">ใบส่งของ</td>
             <td>
-                {{ $inv?->deliveryNote
-                    ? 'DN' . str_pad($inv->deliveryNote->id_delivery_note, 5, '0', STR_PAD_LEFT)
-                    : '-' }}
+                {{ $inv?->deliveryNote?->code_dn ?? '-' }}
             </td>
         </tr>
         <tr>

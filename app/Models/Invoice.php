@@ -2,13 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasDocumentCode;
 use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
+    use HasDocumentCode;
+
+    // เลขที่เอกสารรูปแบบ INV-2569-0001 สร้างให้อัตโนมัติตอน create
+    protected static string $codePrefix = 'INV';
+    protected static string $codeColumn = 'code_inv';
+
     protected $primaryKey = 'id_invoice';
 
     protected $fillable = [
+        'code_inv',
         'id_quotation',
         'id_delivery_note',
         'id_customer',

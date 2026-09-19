@@ -26,21 +26,29 @@
                 <tbody>
                     @forelse ($invoices as $inv)
                         @php
-                            $subTotal = $inv->quotation->subtotal ?? 0;
-                            $discount = $inv->quotation->discount ?? 0;
+                            // เลขที่อ่านจากคอลัมน์ code_inv ที่เดียว (INV-2569-0001)
+                            $code = $inv->code_inv;
 
-                            $afterDiscount = max($subTotal - $discount, 0);
+                            /*
+                             * ยอดเงิน: ใช้วิธีเดียวกับ PDF ใบแจ้งหนี้ ตัวเลขในหน้านี้กับใน PDF จะได้ตรงกัน
+                             * ใช้คอลัมน์ที่บันทึกไว้ในตาราง invoices ก่อน
+                             * ถ้ายังไม่มีคอลัมน์ จะถอยไปใช้วิธีเดิม (อ่านจากใบเสนอราคาแล้วคำนวณ)
+                             */
+                            $q = $inv->quotation;
 
-                            $vat = $afterDiscount * 0.07;
+                            $subTotal      = $inv->subtotal ?? $q?->subtotal ?? 0;
+                            $discount      = $inv->discount ?? $q?->discount ?? 0;
+                            $afterDiscount = $inv->after_discount ?? max($subTotal - $discount, 0);
+                            $vatRate       = $inv->vat_rate ?? 7;
+                            $vat           = $inv->vat_amount ?? $afterDiscount * $vatRate / 100;
+                            $grandTotal    = $inv->total_amount ?? $afterDiscount + $vat;
 
-                            $grandTotal = $afterDiscount + $vat;
+                            $isPaid = $inv->status == 'paid';
                         @endphp
 
                         <tr>
                             <td>
-                                <strong>
-                                    INV{{ str_pad($inv->id_invoice, 5, '0', STR_PAD_LEFT) }}
-                                </strong>
+                                <strong>{{ $code }}</strong>
                             </td>
 
                             <td>
@@ -48,7 +56,7 @@
                             </td>
 
                             <td>
-                                QT{{ str_pad($inv->id_quotation, 5, '0', STR_PAD_LEFT) }}
+                                {{ $q?->code_quot ?? '-' }}
                             </td>
 
                             <td class="text-end">
@@ -60,7 +68,7 @@
                             </td>
 
                             <td class="text-center">
-                                @if ($inv->status == 'paid')
+                                @if ($isPaid)
                                     <span class="badge bg-success">ชำระแล้ว</span>
                                 @else
                                     <span class="badge bg-warning text-dark">ยังไม่ชำระ</span>
@@ -73,28 +81,30 @@
                                     <a href="{{ route('invoices.show', $inv->id_invoice) }}"
                                         class="btn action-button action-view"
                                         title="ดูข้อมูล"
-                                        aria-label="ดูใบแจ้งหนี้ INV{{ str_pad($inv->id_invoice, 5, '0', STR_PAD_LEFT) }}">
+                                        aria-label="ดูใบแจ้งหนี้ {{ $code }}">
                                         <i class="bi bi-eye" aria-hidden="true"></i>
                                     </a>
 
-                                    {{-- ลบข้อมูล --}}
-                                    <form method="POST"
-                                        action="{{ route('invoices.destroy', $inv) }}"
-                                        class="delete-form"
-                                        data-confirm="ใบแจ้งหนี้ INV{{ str_pad($inv->id_invoice, 5, '0', STR_PAD_LEFT) }} จะถูกลบออกจากระบบ"
-                                        data-confirm-title="ยืนยันการลบข้อมูล"
-                                        data-confirm-variant="danger"
-                                        data-confirm-ok="ลบข้อมูล">
-                                        @csrf
-                                        @method('DELETE')
+                                    {{-- ลบข้อมูล: ซ่อนเมื่อชำระแล้ว เอกสารที่ปิดงานแล้วไม่ควรถูกลบ --}}
+                                    @unless ($isPaid)
+                                        <form method="POST"
+                                            action="{{ route('invoices.destroy', $inv) }}"
+                                            class="delete-form"
+                                            data-confirm="ใบแจ้งหนี้ {{ $code }} จะถูกลบออกจากระบบ"
+                                            data-confirm-title="ยืนยันการลบข้อมูล"
+                                            data-confirm-variant="danger"
+                                            data-confirm-ok="ลบข้อมูล">
+                                            @csrf
+                                            @method('DELETE')
 
-                                        <button class="btn btn-outline-danger action-button"
-                                            type="submit"
-                                            title="ลบข้อมูล"
-                                            aria-label="ลบใบแจ้งหนี้ INV{{ str_pad($inv->id_invoice, 5, '0', STR_PAD_LEFT) }}">
-                                            <i class="bi bi-trash" aria-hidden="true"></i>
-                                        </button>
-                                    </form>
+                                            <button class="btn btn-outline-danger action-button"
+                                                type="submit"
+                                                title="ลบข้อมูล"
+                                                aria-label="ลบใบแจ้งหนี้ {{ $code }}">
+                                                <i class="bi bi-trash" aria-hidden="true"></i>
+                                            </button>
+                                        </form>
+                                    @endunless
                                 </div>
                             </td>
                         </tr>

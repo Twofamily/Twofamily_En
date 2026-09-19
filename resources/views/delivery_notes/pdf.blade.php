@@ -5,7 +5,9 @@
     <meta charset="utf-8">
 
     @php
-        $dnCode = 'DN' . str_pad($deliveryNote->id_delivery_note, 5, '0', STR_PAD_LEFT);
+        // เลขที่อ่านจากคอลัมน์ code_dn (สร้างอัตโนมัติตอนบันทึก รูปแบบ DN-2569-0001)
+        $dnCode = $deliveryNote->code_dn ?? '-';
+        $qtCode = $deliveryNote->quotation?->code_quot ?? '-';
     @endphp
 
     <title>ใบส่งของ {{ $dnCode }}</title>
@@ -218,9 +220,7 @@
             <td width="50%"><b>{{ $deliveryNote->customer->name_customer ?? '-' }}</b></td>
             <td class="label divider" width="16%">ใบเสนอราคา</td>
             <td width="22%">
-                {{ $deliveryNote->id_quotation
-                    ? 'QT' . str_pad($deliveryNote->id_quotation, 5, '0', STR_PAD_LEFT)
-                    : '-' }}
+                {{ $qtCode }}
             </td>
         </tr>
         <tr>

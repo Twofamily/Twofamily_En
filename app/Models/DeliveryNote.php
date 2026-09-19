@@ -2,13 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasDocumentCode;
 use Illuminate\Database\Eloquent\Model;
 
 class DeliveryNote extends Model
 {
+    use HasDocumentCode;
+
+    // เลขที่เอกสารรูปแบบ DN-2569-0001 สร้างให้อัตโนมัติตอน create
+    protected static string $codePrefix = 'DN';
+    protected static string $codeColumn = 'code_dn';
+
     protected $primaryKey = 'id_delivery_note';
 
     protected $fillable = [
+        'code_dn',
         'id_quotation',
         'id_camp',
         'id_customer',
@@ -23,9 +31,13 @@ class DeliveryNote extends Model
         ];
     }
 
+    /**
+     * เดิมประกอบเลขจาก id (DN00002) ตอนนี้อ่านจากคอลัมน์ code_dn แทน
+     * หน้าเว็บที่เรียก $dn->code_delivery อยู่แล้วจึงได้เลขรูปแบบใหม่ทันที ไม่ต้องไล่แก้
+     */
     public function getCodeDeliveryAttribute(): string
     {
-        return 'DN' . str_pad($this->id_delivery_note, 5, '0', STR_PAD_LEFT);
+        return $this->attributes['code_dn'] ?? '';
     }
 
     public function quotation()

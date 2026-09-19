@@ -33,7 +33,7 @@
 
                             $grandTotal = $afterDiscount + $vat;
 
-                            $receiptCode = 'RC' . str_pad($r->id_receipt, 5, '0', STR_PAD_LEFT);
+                            $receiptCode = $r->code_rc;
                         @endphp
 
                         <tr>
@@ -46,7 +46,7 @@
                             </td>
 
                             <td>
-                                INV{{ str_pad($inv->id_invoice ?? 0, 5, '0', STR_PAD_LEFT) }}
+                                {{ $r->invoice?->code_inv ?? '-' }}
                             </td>
 
                             <td class="text-end">

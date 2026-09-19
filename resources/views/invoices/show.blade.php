@@ -2,7 +2,7 @@
 
 @section('namepage')
     <div class="container">
-        <h3>ใบแจ้งหนี้ INV{{ str_pad($invoice->id_invoice, 5, '0', STR_PAD_LEFT) }}</h3>
+        <h3>ใบแจ้งหนี้ {{ $invoice->code_inv }}</h3>
     </div>
 @endsection
 
@@ -38,12 +38,12 @@
                 </p>
                 <p>
                     <strong>อ้างอิงใบเสนอราคา:</strong>
-                    QT{{ str_pad($invoice->id_quotation, 5, '0', STR_PAD_LEFT) }}
+                    {{ $invoice->quotation?->code_quot ?? '-' }}
                 </p>
                 @if ($invoice->deliveryNote)
                     <p>
                         <strong>อ้างอิงใบส่งของ:</strong>
-                        DN{{ str_pad($invoice->deliveryNote->id_delivery_note, 5, '0', STR_PAD_LEFT) }}
+                        {{ $invoice->deliveryNote?->code_dn ?? '-' }}
                     </p>
                 @endif
             </div>

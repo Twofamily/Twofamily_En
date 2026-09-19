@@ -2,7 +2,7 @@
 
 @section('namepage')
     <div class="container">
-        <h3>ใบเสร็จ RC{{ str_pad($receipt->id_receipt, 5, '0', STR_PAD_LEFT) }}</h3>
+        <h3>ใบเสร็จ {{ $receipt->code_rc }}</h3>
     </div>
 @endsection
 
@@ -42,7 +42,7 @@
 
                 <p>
                     <strong>อ้างอิงใบแจ้งหนี้:</strong>
-                    INV{{ str_pad($inv->id_invoice, 5, '0', STR_PAD_LEFT) }}
+                    {{ $inv->code_inv }}
                 </p>
 
                 <p>
