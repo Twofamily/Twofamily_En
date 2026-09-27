@@ -63,6 +63,9 @@
                 @enderror
             </div>
 
+            {{-- ============ สิทธิ์รายหน้า ============ --}}
+            @include('users._permissions')
+
             <button class="btn btn-dark">บันทึกการแก้ไข</button>
             <a href="{{ route('users.index') }}" class="btn btn-outline-secondary">ยกเลิก</a>
 

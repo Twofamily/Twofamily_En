@@ -11,13 +11,42 @@ use Illuminate\Support\Facades\DB;
 
 class DeliveryNoteController extends Controller
 {
-    public function index()
-    {
-        $deliveryNotes = DeliveryNote::with(['customer', 'camp', 'invoice'])
-            ->latest('id_delivery_note')
-            ->paginate(10);
+    /** ตัวกรองสถานะในหน้ารายการ (อิงจากการออกใบแจ้งหนี้) */
+    public const INVOICE_STATUSES = [
+        'pending'  => 'รอออกใบแจ้งหนี้',
+        'invoiced' => 'ออกใบแจ้งหนี้แล้ว',
+    ];
 
-        return view('delivery_notes.index', compact('deliveryNotes'));
+        public function index(Request $request)
+    {
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
+        $status  = $this->statusFilter($request, array_keys(self::INVOICE_STATUSES));
+
+        $deliveryNotes = DeliveryNote::with(['customer', 'camp', 'invoice', 'quotation'])
+            // ค้นหาจากเลขที่ใบส่งของ ชื่อลูกค้า หรือรหัส/ชื่อแคมป์
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($sub) use ($search) {
+                    $sub->where('code_delivery', 'like', "%{$search}%")
+                        ->orWhereHas('customer', fn ($c) => $c->where('name_customer', 'like', "%{$search}%"))
+                        ->orWhereHas('camp', fn ($c) => $c->where('code_camp', 'like', "%{$search}%")
+                                                         ->orWhere('name_camp', 'like', "%{$search}%"));
+                });
+            })
+            // ใบส่งของไม่มีคอลัมน์ status → กรองจากการมี/ไม่มีใบแจ้งหนี้
+            ->when($status === 'invoiced', fn ($query) => $query->whereHas('invoice'))
+            ->when($status === 'pending',  fn ($query) => $query->whereDoesntHave('invoice'))
+            ->latest('id_delivery_note')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return view('delivery_notes.index', [
+            'deliveryNotes' => $deliveryNotes,
+            'perPage'       => $perPage,
+            'search'        => $search,
+            'status'        => $status,
+            'statusOptions' => self::INVOICE_STATUSES,
+        ]);
     }
 
     /** เลือกแคมป์ก่อน แล้วค่อยกรอกรายการ */
@@ -124,9 +153,9 @@ class DeliveryNoteController extends Controller
 
         // ยอดที่ส่งไปแล้วของแคมป์นี้ แยกตามสินค้า
         $delivered = DeliveryNoteDetail::whereIn(
-                'id_delivery_note',
-                $camp->deliveryNotes()->pluck('id_delivery_note')
-            )
+            'id_delivery_note',
+            $camp->deliveryNotes()->pluck('id_delivery_note')
+        )
             ->selectRaw('id_product, SUM(quantity) as qty')
             ->groupBy('id_product')
             ->pluck('qty', 'id_product');

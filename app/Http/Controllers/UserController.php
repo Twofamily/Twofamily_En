@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\Permission;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -43,10 +44,12 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role'     => ['required', Rule::in(array_keys(User::roleList()))],
-            'password' => ['required', 'confirmed', Password::min(8)],
+            'name'          => ['required', 'string', 'max:255'],
+            'email'         => ['required', 'email', 'max:255', 'unique:users,email'],
+            'role'          => ['required', Rule::in(array_keys(User::roleList()))],
+            'password'      => ['required', 'confirmed', Password::min(8)],
+            'permissions'   => ['nullable', 'array'],
+            'permissions.*' => [Rule::in(array_keys(Permission::LEVELS))],
         ], [
             'name.required'     => 'กรุณากรอกชื่อ-นามสกุล',
             'email.required'    => 'กรุณากรอกอีเมล',
@@ -56,9 +59,11 @@ class UserController extends Controller
             'password.required' => 'กรุณากรอกรหัสผ่าน',
             'password.confirmed'=> 'รหัสผ่านยืนยันไม่ตรงกัน',
             'password.min'      => 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
+            'permissions.*.in'  => 'ค่าสิทธิ์รายหน้าไม่ถูกต้อง',
         ]);
 
-        $data['is_active'] = $request->boolean('is_active');
+        $data['is_active']   = $request->boolean('is_active');
+        $data['permissions'] = $this->permissionsFromRequest($request, $data['role']);
 
         User::create($data);
 
@@ -81,15 +86,18 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $data = $request->validateWithBag('updateUser', [
-            'name'  => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->getKey())],
-            'role'  => ['required', Rule::in(array_keys(User::roleList()))],
+            'name'          => ['required', 'string', 'max:255'],
+            'email'         => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->getKey())],
+            'role'          => ['required', Rule::in(array_keys(User::roleList()))],
+            'permissions'   => ['nullable', 'array'],
+            'permissions.*' => [Rule::in(array_keys(Permission::LEVELS))],
         ], [
-            'name.required'  => 'กรุณากรอกชื่อ-นามสกุล',
-            'email.required' => 'กรุณากรอกอีเมล',
-            'email.email'    => 'รูปแบบอีเมลไม่ถูกต้อง',
-            'email.unique'   => 'อีเมลนี้ถูกใช้งานแล้ว',
-            'role.required'  => 'กรุณาเลือกสิทธิ์การใช้งาน',
+            'name.required'    => 'กรุณากรอกชื่อ-นามสกุล',
+            'email.required'   => 'กรุณากรอกอีเมล',
+            'email.email'      => 'รูปแบบอีเมลไม่ถูกต้อง',
+            'email.unique'     => 'อีเมลนี้ถูกใช้งานแล้ว',
+            'role.required'    => 'กรุณาเลือกสิทธิ์การใช้งาน',
+            'permissions.*.in' => 'ค่าสิทธิ์รายหน้าไม่ถูกต้อง',
         ]);
 
         if ($user->getKey() === auth()->id()
@@ -99,6 +107,13 @@ class UserController extends Controller
             return back()->withInput()->withErrors([
                 'role' => 'ไม่สามารถลดสิทธิ์ตนเองได้ เนื่องจากเป็นผู้ดูแลระบบคนสุดท้าย',
             ], 'updateUser');
+        }
+
+        // ฟอร์มที่ไม่มีตารางสิทธิ์ส่งมา → คงค่าเดิมไว้ ไม่ล้างทิ้ง
+        if ($request->has('permissions') || $data['role'] === User::ROLE_ADMIN) {
+            $data['permissions'] = $this->permissionsFromRequest($request, $data['role']);
+        } else {
+            unset($data['permissions']);
         }
 
         $user->update($data);
@@ -177,5 +192,18 @@ class UserController extends Controller
         return User::where('role', User::ROLE_ADMIN)
             ->where('is_active', true)
             ->count();
+    }
+
+    /* ============================================================
+     |  แปลงค่าสิทธิ์รายหน้าจากฟอร์มก่อนบันทึก
+     |  admin เข้าได้ทุกหน้าอยู่แล้ว จึงเก็บเป็น null
+     ============================================================ */
+    private function permissionsFromRequest(Request $request, string $role): ?array
+    {
+        if ($role === User::ROLE_ADMIN || ! $request->has('permissions')) {
+            return null;
+        }
+
+        return Permission::clean($request->input('permissions', []));
     }
 }

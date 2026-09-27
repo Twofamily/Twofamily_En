@@ -1,13 +1,8 @@
 @extends('layout')
 
 @section('namepage')
-    <div class="container d-flex justify-content-between align-items-center">
-        <h3 class="mb-0">
-            ใบสั่งขาย {{ $salesOrder->code_so }}
-            <span class="badge bg-{{ $salesOrder->status_color }} align-middle ms-2">
-                {{ $salesOrder->status_label }}
-            </span>
-        </h3>
+    <div class="container">
+        <h3>ใบสั่งขาย {{ $salesOrder->code_so }}</h3>
     </div>
 @endsection
 
@@ -20,6 +15,17 @@
     @if (session('error'))
         <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
+
+    {{-- ส่วนหัวเอกสาร (แบบเดียวกับใบเสนอราคา) --}}
+    <div class="text-center mb-4">
+        <h2>ใบสั่งขาย (Sales Order)</h2>
+        <p>บริษัท Two Family Engineering Co., Ltd.</p>
+        <p>
+            โทร: 02-123-4567 |
+            ที่อยู่: 189 หมู่ที่ 14 ตำบลสูงเนิน อำเภอสูงเนิน
+            จ.นครราชสีมา 30170
+        </p>
+    </div>
 
     {{-- แถบสถานะการทำงาน --}}
     <div class="card border-0 shadow-sm mb-3">
@@ -147,6 +153,13 @@
                     <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">ข้อมูลทั่วไป</h6>
 
                     <dl class="row mb-0 small">
+                        <dt class="col-5 text-muted fw-normal">สถานะ</dt>
+                        <dd class="col-7">
+                            <span class="badge bg-{{ $salesOrder->status_color }}">
+                                {{ $salesOrder->status_label }}
+                            </span>
+                        </dd>
+
                         <dt class="col-5 text-muted fw-normal">ลูกค้า</dt>
                         <dd class="col-7">{{ $salesOrder->customer->name_customer ?? '-' }}</dd>
 

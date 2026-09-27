@@ -2,97 +2,120 @@
 
 @section('namepage')
     <div class="container">
-        <h3>ใบสั่งขาย</h3>
+        <h3>รายการใบสั่งขาย</h3>
     </div>
 @endsection
 
+@php
+    $hasFilter = $search !== '' || $status !== null || $customerId !== null;
+@endphp
+
 @section('content')
-<div class="container py-3">
+    <div class="container py-3">
 
-    @if (session('ok'))
-        <div class="alert alert-success">{{ session('ok') }}</div>
-    @endif
-    @if (session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
+        {{-- ==================== แถบค้นหา / กรอง / จำนวนต่อหน้า ==================== --}}
+        {{-- form เดียวครอบทั้งหมด เพื่อให้ค่าทุกตัวถูกส่งไปพร้อมกัน --}}
+        <form method="GET" action="{{ route('sales-orders.index') }}" class="mb-3">
+            <div class="row g-2 align-items-center">
 
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body">
-            <form method="GET" action="{{ route('sales-orders.index') }}" class="row g-2 align-items-end">
-                <div class="col-md-4">
-                    <label class="form-label small text-muted mb-1">ค้นหา</label>
-                    <input type="text" name="q" value="{{ $q }}" class="form-control"
-                           placeholder="เลขที่ใบสั่งขาย / เลข PO / ชื่อลูกค้า">
+                {{-- ช่องค้นหา --}}
+                <div class="col-12 col-lg-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text"
+                            name="search"
+                            class="form-control"
+                            placeholder="เลขที่ / เลข PO / ชื่อลูกค้า"
+                            value="{{ $search }}">
+                    </div>
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label small text-muted mb-1">ลูกค้า</label>
+                {{-- กรองลูกค้า --}}
+                <div class="col-6 col-lg-3">
                     <select name="customer" class="form-select">
-                        <option value="">— ทั้งหมด —</option>
+                        <option value="">ทุกลูกค้า</option>
                         @foreach ($customers as $customer)
                             <option value="{{ $customer->id_customer }}"
-                                @selected($customerId == $customer->id_customer)>
+                                @selected($customerId === $customer->id_customer)>
                                 {{ $customer->name_customer }}
                             </option>
                         @endforeach
                     </select>
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label small text-muted mb-1">สถานะ</label>
+                {{-- กรองสถานะ --}}
+                <div class="col-6 col-lg-2">
                     <select name="status" class="form-select">
-                        <option value="">— ทั้งหมด —</option>
+                        <option value="">ทุกสถานะ</option>
                         @foreach (\App\Models\SalesOrder::STATUS_LABELS as $value => $label)
                             <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
 
-                <div class="col-md-2 d-flex gap-2">
-                    <button class="btn btn-dark flex-fill text-nowrap">
-                        <i class="bi bi-search me-1"></i>
-                        ค้นหา
+                {{-- ปุ่มค้นหา / ล้าง --}}
+                <div class="col-6 col-lg-auto">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel me-1"></i> ค้นหา
                     </button>
 
-                    <a href="{{ route('sales-orders.index') }}"
-                       class="btn btn-outline-secondary text-nowrap">
-                        ล้าง
-                    </a>
+                    @if ($hasFilter)
+                        <a href="{{ route('sales-orders.index') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    @endif
                 </div>
-            </form>
+
+                {{-- จำนวนรายการต่อหน้า --}}
+                <div class="col-12 col-lg-auto ms-lg-auto">
+                    @include('partials.per-page', ['perPage' => $perPage])
+                </div>
+            </div>
+
+            {{-- รีเซ็ตกลับหน้า 1 ทุกครั้งที่ค้นหาใหม่ --}}
+            <input type="hidden" name="page" value="1">
+        </form>
+
+        {{-- ==================== ปุ่มสร้าง ==================== --}}
+        <div class="d-flex justify-content-end align-items-center mb-3">
+            <a href="{{ route('sales-orders.create') }}" class="btn btn-dark text-nowrap">
+                <i class="bi bi-plus-lg me-1"></i>
+                สร้างใบสั่งขาย
+            </a>
         </div>
-    </div>
 
-    <div class="d-flex justify-content-end align-items-center mb-3">
-        <a href="{{ route('sales-orders.create') }}" class="btn btn-dark text-nowrap">
-            <i class="bi bi-plus-lg me-1"></i>
-            สร้างใบสั่งขาย
-        </a>
-    </div>
-
-    <div class="card border-0 shadow-sm">
-        <div class="table-responsive">
+        {{-- ==================== ตาราง ==================== --}}
+        <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>เลขที่</th>
-                        <th>วันที่สั่ง</th>
+                        <th style="width:60px;" class="text-center">ลำดับ</th>
+                        <th>เลขที่ใบสั่งขาย</th>
                         <th>ลูกค้า</th>
+                        <th>วันที่สั่ง</th>
                         <th>อ้างอิง</th>
-                        <th class="text-end">ยอดรวม</th>
-                        <th>สถานะ</th>
+                        <th class="text-end">ยอดสุทธิ</th>
+                        <th class="text-center">สถานะ</th>
                         <th>แคมป์</th>
                         <th class="text-center" style="width:100px;">จัดการ</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     @forelse ($salesOrders as $so)
                         <tr>
-                            <td class="fw-semibold">{{ $so->code_so }}</td>
+                            {{-- ลำดับต่อเนื่องข้ามหน้า --}}
+                            <td class="text-center text-muted">
+                                {{ $salesOrders->firstItem() + $loop->index }}
+                            </td>
 
-                            <td>{{ $so->order_date?->format('d/m/Y') ?? '-' }}</td>
+                            <td><strong>{{ $so->code_so }}</strong></td>
 
                             <td>{{ $so->customer->name_customer ?? '-' }}</td>
+
+                            <td>{{ $so->order_date?->format('d/m/Y') ?? '-' }}</td>
 
                             <td>
                                 @if ($so->quotation)
@@ -107,7 +130,7 @@
 
                             <td class="text-end">{{ number_format($so->total_amount, 2) }}</td>
 
-                            <td>
+                            <td class="text-center">
                                 <span class="badge bg-{{ $so->status_color }}">{{ $so->status_label }}</span>
                             </td>
 
@@ -136,19 +159,29 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
+                            <td colspan="9" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-                                ยังไม่มีใบสั่งขาย
+
+                                @if ($hasFilter)
+                                    ไม่พบใบสั่งขายที่ตรงกับเงื่อนไขที่ค้นหา
+                                    <div class="mt-2">
+                                        <a href="{{ route('sales-orders.index') }}"
+                                            class="btn btn-sm btn-outline-secondary">
+                                            ล้างเงื่อนไขการค้นหา
+                                        </a>
+                                    </div>
+                                @else
+                                    ยังไม่มีใบสั่งขาย
+                                @endif
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-    </div>
 
-    <div class="mt-3">
-        {{ $salesOrders->withQueryString()->links() }}
+        {{-- ==================== สรุปจำนวน + ปุ่มเปลี่ยนหน้า ==================== --}}
+        @include('partials.pagination-footer', ['paginator' => $salesOrders])
+
     </div>
-</div>
 @endsection

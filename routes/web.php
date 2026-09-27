@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\CheckPermission;
 use App\Http\Controllers\{
     TruckController,
     DriverController,
@@ -20,7 +21,8 @@ use App\Http\Controllers\{
     DeliveryNoteController,
     CampController,
     UserController,
-    CompanySettingController
+    CompanySettingController,
+    PaymentController
 };
 
 /*
@@ -43,6 +45,8 @@ Route::get('/', function () {
 |  หลักการ:
 |  - ประกาศ resource ครั้งเดียว ครบทุก action  (ป้องกัน route ชนกัน)
 |  - action ที่แก้ไขข้อมูล กำหนดสิทธิ์เพิ่มด้วย middlewareFor()
+|  - CheckPermission ตรวจสิทธิ์รายหน้าของแต่ละคนต่ออีกชั้น
+|    (ต้องอยู่หลัง role:... เพราะ role เช็กล็อกอินและบัญชีระงับให้ก่อน)
 |==========================================================================
 */
 Route::middleware([
@@ -50,6 +54,7 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
     'role:admin,staff,viewer',
+    CheckPermission::class,
 ])->group(function () {
 
     /* ---------- Dashboard ---------- */
@@ -183,9 +188,18 @@ Route::middleware([
         ->middleware('role:admin,staff')
         ->name('invoices.createFromDeliveryNote');
 
-    Route::post('/invoices/{id}/pay', [InvoiceController::class, 'pay'])
+    /* ==================== การชำระเงิน (หลักฐาน) ==================== */
+
+    Route::post('/invoices/{id}/payments', [PaymentController::class, 'store'])
         ->middleware('role:admin,staff')
-        ->name('invoices.pay');
+        ->name('payments.store');
+
+    Route::get('/payments/{payment}/slip', [PaymentController::class, 'slip'])
+        ->name('payments.slip');
+
+    Route::delete('/payments/{payment}', [PaymentController::class, 'destroy'])
+        ->middleware('role:admin,staff')
+        ->name('payments.destroy');
 
 
     /* ==================== ใบเสร็จ ==================== */

@@ -43,28 +43,45 @@ class InvoiceController extends Controller
 
     public function show($id)
     {
-        $invoice = Invoice::with('details.product', 'customer', 'quotation', 'deliveryNote')
+        $invoice = Invoice::with(
+                'details.product',
+                'customer',
+                'quotation',
+                'deliveryNote',
+                'payments.recordedBy',
+                'receipt'
+            )
             ->findOrFail($id);
 
         return view('invoices.show', compact('invoice'));
     }
 
-    public function pay($id)
+        public function index(Request $request)
     {
-        $invoice = Invoice::findOrFail($id);
-        $invoice->status = 'paid';
-        $invoice->save();
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
+        $status  = $this->statusFilter($request, array_keys(Invoice::STATUSES));
 
-        return back()->with('success', 'ชำระเงินแล้ว');
-    }
-
-    public function index()
-    {
-        $invoices = Invoice::with('customer')
+        $invoices = Invoice::with(['customer', 'quotation', 'deliveryNote'])
+            // ดึงยอดชำระรวม / จำนวนรายการชำระ / มีใบเสร็จไหม มาใน query เดียว
+            // แทนการเรียก paidAmount() ทีละแถว
+            ->withSum('payments', 'amount')     // → payments_sum_amount
+            ->withCount('payments')             // → payments_count
+            ->withExists('receipt')             // → receipt_exists
+            // ค้นหาจากเลขที่ใบแจ้งหนี้ ชื่อลูกค้า หรือเลขที่ใบส่งของ
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($sub) use ($search) {
+                    $sub->where('code_inv', 'like', "%{$search}%")
+                        ->orWhereHas('customer', fn ($c) => $c->where('name_customer', 'like', "%{$search}%"))
+                        ->orWhereHas('deliveryNote', fn ($d) => $d->where('code_delivery', 'like', "%{$search}%"));
+                });
+            })
+            ->when($status !== null, fn ($query) => $query->where('status', $status))
             ->orderByDesc('id_invoice')
-            ->paginate(10);
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('invoices.index', compact('invoices'));
+        return view('invoices.index', compact('invoices', 'perPage', 'search', 'status'));
     }
 
     public function pdf($id)
@@ -82,6 +99,14 @@ class InvoiceController extends Controller
     public function destroy($id)
     {
         $invoice = Invoice::findOrFail($id);
+
+        if ($invoice->hasReceipt()) {
+            return back()->with('error', 'ใบแจ้งหนี้นี้ออกใบเสร็จแล้ว ไม่สามารถลบได้');
+        }
+
+        if ($invoice->hasPayments()) {
+            return back()->with('error', 'ใบแจ้งหนี้นี้มีรายการชำระเงินอยู่ กรุณาลบรายการชำระก่อน');
+        }
 
         // ลบรายละเอียดใบแจ้งหนี้ก่อน
         InvoiceDetail::where('id_invoice', $invoice->id_invoice)->delete();

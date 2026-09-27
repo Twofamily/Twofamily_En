@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\Permission;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -52,9 +53,10 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'permissions',      // สิทธิ์รายหน้า (JSON)
         'is_active',
-        'signature_path',   // เพิ่มใหม่ - path รูปลายเซ็น สัมพัทธ์จาก public/
-        'position',         // เพิ่มใหม่ - ตำแหน่งที่พิมพ์ใต้ชื่อในเอกสาร
+        'signature_path',   // path รูปลายเซ็น สัมพัทธ์จาก public/
+        'position',         // ตำแหน่งที่พิมพ์ใต้ชื่อในเอกสาร
     ];
 
     /**
@@ -89,6 +91,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
             'is_active'         => 'boolean',
+            'permissions'       => 'array',
         ];
     }
 
@@ -127,10 +130,20 @@ class User extends Authenticatable
     /**
      * มีสิทธิ์เพิ่ม/แก้ไข/ลบข้อมูลหรือไม่
      * ใช้ครอบปุ่มในหน้า Blade:  @if(auth()->user()->canEdit())
+     *
+     * ถ้าไม่ระบุหน้า จะดูจากหน้าปัจจุบันให้อัตโนมัติ
+     * ปุ่มที่ครอบ canEdit() ไว้แล้วจึงเคารพสิทธิ์รายหน้าทันทีโดยไม่ต้องแก้ view
+     * ระบุเองได้: canEdit('quotations')
      */
-    public function canEdit(): bool
+    public function canEdit(?string $module = null): bool
     {
-        return $this->hasRole(self::ROLE_ADMIN, self::ROLE_STAFF);
+        if (! $this->hasRole(self::ROLE_ADMIN, self::ROLE_STAFF)) {
+            return false;
+        }
+
+        $module ??= Permission::moduleFromRoute(request()->route()?->getName());
+
+        return $module ? $this->canEditModule($module) : true;
     }
 
     /** ชื่อสิทธิ์ภาษาไทย สำหรับแสดงในตาราง */
@@ -140,7 +153,44 @@ class User extends Authenticatable
     }
 
     /* ============================================================
-     |  ลายเซ็นอิเล็กทรอนิกส์  (เพิ่มใหม่)
+     |  สิทธิ์รายหน้า
+     ============================================================ */
+
+    /**
+     * ระดับสิทธิ์จริงของหน้านั้น (0 = ไม่มี, 1 = ดู, 2 = แก้ไข)
+     * = ค่าที่ต่ำกว่าระหว่างเพดานของ role กับค่าที่ตั้งรายคน
+     */
+    public function permissionLevel(string $module): int
+    {
+        if ($this->isAdmin()) {
+            return Permission::LEVELS[Permission::EDIT];
+        }
+
+        $cap    = Permission::toInt(Permission::defaultFor($this->role));
+        $custom = $this->permissions[$module] ?? null;
+
+        // ยังไม่เคยตั้งหน้านี้ → ใช้ตาม role
+        if ($custom === null) {
+            return $cap;
+        }
+
+        return min($cap, Permission::toInt($custom));
+    }
+
+    /** เข้าดูหน้านี้ได้หรือไม่  ใช้ซ่อนเมนู: canViewModule('quotations') */
+    public function canViewModule(string $module): bool
+    {
+        return $this->permissionLevel($module) >= Permission::LEVELS[Permission::VIEW];
+    }
+
+    /** แก้ไขข้อมูลในหน้านี้ได้หรือไม่ */
+    public function canEditModule(string $module): bool
+    {
+        return $this->permissionLevel($module) >= Permission::LEVELS[Permission::EDIT];
+    }
+
+    /* ============================================================
+     |  ลายเซ็นอิเล็กทรอนิกส์
      ============================================================ */
 
     /**

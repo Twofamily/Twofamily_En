@@ -16,28 +16,34 @@ class SalesOrderController extends Controller
     /** อัตราภาษีมูลค่าเพิ่ม */
     private const VAT_RATE = 0.07;
 
-    public function index(Request $request)
+        public function index(Request $request)
     {
-        $q          = $request->q;
-        $status     = $request->status;
-        $customerId = $request->customer;
+        $perPage    = $this->perPage($request);
+        $search     = $this->searchTerm($request);
+        $status     = $this->statusFilter($request, array_keys(SalesOrder::STATUS_LABELS));
+        $customerId = (int) $request->input('customer') ?: null;
 
         $salesOrders = SalesOrder::with(['customer', 'quotation', 'camp'])
-            ->when($q, fn($query) => $query->where(fn($x) =>
-                $x->where('code_so', 'like', "%{$q}%")
-                  ->orWhere('po_number', 'like', "%{$q}%")
-                  ->orWhereHas('customer', fn($c) => $c->where('name_customer', 'like', "%{$q}%"))
-            ))
-            ->when($status, fn($query) => $query->where('status', $status))
-            ->when($customerId, fn($query) => $query->where('id_customer', $customerId))
+            // ค้นหาจากเลขที่ใบสั่งขาย เลข PO หรือชื่อลูกค้า
+            // ครอบด้วย closure เพื่อให้ orWhere ไม่หลุดไปชนกับตัวกรองอื่น
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($sub) use ($search) {
+                    $sub->where('code_so', 'like', "%{$search}%")
+                        ->orWhere('po_number', 'like', "%{$search}%")
+                        ->orWhereHas('customer', fn ($c) => $c->where('name_customer', 'like', "%{$search}%"));
+                });
+            })
+            ->when($status !== null, fn ($query) => $query->where('status', $status))
+            ->when($customerId !== null, fn ($query) => $query->where('id_customer', $customerId))
             ->latest('id_so')
-            ->paginate(10)
+            ->paginate($perPage)
+            // พา search / status / customer / per_page ติดไปกับลิงก์เปลี่ยนหน้า
             ->withQueryString();
 
-        $customers = Customer::orderBy('name_customer')->get();
+        $customers = Customer::orderBy('name_customer')->get(['id_customer', 'name_customer']);
 
         return view('sales_orders.index', compact(
-            'salesOrders', 'customers', 'q', 'status', 'customerId'
+            'salesOrders', 'customers', 'perPage', 'search', 'status', 'customerId'
         ));
     }
 

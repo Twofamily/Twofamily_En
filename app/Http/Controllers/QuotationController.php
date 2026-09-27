@@ -17,39 +17,14 @@ class QuotationController extends Controller
     /** อายุใบเสนอราคานับจากวันที่ออก (วัน) */
     private const VALID_DAYS = 30;
 
-    /**
-     * ตัวเลือกจำนวนรายการต่อหน้าที่ระบบยอมรับ
-     *
-     * ประกาศเป็นค่าคงที่เพื่อให้ Controller กับ Blade ใช้ชุดเดียวกัน
-     * และกันไม่ให้ผู้ใช้ยัด ?per_page=999999 ผ่าน URL จนดึงข้อมูลทั้งตาราง
-     */
-    public const PER_PAGE_OPTIONS = [10, 25, 50, 100];
-
-    /** จำนวนรายการต่อหน้าเริ่มต้น */
-    public const DEFAULT_PER_PAGE = 10;
-
     /** สถานะที่ใช้กรองได้ในหน้ารายการ */
     public const FILTERABLE_STATUSES = ['draft', 'approved', 'rejected'];
 
-    public function index(Request $request)
+        public function index(Request $request)
     {
-        // ---------- จำนวนรายการต่อหน้า ----------
-        // ต้องตรวจกับ whitelist เสมอ ห้ามเชื่อค่าจาก query string ตรง ๆ
-        $perPage = (int) $request->input('per_page', self::DEFAULT_PER_PAGE);
-
-        if (! in_array($perPage, self::PER_PAGE_OPTIONS, true)) {
-            $perPage = self::DEFAULT_PER_PAGE;
-        }
-
-        // ---------- คำค้นหา ----------
-        $search = trim((string) $request->input('search', ''));
-
-        // ---------- ตัวกรองสถานะ ----------
-        $status = $request->input('status');
-
-        if (! in_array($status, self::FILTERABLE_STATUSES, true)) {
-            $status = null;
-        }
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
+        $status  = $this->statusFilter($request, self::FILTERABLE_STATUSES);
 
         $quotations = Quotation::with('customer')
             // ค้นหาจากเลขที่เอกสาร หรือชื่อลูกค้า
@@ -62,22 +37,13 @@ class QuotationController extends Controller
                         });
                 });
             })
-            ->when($status !== null, function ($query) use ($status) {
-                $query->where('status', $status);
-            })
+            ->when($status !== null, fn ($query) => $query->where('status', $status))
             ->latest('id_quot')
             ->paginate($perPage)
-            // สำคัญ: พา search / status / per_page ติดไปกับลิงก์เปลี่ยนหน้าด้วย
-            // ถ้าไม่ใส่ พอกดหน้า 2 แล้วเงื่อนไขค้นหาจะหายหมด
+            // พา search / status / per_page ติดไปกับลิงก์เปลี่ยนหน้าด้วย
             ->withQueryString();
 
-        return view('quotations.index', [
-            'quotations'     => $quotations,
-            'perPage'        => $perPage,
-            'search'         => $search,
-            'status'         => $status,
-            'perPageOptions' => self::PER_PAGE_OPTIONS,
-        ]);
+        return view('quotations.index', compact('quotations', 'perPage', 'search', 'status'));
     }
 
     public function create()

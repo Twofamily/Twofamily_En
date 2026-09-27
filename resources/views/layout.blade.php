@@ -364,6 +364,13 @@
             </div>
 
             @php
+                /*
+                 | สิทธิ์รายหน้า: ซ่อนเมนูที่ผู้ใช้ไม่มีสิทธิ์เข้า
+                 | (การกันจริงอยู่ที่ middleware CheckPermission ตรงนี้แค่ซ่อนลิงก์)
+                 */
+                $authUser = auth()->user();
+                $canSee = fn(string $module) => $authUser && $authUser->canViewModule($module);
+
                 $isProductPage = request()->routeIs('products.*') || request()->routeIs('product_types.*');
 
                 $isTruckPage =
@@ -383,6 +390,18 @@
                     request()->routeIs('users.*') ||
                     request()->routeIs('drivers.*') ||
                     request()->routeIs('customers.*');
+
+                // เมนูที่มีเมนูย่อย แสดงก็ต่อเมื่อเห็นเมนูย่อยได้อย่างน้อย 1 รายการ
+                $showProductMenu = $canSee('product_types') || $canSee('products');
+                $showTruckMenu = $canSee('truck_brands') || $canSee('truck_models') || $canSee('trucks');
+                $showDocMenu =
+                    $canSee('quotations') ||
+                    $canSee('sales-orders') ||
+                    $canSee('delivery-notes') ||
+                    $canSee('invoices') ||
+                    $canSee('receipts');
+                $showUserMenu =
+                    ($authUser && $authUser->isAdmin()) || $canSee('drivers') || $canSee('customers');
             @endphp
 
             <ul class="nav flex-column mb-auto">
@@ -396,129 +415,165 @@
                 </li>
 
                 {{-- แคมป์งาน --}}
-                <li class="nav-item">
-                    <a href="{{ route('camps.index') }}"
-                        class="nav-link {{ request()->routeIs('camps.*') ? 'active' : '' }}" title="แคมป์งาน">
-                        <span><i class="bi bi-geo-alt me-2"></i><span class="menu-text">แคมป์งาน</span></span>
-                    </a>
-                </li>
+                @if ($canSee('camps'))
+                    <li class="nav-item">
+                        <a href="{{ route('camps.index') }}"
+                            class="nav-link {{ request()->routeIs('camps.*') ? 'active' : '' }}" title="แคมป์งาน">
+                            <span><i class="bi bi-geo-alt me-2"></i><span class="menu-text">แคมป์งาน</span></span>
+                        </a>
+                    </li>
+                @endif
 
                 {{-- สินค้า --}}
-                <li class="nav-item">
-                    <a class="nav-link {{ $isProductPage ? 'active' : '' }}" data-bs-toggle="collapse"
-                        data-submenu-toggle href="#productMenu" role="button" title="สินค้า"
-                        aria-expanded="{{ $isProductPage ? 'true' : 'false' }}" aria-controls="productMenu">
-                        <span><i class="bi bi-box-seam me-2"></i><span class="menu-text">สินค้า</span></span>
-                        <i class="bi bi-caret-down-fill arrow"></i>
-                    </a>
+                @if ($showProductMenu)
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isProductPage ? 'active' : '' }}" data-bs-toggle="collapse"
+                            data-submenu-toggle href="#productMenu" role="button" title="สินค้า"
+                            aria-expanded="{{ $isProductPage ? 'true' : 'false' }}" aria-controls="productMenu">
+                            <span><i class="bi bi-box-seam me-2"></i><span class="menu-text">สินค้า</span></span>
+                            <i class="bi bi-caret-down-fill arrow"></i>
+                        </a>
 
-                    <div class="collapse submenu {{ $isProductPage ? 'show' : '' }}" id="productMenu">
-                        <a href="{{ route('product_types.index') }}"
-                            class="sub-link {{ request()->routeIs('product_types.*') ? 'active' : '' }}">
-                            <i class="bi bi-tags me-2"></i>ประเภทสินค้า
-                        </a>
-                        <a href="{{ route('products.index') }}"
-                            class="sub-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
-                            <i class="bi bi-boxes me-2"></i>สินค้าทั้งหมด
-                        </a>
-                    </div>
-                </li>
+                        <div class="collapse submenu {{ $isProductPage ? 'show' : '' }}" id="productMenu">
+                            @if ($canSee('product_types'))
+                                <a href="{{ route('product_types.index') }}"
+                                    class="sub-link {{ request()->routeIs('product_types.*') ? 'active' : '' }}">
+                                    <i class="bi bi-tags me-2"></i>ประเภทสินค้า
+                                </a>
+                            @endif
+                            @if ($canSee('products'))
+                                <a href="{{ route('products.index') }}"
+                                    class="sub-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
+                                    <i class="bi bi-boxes me-2"></i>สินค้าทั้งหมด
+                                </a>
+                            @endif
+                        </div>
+                    </li>
+                @endif
 
                 {{-- ต้นทุนค่าน้ำมัน --}}
-                <li class="nav-item">
-                    <a href="{{ route('fuel_records.index') }}"
-                        class="nav-link {{ request()->routeIs('fuel_records.*') ? 'active' : '' }}"
-                        title="ต้นทุนค่าน้ำมัน">
-                        <span><i class="bi bi-fuel-pump me-2"></i><span class="menu-text">ต้นทุนค่าน้ำมัน</span></span>
-                    </a>
-                </li>
+                @if ($canSee('fuel_records'))
+                    <li class="nav-item">
+                        <a href="{{ route('fuel_records.index') }}"
+                            class="nav-link {{ request()->routeIs('fuel_records.*') ? 'active' : '' }}"
+                            title="ต้นทุนค่าน้ำมัน">
+                            <span><i class="bi bi-fuel-pump me-2"></i><span class="menu-text">ต้นทุนค่าน้ำมัน</span></span>
+                        </a>
+                    </li>
+                @endif
 
                 {{-- จัดการรถบรรทุก --}}
-                <li class="nav-item">
-                    <a class="nav-link {{ $isTruckPage ? 'active' : '' }}" data-bs-toggle="collapse"
-                        data-submenu-toggle href="#truckMenu" role="button" title="จัดการรถบรรทุก"
-                        aria-expanded="{{ $isTruckPage ? 'true' : 'false' }}" aria-controls="truckMenu">
-                        <span><i class="bi bi-truck me-2"></i><span class="menu-text">จัดการรถบรรทุก</span></span>
-                        <i class="bi bi-caret-down-fill arrow"></i>
-                    </a>
+                @if ($showTruckMenu)
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isTruckPage ? 'active' : '' }}" data-bs-toggle="collapse"
+                            data-submenu-toggle href="#truckMenu" role="button" title="จัดการรถบรรทุก"
+                            aria-expanded="{{ $isTruckPage ? 'true' : 'false' }}" aria-controls="truckMenu">
+                            <span><i class="bi bi-truck me-2"></i><span class="menu-text">จัดการรถบรรทุก</span></span>
+                            <i class="bi bi-caret-down-fill arrow"></i>
+                        </a>
 
-                    <div class="collapse submenu {{ $isTruckPage ? 'show' : '' }}" id="truckMenu">
-                        <a href="{{ route('truck_brands.index') }}"
-                            class="sub-link {{ request()->routeIs('truck_brands.*') ? 'active' : '' }}">
-                            <i class="bi bi-award me-2"></i>ยี่ห้อรถบรรทุก
-                        </a>
-                        <a href="{{ route('truck_models.index') }}"
-                            class="sub-link {{ request()->routeIs('truck_models.*') ? 'active' : '' }}">
-                            <i class="bi bi-card-list me-2"></i>รุ่นรถบรรทุก
-                        </a>
-                        <a href="{{ route('trucks.index') }}"
-                            class="sub-link {{ request()->routeIs('trucks.*') ? 'active' : '' }}">
-                            <i class="bi bi-truck-front me-2"></i>รถบรรทุกในบริษัท
-                        </a>
-                    </div>
-                </li>
+                        <div class="collapse submenu {{ $isTruckPage ? 'show' : '' }}" id="truckMenu">
+                            @if ($canSee('truck_brands'))
+                                <a href="{{ route('truck_brands.index') }}"
+                                    class="sub-link {{ request()->routeIs('truck_brands.*') ? 'active' : '' }}">
+                                    <i class="bi bi-award me-2"></i>ยี่ห้อรถบรรทุก
+                                </a>
+                            @endif
+                            @if ($canSee('truck_models'))
+                                <a href="{{ route('truck_models.index') }}"
+                                    class="sub-link {{ request()->routeIs('truck_models.*') ? 'active' : '' }}">
+                                    <i class="bi bi-card-list me-2"></i>รุ่นรถบรรทุก
+                                </a>
+                            @endif
+                            @if ($canSee('trucks'))
+                                <a href="{{ route('trucks.index') }}"
+                                    class="sub-link {{ request()->routeIs('trucks.*') ? 'active' : '' }}">
+                                    <i class="bi bi-truck-front me-2"></i>รถบรรทุกในบริษัท
+                                </a>
+                            @endif
+                        </div>
+                    </li>
+                @endif
 
                 {{-- เอกสาร --}}
-                <li class="nav-item">
-                    <a class="nav-link {{ $isDocPage ? 'active' : '' }}" data-bs-toggle="collapse" data-submenu-toggle
-                        href="#docMenu" role="button" title="เอกสาร"
-                        aria-expanded="{{ $isDocPage ? 'true' : 'false' }}" aria-controls="docMenu">
-                        <span><i class="bi bi-file-earmark-text me-2"></i><span class="menu-text">เอกสาร</span></span>
-                        <i class="bi bi-caret-down-fill arrow"></i>
-                    </a>
+                @if ($showDocMenu)
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isDocPage ? 'active' : '' }}" data-bs-toggle="collapse"
+                            data-submenu-toggle href="#docMenu" role="button" title="เอกสาร"
+                            aria-expanded="{{ $isDocPage ? 'true' : 'false' }}" aria-controls="docMenu">
+                            <span><i class="bi bi-file-earmark-text me-2"></i><span class="menu-text">เอกสาร</span></span>
+                            <i class="bi bi-caret-down-fill arrow"></i>
+                        </a>
 
-                    <div class="collapse submenu {{ $isDocPage ? 'show' : '' }}" id="docMenu">
-                        <a href="{{ route('quotations.index') }}"
-                            class="sub-link {{ request()->routeIs('quotations.*') ? 'active' : '' }}">
-                            <i class="bi bi-file-earmark-ruled me-2"></i>ใบเสนอราคา
-                        </a>
-                        <a href="{{ route('sales-orders.index') }}"
-                            class="sub-link {{ request()->routeIs('sales-orders.*') ? 'active' : '' }}">
-                            <i class="bi bi-cart-check me-2"></i>ใบสั่งขาย
-                        </a>
-                        <a href="{{ route('delivery-notes.index') }}"
-                            class="sub-link {{ request()->routeIs('delivery-notes.*') ? 'active' : '' }}">
-                            <i class="bi bi-truck me-2"></i>ใบส่งของ
-                        </a>
-                        <a href="{{ route('invoices.index') }}"
-                            class="sub-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
-                            <i class="bi bi-receipt-cutoff me-2"></i>ใบแจ้งหนี้
-                        </a>
-                        <a href="{{ route('receipts.index') }}"
-                            class="sub-link {{ request()->routeIs('receipts.*') ? 'active' : '' }}">
-                            <i class="bi bi-receipt me-2"></i>ใบเสร็จ
-                        </a>
-                    </div>
-                </li>
+                        <div class="collapse submenu {{ $isDocPage ? 'show' : '' }}" id="docMenu">
+                            @if ($canSee('quotations'))
+                                <a href="{{ route('quotations.index') }}"
+                                    class="sub-link {{ request()->routeIs('quotations.*') ? 'active' : '' }}">
+                                    <i class="bi bi-file-earmark-ruled me-2"></i>ใบเสนอราคา
+                                </a>
+                            @endif
+                            @if ($canSee('sales-orders'))
+                                <a href="{{ route('sales-orders.index') }}"
+                                    class="sub-link {{ request()->routeIs('sales-orders.*') ? 'active' : '' }}">
+                                    <i class="bi bi-cart-check me-2"></i>ใบสั่งขาย
+                                </a>
+                            @endif
+                            @if ($canSee('delivery-notes'))
+                                <a href="{{ route('delivery-notes.index') }}"
+                                    class="sub-link {{ request()->routeIs('delivery-notes.*') ? 'active' : '' }}">
+                                    <i class="bi bi-truck me-2"></i>ใบส่งของ
+                                </a>
+                            @endif
+                            @if ($canSee('invoices'))
+                                <a href="{{ route('invoices.index') }}"
+                                    class="sub-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
+                                    <i class="bi bi-receipt-cutoff me-2"></i>ใบแจ้งหนี้
+                                </a>
+                            @endif
+                            @if ($canSee('receipts'))
+                                <a href="{{ route('receipts.index') }}"
+                                    class="sub-link {{ request()->routeIs('receipts.*') ? 'active' : '' }}">
+                                    <i class="bi bi-receipt me-2"></i>ใบเสร็จ
+                                </a>
+                            @endif
+                        </div>
+                    </li>
+                @endif
 
                 {{-- จัดการข้อมูลบุคคล --}}
-                <li class="nav-item">
-                    <a class="nav-link {{ $isUserPage ? 'active' : '' }}" data-bs-toggle="collapse"
-                        data-submenu-toggle href="#userMenu" role="button" title="จัดการข้อมูลบุคคล"
-                        aria-expanded="{{ $isUserPage ? 'true' : 'false' }}" aria-controls="userMenu">
-                        <span><i class="bi bi-people me-2"></i><span class="menu-text">จัดการข้อมูลบุคคล</span></span>
-                        <i class="bi bi-caret-down-fill arrow"></i>
-                    </a>
-
-                    <div class="collapse submenu {{ $isUserPage ? 'show' : '' }}" id="userMenu">
-                        @if (auth()->check() && auth()->user()->isAdmin())
-                            <a href="{{ route('users.index') }}"
-                                class="sub-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
-                                <i class="bi bi-person-badge me-2"></i>ผู้ใช้งานระบบ
-                            </a>
-                        @endif
-
-                        <a href="{{ route('drivers.index') }}"
-                            class="sub-link {{ request()->routeIs('drivers.*') ? 'active' : '' }}">
-                            <i class="bi bi-person-vcard me-2"></i>พนักงานขับรถ
+                @if ($showUserMenu)
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isUserPage ? 'active' : '' }}" data-bs-toggle="collapse"
+                            data-submenu-toggle href="#userMenu" role="button" title="จัดการข้อมูลบุคคล"
+                            aria-expanded="{{ $isUserPage ? 'true' : 'false' }}" aria-controls="userMenu">
+                            <span><i class="bi bi-people me-2"></i><span class="menu-text">จัดการข้อมูลบุคคล</span></span>
+                            <i class="bi bi-caret-down-fill arrow"></i>
                         </a>
 
-                        <a href="{{ route('customers.index') }}"
-                            class="sub-link {{ request()->routeIs('customers.*') ? 'active' : '' }}">
-                            <i class="bi bi-person-heart me-2"></i>ลูกค้า
-                        </a>
-                    </div>
-                </li>
+                        <div class="collapse submenu {{ $isUserPage ? 'show' : '' }}" id="userMenu">
+                            @if (auth()->check() && auth()->user()->isAdmin())
+                                <a href="{{ route('users.index') }}"
+                                    class="sub-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                                    <i class="bi bi-person-badge me-2"></i>ผู้ใช้งานระบบ
+                                </a>
+                            @endif
+
+                            @if ($canSee('drivers'))
+                                <a href="{{ route('drivers.index') }}"
+                                    class="sub-link {{ request()->routeIs('drivers.*') ? 'active' : '' }}">
+                                    <i class="bi bi-person-vcard me-2"></i>พนักงานขับรถ
+                                </a>
+                            @endif
+
+                            @if ($canSee('customers'))
+                                <a href="{{ route('customers.index') }}"
+                                    class="sub-link {{ request()->routeIs('customers.*') ? 'active' : '' }}">
+                                    <i class="bi bi-person-heart me-2"></i>ลูกค้า
+                                </a>
+                            @endif
+                        </div>
+                    </li>
+                @endif
 
             </ul>
 
@@ -564,6 +619,7 @@
         </button>
 
         <div class="content-area">
+            @include('partials.breadcrumb')
             @yield('namepage')
             <hr>
 

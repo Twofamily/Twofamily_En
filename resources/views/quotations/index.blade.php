@@ -10,10 +10,7 @@
     <div class="container py-3">
 
         {{-- ==================== แถบค้นหา / กรอง / จำนวนต่อหน้า ==================== --}}
-        {{--
-            ใช้ form เดียวครอบทั้งสามอย่าง เพื่อให้ค่าทุกตัวถูกส่งไปพร้อมกัน
-            ถ้าแยกเป็นคนละ form ค่าที่อยู่อีก form จะหายทุกครั้งที่กดค้นหา
-        --}}
+        {{-- form เดียวครอบทั้งหมด เพื่อให้ค่าทุกตัวถูกส่งไปพร้อมกัน --}}
         <form method="GET" action="{{ route('quotations.index') }}" class="mb-3">
             <div class="row g-2 align-items-center">
 
@@ -56,25 +53,7 @@
 
                 {{-- จำนวนรายการต่อหน้า --}}
                 <div class="col-12 col-md-auto ms-md-auto">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white">แสดง</span>
-
-                        {{--
-                            เปลี่ยนแล้ว submit ทันที ไม่ต้องกดค้นหาซ้ำ
-                            ต้องล้าง page ด้วย ไม่งั้นเลือก 100 แล้วยังค้างอยู่หน้า 5 ซึ่งไม่มีข้อมูล
-                        --}}
-                        <select name="per_page"
-                            class="form-select"
-                            onchange="this.form.page.value = 1; this.form.submit();">
-                            @foreach ($perPageOptions as $option)
-                                <option value="{{ $option }}" @selected($perPage === $option)>
-                                    {{ $option }}
-                                </option>
-                            @endforeach
-                        </select>
-
-                        <span class="input-group-text bg-white">รายการ</span>
-                    </div>
+                    @include('partials.per-page', ['perPage' => $perPage])
                 </div>
             </div>
 
@@ -108,10 +87,7 @@
                 <tbody>
                     @forelse ($quotations as $q)
                         <tr>
-                            {{--
-                                ลำดับที่ต่อเนื่องข้ามหน้า
-                                firstItem() คือลำดับของแถวแรกในหน้านี้ เช่น หน้า 2 ที่ 10 ต่อหน้า จะได้ 11
-                            --}}
+                            {{-- ลำดับต่อเนื่องข้ามหน้า เช่น หน้า 2 ที่ 10 ต่อหน้า จะเริ่มที่ 11 --}}
                             <td class="text-center text-muted">
                                 {{ $quotations->firstItem() + $loop->index }}
                             </td>
@@ -214,7 +190,6 @@
                             <td colspan="7" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox fs-2 d-block mb-2"></i>
 
-                                {{-- ข้อความต่างกันระหว่าง "ยังไม่มีข้อมูล" กับ "ค้นหาไม่เจอ" --}}
                                 @if ($search !== '' || $status !== null)
                                     ไม่พบใบเสนอราคาที่ตรงกับเงื่อนไขที่ค้นหา
                                     <div class="mt-2">
@@ -234,23 +209,7 @@
         </div>
 
         {{-- ==================== สรุปจำนวน + ปุ่มเปลี่ยนหน้า ==================== --}}
-        @if ($quotations->total() > 0)
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3 gap-2">
-
-                <div class="text-muted small">
-                    แสดง {{ number_format($quotations->firstItem()) }}–{{ number_format($quotations->lastItem()) }}
-                    จากทั้งหมด {{ number_format($quotations->total()) }} รายการ
-                    @if ($quotations->lastPage() > 1)
-                        (หน้า {{ $quotations->currentPage() }} จาก {{ $quotations->lastPage() }})
-                    @endif
-                </div>
-
-                {{-- withQueryString() ทำไว้ที่ Controller แล้ว ตรงนี้เรียก links() ได้เลย --}}
-                <div>
-                    {{ $quotations->links() }}
-                </div>
-            </div>
-        @endif
+        @include('partials.pagination-footer', ['paginator' => $quotations])
 
     </div>
 @endsection
