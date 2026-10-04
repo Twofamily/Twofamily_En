@@ -22,34 +22,55 @@
 **มุมมอง** — อัตโนมัติ / รายวัน / รายเดือน / รายปี
 ("อัตโนมัติ" เดาจากความยาวช่วง: ≤62 วันดูรายวัน, ≤3 ปีดูรายเดือน, เกินนั้นดูรายปี)
 
-**ตัวเลข 5 ตัว**
+**หน้าตา** — เรียงจากบนลงล่าง: ภาพรวมการปฏิบัติงาน → **กราฟ** → **ตัวกรองช่วงเวลา**
 
-| ตัวเลข | มาจาก | หมายเหตุ |
-|---|---|---|
-| รายได้ (งานที่ส่ง) | `delivery_notes` + `delivery_note_details` | **ก่อน VAT** |
-| ต้นทุน | `fuel_records.cost_fuel_total` + `truck_maintenances.cost` | ยังไม่รวมราคาทุนสินค้า |
-| ออกบิลแล้ว | `invoices.total` | **รวม VAT** |
-| เงินเข้าจริง | `payments.amount` | ตามวันที่รับชำระ |
-| ค้างรับ | ออกบิล − เงินเข้า | |
-
-**กราฟเส้น 1 ตัว (ล่างสุดของหน้า)** — เทียบ **รายได้** กับ **ต้นทุน** เพื่อดูภาพรวมบริษัท
+**กราฟเส้น** เทียบ **รายได้** (ดำ) กับ **ต้นทุน** (แดง)
 hover ที่เส้นต้นทุนจะเห็นว่าแยกเป็นค่าน้ำมันเท่าไร ค่าซ่อมเท่าไร
 
-ใช้ "มูลค่างานที่ส่ง" เป็นรายได้ ไม่ใช่ `invoices` เพราะ `invoices.total` รวม VAT 7%
+| เส้น | มาจาก |
+|---|---|
+| รายได้ | `delivery_notes` + `delivery_note_details` (ก่อน VAT) |
+| ต้นทุน | `fuel_records.cost_fuel_total` + `truck_maintenances.cost` |
+
+ใช้มูลค่างานที่ส่งเป็นรายได้ ไม่ใช่ `invoices` เพราะ `invoices.total` รวม VAT 7%
 ซึ่งไม่ใช่รายได้บริษัท ถ้าเอาไปเทียบกับต้นทุนจะดูกำไรเกินจริง
 
 > **ค่าน้ำมันใช้ `fuel_records.cost_fuel_total` เท่านั้น**
 > `fuel_record_segments.fuel_cost` เป็นตัวย่อยที่ถูกรวมเข้า `cost_fuel_total` อยู่แล้ว
 > (ดู `FuelRecordController::calculate()`) ถ้าบวกทั้งสองตารางจะนับซ้ำเท่าตัว
 
+### ข้อมูลตัวอย่าง (mock)
+
+ข้อมูลจริงมีแค่ 3 ใบ ลงวันที่เดียว กราฟจึงเป็นเส้นแหลมเส้นเดียว
+มีคำสั่งสร้างข้อมูลตัวอย่างย้อนหลัง 12 เดือนให้ดูภาพรวมได้
+
+```bash
+php artisan dashboard:demo           # สร้าง (รันซ้ำได้ ไม่ซ้ำซ้อน)
+php artisan dashboard:demo --clear   # ลบออก
+```
+
+สร้างใบส่งของ 48 ใบ · บันทึกน้ำมัน 48 · ใบซ่อม 5 (ยอดขายราว 130k–310k/เดือน ต้นทุนราว 33%)
+
+**ทุกแถวมีเครื่องหมาย DEMO กำกับ** จึงลบออกได้หมดโดยไม่กระทบข้อมูลจริง
+
+| ตาราง | เครื่องหมาย |
+|---|---|
+| `delivery_notes` | `code_dn` ขึ้นต้น `DEMO-` |
+| `fuel_records` | `start_detail` = `DEMO` |
+| `truck_maintenances` | `title` ขึ้นต้น `[DEMO]` |
+
+> ⚠️ ตอนนี้ข้อมูลตัวอย่างถูกใส่ไว้ในฐานข้อมูลแล้ว **ก่อนใช้งานจริงให้ `--clear` ออกก่อน**
+> ไม่งั้นตัวเลขบนแดชบอร์ดจะรวมของปลอมเข้าไปด้วย
+
 ### ไฟล์
 
 ```
 app/Http/Controllers/Dashboard/RevenueReport.php      # ตรรกะรวมตัวเลขทั้งหมด
 app/Http/Controllers/DashboardController.php          # เรียกใช้
-resources/views/partials/dashboard-revenue.blade.php  # ตัวกรอง + ตัวเลขสรุป (บนสุด)
-resources/views/partials/dashboard-chart.blade.php    # กราฟเส้น (ล่างสุด)
+resources/views/partials/dashboard-chart.blade.php    # กราฟเส้น
+resources/views/partials/dashboard-filter.blade.php   # ตัวกรองช่วงเวลา (ใต้กราฟ)
 resources/views/dashboard.blade.php                   # จัดลำดับทั้งหน้า
+app/Console/Commands/DashboardDemoData.php            # สร้าง/ลบข้อมูลตัวอย่าง
 ```
 
 กราฟใช้ Chart.js 4.4.1 โหลดจาก CDN — แบบเดียวกับที่ `layout.blade.php` โหลด Bootstrap อยู่แล้ว

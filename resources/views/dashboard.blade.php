@@ -69,11 +69,6 @@
             color: #333;
         }
 
-        /* แถวสรุปมี 5 การ์ด ตัวเลขต้องเล็กลงไม่ให้ล้นกรอบบนจอกว้าง */
-        .dashboard-page .kpi-row .kpi-number {
-            font-size: 1.75rem;
-        }
-
         /* กล่องกราฟต้องมีความสูงคงที่ ไม่งั้น Chart.js จะยืดไม่หยุดตอน responsive */
         .dashboard-page .chart-box {
             position: relative;
@@ -89,10 +84,6 @@
 
     <div class="container py-3 dashboard-page">
 
-        {{-- ===== รายได้ (ดูรายเดือน/รายปี/กำหนดเอง) ===== --}}
-        @include('partials.dashboard-revenue')
-
-        <hr class="section-divider">
         <h6 class="mb-3 text-muted">ภาพรวมการปฏิบัติงาน</h6>
 
         {{-- ===== KPI ===== --}}
@@ -250,9 +241,10 @@
 
         </div>
 
-        {{-- ===== กราฟภาพรวม (ล่างสุด) ===== --}}
+        {{-- ===== กราฟภาพรวม + ตัวกรองใต้กราฟ (ล่างสุด) ===== --}}
         <hr class="section-divider">
         @include('partials.dashboard-chart')
+        @include('partials.dashboard-filter')
 
     </div>
 @endsection

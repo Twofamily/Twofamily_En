@@ -9,18 +9,15 @@ use Illuminate\Support\Facades\DB;
 /**
  * รวมตัวเลขรายได้และต้นทุนสำหรับแดชบอร์ด — อ่านจากฐานข้อมูลอย่างเดียว ไม่มีค่าสมมติ
  *
- * ฝั่งรายได้ มี 3 ทาง ซึ่งตอบคนละคำถาม:
- *   - มูลค่างานที่ส่ง : delivery_notes + details  → งานที่ทำจริง (ก่อน VAT)
- *   - ออกบิล          : invoices                  → ยอดที่เรียกเก็บแล้ว (รวม VAT)
- *   - เงินเข้าจริง     : payments                  → เงินที่รับเข้ามาแล้ว
+ * รายได้ใช้ delivery_notes + details (มูลค่างานที่ส่งจริง ก่อน VAT)
+ * ไม่ใช้ invoices เพราะ invoices.total รวม VAT 7% ซึ่งไม่ใช่รายได้ของบริษัท
  *
  * ฝั่งต้นทุน รวมจาก 2 ทางที่ฐานข้อมูลมีช่องเก็บอยู่แล้ว:
  *   - ค่าน้ำมัน  : fuel_records.cost_fuel_total   → ใช้ตัวแม่เท่านั้น
  *                  (fuel_record_segments.fuel_cost คือตัวย่อยที่ถูกรวมมาแล้ว ถ้าบวกด้วยจะนับซ้ำ)
  *   - ค่าซ่อมรถ  : truck_maintenances.cost
  *
- * กราฟเส้นเทียบ "มูลค่างานที่ส่ง" กับ "ต้นทุน" เพราะทั้งคู่ไม่รวม VAT จึงเทียบกันได้ตรง
- * (ถ้าใช้ invoices จะมี VAT 7% ปนมา ซึ่งไม่ใช่รายได้ของบริษัท)
+ * ทั้งสองเส้นไม่รวม VAT จึงเทียบกันได้ตรง
  *
  * ข้อจำกัด: ต้นทุนนี้ยังไม่รวมราคาทุนสินค้า เพราะ products ไม่มีคอลัมน์ราคาทุน
  * จึงยังคำนวณกำไรที่แท้จริงไม่ได้ (ดู DASHBOARD.md)
@@ -88,11 +85,8 @@ class RevenueReport
                 'presets' => self::PRESETS,
                 'buckets' => self::BUCKET_CHOICES,
             ],
-            'kpi' => $this->kpi(),
             'series' => $series,
             'hasData' => array_sum($series['delivered']) > 0
-                        || array_sum($series['invoiced']) > 0
-                        || array_sum($series['paid']) > 0
                         || array_sum($series['cost']) > 0,
         ];
     }
@@ -171,44 +165,6 @@ class RevenueReport
         return $d->day.' '.self::MONTHS_TH[$d->month].' '.$d->year;
     }
 
-    // ================= KPI =================
-
-    private function kpi(): array
-    {
-        $delivered = (float) DB::table('delivery_notes as dn')
-            ->join('delivery_note_details as dnd', 'dnd.id_delivery_note', '=', 'dn.id_delivery_note')
-            ->whereBetween('dn.delivery_date', [$this->from->toDateString(), $this->to->toDateString()])
-            ->sum('dnd.total_price');
-
-        // invoices ไม่มีคอลัมน์วันที่ออกบิล จึงต้องใช้ created_at — ถ้าออกบิลย้อนหลังตัวเลขจะเข้าเดือนที่บันทึก
-        $invoiced = (float) DB::table('invoices')
-            ->whereBetween('created_at', [$this->from, $this->to])
-            ->sum('total');
-
-        $paid = (float) DB::table('payments')
-            ->whereBetween('paid_at', [$this->from->toDateString(), $this->to->toDateString()])
-            ->sum('amount');
-
-        $fuel = (float) DB::table('fuel_records')
-            ->whereNull('deleted_at')
-            ->whereBetween('date_record', [$this->from->toDateString(), $this->to->toDateString()])
-            ->sum('cost_fuel_total');
-
-        $maintenance = (float) DB::table('truck_maintenances')
-            ->whereBetween('start_date', [$this->from->toDateString(), $this->to->toDateString()])
-            ->sum('cost');
-
-        return [
-            'delivered' => $delivered,
-            'invoiced' => $invoiced,
-            'paid' => $paid,
-            'outstanding' => $invoiced - $paid,
-            'fuel' => $fuel,
-            'maintenance' => $maintenance,
-            'cost' => $fuel + $maintenance,
-        ];
-    }
-
     // ================= กราฟเส้นเวลา =================
 
     private function series(): array
@@ -222,18 +178,6 @@ class RevenueReport
                 ->whereBetween('dn.delivery_date', [$this->from->toDateString(), $this->to->toDateString()]),
             'dn.delivery_date',
             'dnd.total_price'
-        );
-
-        $invoiced = $this->sumByBucket(
-            DB::table('invoices')->whereBetween('created_at', [$this->from, $this->to]),
-            'created_at',
-            'total'
-        );
-
-        $paid = $this->sumByBucket(
-            DB::table('payments')->whereBetween('paid_at', [$this->from->toDateString(), $this->to->toDateString()]),
-            'paid_at',
-            'amount'
         );
 
         $fuel = $this->sumByBucket(
@@ -257,8 +201,6 @@ class RevenueReport
         return [
             'labels' => $labels,
             'delivered' => $this->align($keys, $delivered),
-            'invoiced' => $this->align($keys, $invoiced),
-            'paid' => $this->align($keys, $paid),
             'fuel' => $fuelAligned,
             'maintenance' => $maintAligned,
             'cost' => array_map(
