@@ -27,7 +27,7 @@ class DeliveryNoteController extends Controller
             // ค้นหาจากเลขที่ใบส่งของ ชื่อลูกค้า หรือรหัส/ชื่อแคมป์
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($sub) use ($search) {
-                    $sub->where('code_delivery', 'like', "%{$search}%")
+                    $sub->where('code_dn', 'like', "%{$search}%")
                         ->orWhereHas('customer', fn ($c) => $c->where('name_customer', 'like', "%{$search}%"))
                         ->orWhereHas('camp', fn ($c) => $c->where('code_camp', 'like', "%{$search}%")
                                                          ->orWhere('name_camp', 'like', "%{$search}%"));

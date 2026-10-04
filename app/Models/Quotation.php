@@ -10,10 +10,6 @@ class Quotation extends Model
 {
     use SoftDeletes, HasDocumentCode;
 
-    // เลขที่เอกสารรูปแบบ QT-2569-0001 สร้างให้อัตโนมัติตอน create
-    protected static string $codePrefix = 'QT';
-    protected static string $codeColumn = 'code_quot';
-
     protected $primaryKey = 'id_quot';
 
     protected $fillable = [

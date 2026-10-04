@@ -142,6 +142,8 @@ class Setting extends Model
 
     public static function setMany(array $values): void
     {
+        $values = static::withLegacyKeys($values);
+
         DB::transaction(function () use ($values) {
             foreach ($values as $key => $value) {
                 static::query()->updateOrCreate(
@@ -153,6 +155,22 @@ class Setting extends Model
 
         // ล้างอีกรอบหลัง commit เผื่อมีคนอ่านค่าเก่าเข้า cache ระหว่าง transaction
         static::flushCache();
+    }
+
+    /**
+     * ช่วงเปลี่ยนผ่าน: เขียนค่าเดียวกันลง key ชื่อเดิมด้วย
+     * เพื่อให้ PDF ที่ยังอ่าน key เดิม (เช่น company_name) แสดงค่าล่าสุด
+     * ลบเมธอดนี้ได้เมื่อ PDF ทุกใบเปลี่ยนมาใช้ Setting::get() แล้ว
+     */
+    private static function withLegacyKeys(array $values): array
+    {
+        foreach ($values as $key => $value) {
+            foreach (static::definition($key)['legacy'] ?? [] as $legacyKey) {
+                $values[$legacyKey] = $value;
+            }
+        }
+
+        return $values;
     }
 
     public static function flushCache(): void

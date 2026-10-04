@@ -9,10 +9,6 @@ class DeliveryNote extends Model
 {
     use HasDocumentCode;
 
-    // เลขที่เอกสารรูปแบบ DN-2569-0001 สร้างให้อัตโนมัติตอน create
-    protected static string $codePrefix = 'DN';
-    protected static string $codeColumn = 'code_dn';
-
     protected $primaryKey = 'id_delivery_note';
 
     protected $fillable = [

@@ -9,10 +9,6 @@ class Receipt extends Model
 {
     use HasDocumentCode;
 
-    // เลขที่เอกสารรูปแบบ RC-2569-0001 สร้างให้อัตโนมัติตอน create
-    protected static string $codePrefix = 'RC';
-    protected static string $codeColumn = 'code_rc';
-
     protected $primaryKey = 'id_receipt';
 
     protected $fillable = [

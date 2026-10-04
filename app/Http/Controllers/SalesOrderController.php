@@ -89,7 +89,6 @@ class SalesOrderController extends Controller
         $salesOrder = DB::transaction(function () use ($data, $totals) {
 
             $so = SalesOrder::create([
-                'code_so'      => SalesOrder::generateCode(),
                 'id_quot'      => $data['id_quot'] ?? null,
                 'id_customer'  => $data['id_customer'],
                 'order_date'   => $data['order_date'],

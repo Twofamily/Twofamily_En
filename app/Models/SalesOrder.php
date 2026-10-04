@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasDocumentCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesOrder extends Model
 {
-    use SoftDeletes;
+    // เลขที่เอกสาร (code_so) สร้างให้อัตโนมัติตอน create ตามรูปแบบในหน้าตั้งค่า
+    use SoftDeletes, HasDocumentCode;
 
     protected $table      = 'sales_orders';
     protected $primaryKey = 'id_so';
@@ -153,21 +155,5 @@ class SalesOrder extends Model
     public function scopeActive($query)
     {
         return $query->whereNotIn('status', ['cancelled']);
-    }
-
-    /* ==================== Helpers ==================== */
-
-    public static function generateCode(): string
-    {
-        $prefix = 'SO-' . (now()->year + 543) . '-';
-
-        $last = static::withTrashed()
-            ->where('code_so', 'like', $prefix . '%')
-            ->orderByDesc('code_so')
-            ->value('code_so');
-
-        $running = $last ? ((int) substr($last, -4)) + 1 : 1;
-
-        return $prefix . str_pad($running, 4, '0', STR_PAD_LEFT);
     }
 }

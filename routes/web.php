@@ -243,33 +243,17 @@ Route::middleware([
 ])->group(function () {
 
     /* ---------- ตั้งค่าระบบ ---------- */
-    Route::get('/settings', [SettingController::class, 'index'])
+    // แท็บที่มีอ่านจาก config/settings.php → groups
+    // เข้า /settings เฉย ๆ จะเปิดแท็บข้อมูลบริษัท
+    $settingGroups = array_keys(config('settings.groups', []));
+
+    Route::get('/settings/{group?}', [SettingController::class, 'edit'])
+        ->whereIn('group', $settingGroups)
         ->name('settings.index');
 
-    Route::get('/settings/documents', [SettingController::class, 'documents'])
-        ->name('settings.documents');
-
-    Route::get('/settings/documents/quotation', [SettingController::class, 'quotation'])
-        ->name('settings.quotation');
-
-    Route::post('/settings/documents/quotation', [SettingController::class, 'quotationUpdate'])
-        ->name('settings.quotation.update');
-
-    Route::get('/settings/documents/invoice', [SettingController::class, 'invoice'])
-        ->name('settings.invoice');
-
-    Route::post('/settings/documents/invoice', [SettingController::class, 'invoiceUpdate'])
-        ->name('settings.invoice.update');
-
-    Route::get('/settings/documents/receipt', fn() => view('settings.documents.receipt', [
-        'settings' => \App\Models\Setting::pluck('value', 'key'),
-    ]))->name('settings.documents.receipt');
-
-    Route::post('/settings/update', [SettingController::class, 'update'])
+    Route::put('/settings/{group}', [SettingController::class, 'update'])
+        ->whereIn('group', $settingGroups)
         ->name('settings.update');
-
-    Route::post('/settings/receipt', [SettingController::class, 'update'])
-        ->name('settings.receipt.update');
 
 
     /* ---------- จัดการผู้ใช้งาน ---------- */

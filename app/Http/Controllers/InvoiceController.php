@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Models\DeliveryNote;
 use App\Models\Invoice;
 use App\Models\InvoiceDetail;
@@ -19,26 +20,36 @@ class InvoiceController extends Controller
             return redirect()->route('invoices.show', $deliveryNote->invoice);
         }
 
-        $invoice = Invoice::create([
-            'id_customer' => $deliveryNote->id_customer,
-            'id_quotation' => $deliveryNote->id_quotation,
-            'id_delivery_note' => $deliveryNote->id_delivery_note,
-            'discount' => $deliveryNote->quotation->discount ?? 0,
-            'total' => $deliveryNote->quotation->total_amount,
-            'status' => 'unpaid',
-        ]);
+        // ใช้ transaction เพื่อให้หัวใบแจ้งหนี้ รายการ และตัวนับเลขที่เอกสาร
+        // สำเร็จพร้อมกันทั้งหมด หรือ rollback ทั้งหมด
+        // ถ้าล้มกลางทาง จะไม่เหลือใบแจ้งหนี้ที่ไม่มีรายการ และเลขที่จะไม่ข้าม
+        $invoice = DB::transaction(function () use ($deliveryNote) {
 
-        foreach ($deliveryNote->details as $detail) {
-            InvoiceDetail::create([
-                'id_invoice' => $invoice->id_invoice,
-                'id_product' => $detail->id_product,
-                'quantity' => $detail->quantity,
-                'price' => $detail->price_per_unit,
-                'total' => $detail->total_price,
+            $invoice = Invoice::create([
+                'id_customer'      => $deliveryNote->id_customer,
+                'id_quotation'     => $deliveryNote->id_quotation,
+                'id_delivery_note' => $deliveryNote->id_delivery_note,
+                'discount'         => $deliveryNote->quotation->discount ?? 0,
+                'total'            => $deliveryNote->quotation->total_amount,
+                'status'           => 'unpaid',
             ]);
-        }
 
-        return redirect()->route('invoices.show', $invoice->id_invoice);
+            foreach ($deliveryNote->details as $detail) {
+                InvoiceDetail::create([
+                    'id_invoice' => $invoice->id_invoice,
+                    'id_product' => $detail->id_product,
+                    'quantity'   => $detail->quantity,
+                    'price'      => $detail->price_per_unit,
+                    'total'      => $detail->total_price,
+                ]);
+            }
+
+            return $invoice;
+        });
+
+        return redirect()
+            ->route('invoices.show', $invoice->id_invoice)
+            ->with('ok', 'สร้างใบแจ้งหนี้ ' . $invoice->code_inv . ' เรียบร้อย');
     }
 
     public function show($id)
@@ -56,7 +67,7 @@ class InvoiceController extends Controller
         return view('invoices.show', compact('invoice'));
     }
 
-        public function index(Request $request)
+    public function index(Request $request)
     {
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
@@ -73,7 +84,8 @@ class InvoiceController extends Controller
                 $query->where(function ($sub) use ($search) {
                     $sub->where('code_inv', 'like', "%{$search}%")
                         ->orWhereHas('customer', fn ($c) => $c->where('name_customer', 'like', "%{$search}%"))
-                        ->orWhereHas('deliveryNote', fn ($d) => $d->where('code_delivery', 'like', "%{$search}%"));
+                        // code_delivery เป็นแค่ accessor ต้องค้นจากคอลัมน์จริง code_dn
+                        ->orWhereHas('deliveryNote', fn ($d) => $d->where('code_dn', 'like', "%{$search}%"));
                 });
             })
             ->when($status !== null, fn ($query) => $query->where('status', $status))
@@ -93,7 +105,7 @@ class InvoiceController extends Controller
 
         $pdf = Pdf::loadView('invoices.pdf', compact('invoice', 'settings'));
 
-        return $pdf->stream('INV-' . $invoice->id_invoice . '.pdf');
+        return $pdf->stream($invoice->code_inv . '.pdf');
     }
 
     public function destroy($id)
@@ -108,11 +120,10 @@ class InvoiceController extends Controller
             return back()->with('error', 'ใบแจ้งหนี้นี้มีรายการชำระเงินอยู่ กรุณาลบรายการชำระก่อน');
         }
 
-        // ลบรายละเอียดใบแจ้งหนี้ก่อน
-        InvoiceDetail::where('id_invoice', $invoice->id_invoice)->delete();
-
-        // ลบใบแจ้งหนี้
-        $invoice->delete();
+        DB::transaction(function () use ($invoice) {
+            InvoiceDetail::where('id_invoice', $invoice->id_invoice)->delete();
+            $invoice->delete();
+        });
 
         return redirect()
             ->route('invoices.index')

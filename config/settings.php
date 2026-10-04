@@ -13,21 +13,30 @@
 |             (ระบบจึงไม่พัง แม้ยังไม่ได้รัน seeder)
 | - rules   : กฎ validation ตอนบันทึกจากหน้าตั้งค่า
 | - options : ตัวเลือก (เฉพาะ type = select)
+| - legacy  : key ชื่อเดิมที่ PDF ยังอ่านอยู่ (ช่วงเปลี่ยนผ่าน)
+|             ตอนบันทึกจะเขียนค่าเดียวกันลง key เดิมด้วย
+|             และ migration จะคัดลอกค่าเดิมมาใส่ key ใหม่ให้
 |
 | หมายเหตุ: key ใช้จุดคั่น เช่น doc.vat_rate
 | ในฟอร์มต้องตั้ง name เป็น doc[vat_rate] ห้ามใช้ name="doc.vat_rate"
 | เพราะ PHP จะแปลงจุดใน $_POST เป็นขีดล่างให้เอง
 */
 
-/* ---------- ประเภทเอกสาร (ใช้ร่วมกับระบบเลขที่เอกสารใน Phase 2) ---------- */
+/* ---------- ประเภทเอกสาร ----------
+| - prefix : ตัวย่อเริ่มต้น (แก้ได้ในหน้าตั้งค่า)
+| - model  : Model ของเอกสาร
+| - column : คอลัมน์ที่เก็บเลขที่เอกสาร
+|   ใช้ตรวจเลขสูงสุดที่มีอยู่จริง กันเลขชนกับข้อมูลเดิม
+|   ใบวางบิลยังไม่มี model จึงเป็น null ไว้ก่อน
+*/
 
 $documentTypes = [
-    'quotation'     => ['label' => 'ใบเสนอราคา',            'prefix' => 'QT'],
-    'sales_order'   => ['label' => 'ใบสั่งขาย',              'prefix' => 'SO'],
-    'delivery_note' => ['label' => 'ใบส่งของ',               'prefix' => 'DN'],
-    'invoice'       => ['label' => 'ใบแจ้งหนี้/ใบกำกับภาษี', 'prefix' => 'INV'],
-    'billing_note'  => ['label' => 'ใบวางบิล',               'prefix' => 'BN'],
-    'receipt'       => ['label' => 'ใบเสร็จรับเงิน',          'prefix' => 'RC'],
+    'quotation'     => ['label' => 'ใบเสนอราคา',            'prefix' => 'QT',  'model' => App\Models\Quotation::class,    'column' => 'code_quot'],
+    'sales_order'   => ['label' => 'ใบสั่งขาย',              'prefix' => 'SO',  'model' => App\Models\SalesOrder::class,   'column' => 'code_so'],
+    'delivery_note' => ['label' => 'ใบส่งของ',               'prefix' => 'DN',  'model' => App\Models\DeliveryNote::class, 'column' => 'code_dn'],
+    'invoice'       => ['label' => 'ใบแจ้งหนี้/ใบกำกับภาษี', 'prefix' => 'INV', 'model' => App\Models\Invoice::class,      'column' => 'code_inv'],
+    'billing_note'  => ['label' => 'ใบวางบิล',               'prefix' => 'BN',  'model' => null,                            'column' => null],
+    'receipt'       => ['label' => 'ใบเสร็จรับเงิน',          'prefix' => 'RC',  'model' => App\Models\Receipt::class,      'column' => 'code_rc'],
 ];
 
 /* ---------- ข้อมูลบริษัท ---------- */
@@ -39,6 +48,7 @@ $company = [
         'type'    => 'string',
         'default' => 'บริษัท ทู แฟมิลี่ เอ็นจิเนียริ่ง จำกัด',
         'rules'   => ['required', 'string', 'max:255'],
+        'legacy'  => ['company_name'],
     ],
     'company.name_en' => [
         'group'   => 'company',
@@ -52,7 +62,8 @@ $company = [
         'label'   => 'เลขประจำตัวผู้เสียภาษี',
         'type'    => 'string',
         'default' => '',
-        'rules'   => ['nullable', 'digits:13'],
+        'rules'   => ['nullable', 'digits:13'],   // controller ตัดขีดและช่องว่างออกก่อนตรวจ
+        'legacy'  => ['tax_id'],
     ],
     'company.branch' => [
         'group'   => 'company',
@@ -67,6 +78,7 @@ $company = [
         'type'    => 'text',
         'default' => '',
         'rules'   => ['nullable', 'string', 'max:500'],
+        'legacy'  => ['company_address'],
     ],
     'company.phone' => [
         'group'   => 'company',
@@ -74,6 +86,7 @@ $company = [
         'type'    => 'string',
         'default' => '',
         'rules'   => ['nullable', 'string', 'max:50'],
+        'legacy'  => ['company_phone'],
     ],
     'company.email' => [
         'group'   => 'company',
@@ -137,6 +150,9 @@ $document = [
         'type'    => 'int',
         'default' => 30,
         'rules'   => ['required', 'integer', 'between:0,180'],
+        // ของเดิมแยกเครดิตใบแจ้งหนี้กับใบเสนอราคา รวมเป็นค่าเดียว
+        // migration ใช้ค่าของใบแจ้งหนี้ก่อน
+        'legacy'  => ['credit_term', 'quotation_credit_term'],
     ],
     'doc.show_signature' => [
         'group'   => 'document',
@@ -148,6 +164,11 @@ $document = [
 ];
 
 /* ตัวย่อ และหมายเหตุท้ายเอกสาร สร้างให้ครบทุกประเภทอัตโนมัติ */
+$legacyNotes = [
+    'quotation' => ['quotation_note'],
+    'invoice'   => ['invoice_note'],
+];
+
 foreach ($documentTypes as $type => $info) {
     $document["doc.prefix.{$type}"] = [
         'group'   => 'document',
@@ -163,6 +184,7 @@ foreach ($documentTypes as $type => $info) {
         'type'    => 'text',
         'default' => '',
         'rules'   => ['nullable', 'string', 'max:1000'],
+        'legacy'  => $legacyNotes[$type] ?? [],
     ];
 }
 
@@ -175,6 +197,7 @@ $payment = [
         'type'    => 'string',
         'default' => '',
         'rules'   => ['nullable', 'string', 'max:100'],
+        'legacy'  => ['bank_name'],
     ],
     'payment.account_name' => [
         'group'   => 'payment',
@@ -182,13 +205,15 @@ $payment = [
         'type'    => 'string',
         'default' => '',
         'rules'   => ['nullable', 'string', 'max:255'],
+        'legacy'  => ['bank_account_name'],
     ],
     'payment.account_no' => [
         'group'   => 'payment',
         'label'   => 'เลขที่บัญชี',
         'type'    => 'string',
         'default' => '',
-        'rules'   => ['nullable', 'string', 'max:30', 'regex:/^[0-9\-]+$/'],
+        'rules'   => ['nullable', 'string', 'max:30', 'regex:/^[0-9\-\s]+$/'],
+        'legacy'  => ['bank_account'],
     ],
     'payment.require_slip' => [
         'group'   => 'payment',
