@@ -1,24 +1,58 @@
-*.log
-.DS_Store
-#.env
-.env.backup
-.env.production
-.phpactor.json
-.phpunit.result.cache
-/.fleet
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
-/auth.json
+# ---------- Laravel ----------
+/vendor
 /node_modules
 /public/build
 /public/hot
 /public/storage
 /storage/*.key
 /storage/pail
-/vendor
+/bootstrap/cache/*.php
+.phpunit.result.cache
+/.phpunit.cache
+
+# ---------- Environment / ความลับ ----------
+# .env มีรหัสผ่าน/API key ของแต่ละเครื่อง — ห้ามขึ้น git (ใช้ .env.example เป็นแม่แบบ)
+.env
+.env.*
+!.env.example
+/auth.json
+
+# ---------- Database dump ----------
+# ไฟล์ dump มีข้อมูลลูกค้า/อีเมล/password hash จริง — เก็บไว้ในเครื่องเท่านั้น
+*.sql
+*.sql.gz
+*.dump
+
+# ---------- Cache ฟอนต์ที่ dompdf สร้างเอง ----------
+# ไฟล์พวกนี้ถูกสร้างใหม่ตอน render PDF และฝัง path ของเครื่องที่สร้าง
+# ไฟล์ .ttf ต้นฉบับใน storage/fonts ยังอยู่ใน git ตามปกติ
+/storage/fonts/installed-fonts.json
+/storage/fonts/*.ufm
+/storage/fonts/*.ufm.json
+/storage/fonts/*.afm.json
+/storage/fonts/*_[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].ttf
+
+# ---------- Log ----------
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# ---------- OS ----------
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+
+# ---------- Editor / IDE ----------
+/.idea
+/.vscode
+/.fleet
+/.nova
+/.zed
+.phpactor.json
+
+# ---------- อื่น ๆ ----------
 Homestead.json
 Homestead.yaml
-Thumbs.db
