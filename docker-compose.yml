@@ -1,0 +1,47 @@
+services:
+  db:
+    image: mariadb:10.11
+    container_name: twofamily_db
+    restart: unless-stopped
+    environment:
+      # ตรงกับ .env ของ Laravel: DB_USERNAME=root / DB_PASSWORD=(ว่าง)
+      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "yes"
+      MARIADB_DATABASE: twofamily_en
+      TZ: Asia/Bangkok
+    ports:
+      # bind แค่ localhost — เครื่องอื่นใน LAN ต่อเข้ามาไม่ได้
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d:ro
+      # import อัตโนมัติ "ครั้งแรกที่สร้าง volume" เท่านั้น
+      - ./twofamily_en.sql:/docker-entrypoint-initdb.d/01-twofamily_en.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: twofamily_pma
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: ""
+      UPLOAD_LIMIT: 256M
+      MAX_EXECUTION_TIME: 600
+      TZ: Asia/Bangkok
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./docker/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+
+volumes:
+  db_data:
