@@ -22,7 +22,16 @@
             'data'  => $series['camp'],
         ],
     ];
+
+    // ส่งเฉพาะสองชุดที่กราฟใช้จริง ไม่ต้องยัด fuel/maintenance ลงหน้าเว็บ
+    $chartData = array_map(fn ($c) => [
+        'id'      => $c['id'],
+        'revenue' => $c['data']['revenue'],
+        'cost'    => $c['data']['cost'],
+    ], $charts);
 @endphp
+
+<span id="charts"></span>
 
 @if (!$revenue['hasData'])
     <div class="p-4 section-card text-center text-muted">
@@ -71,7 +80,7 @@
             if (typeof Chart === 'undefined') return;
 
             const labels = @json($series['labels']);
-            const charts = @json(array_map(fn ($c) => ['id' => $c['id'], 'data' => $c['data']], $charts));
+            const charts = @json($chartData);
 
             const baht = (v) => new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(v);
 
@@ -95,7 +104,7 @@
                 fill: true,
             });
 
-            charts.forEach(({ id, data }) => {
+            charts.forEach(({ id, revenue, cost }) => {
                 const el = document.getElementById(id);
                 if (!el) return;
 
@@ -104,8 +113,8 @@
                     data: {
                         labels,
                         datasets: [
-                            line('รายได้', data.revenue, '#1a1a1a', 'rgba(26,26,26,.08)'),
-                            line('ต้นทุน', data.cost, '#dc3545', 'rgba(220,53,69,.08)'),
+                            line('รายได้', revenue, '#198754', 'rgba(25,135,84,.10)'),
+                            line('ต้นทุน', cost, '#6c757d', 'rgba(108,117,125,.10)'),
                         ],
                     },
                     options: {
@@ -117,10 +126,6 @@
                             tooltip: {
                                 callbacks: {
                                     label: (c) => ` ${c.dataset.label}: ${baht(c.parsed.y)} บาท`,
-                                    // แยกค่าน้ำมันกับค่าซ่อมให้ดูตอน hover เส้นต้นทุน
-                                    afterLabel: (c) => c.dataset.label === 'ต้นทุน'
-                                        ? `   น้ำมัน ${baht(data.fuel[c.dataIndex])} · ซ่อม ${baht(data.maintenance[c.dataIndex])}`
-                                        : undefined,
                                 },
                             },
                         },

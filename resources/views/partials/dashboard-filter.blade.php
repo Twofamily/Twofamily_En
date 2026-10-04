@@ -8,7 +8,8 @@
 @endphp
 
 {{-- ===== ตัวกรองช่วงเวลา ===== --}}
-<form method="GET" action="{{ route('dashboard') }}" class="p-3 p-md-4 section-card mt-3" id="revenueFilter">
+{{-- #charts ทำให้หลังกดกรองแล้วหน้าเลื่อนกลับมาที่กราฟ แทนที่จะเด้งขึ้นบนสุด --}}
+<form method="GET" action="{{ route('dashboard') }}#charts" class="p-3 p-md-4 section-card mt-3" id="revenueFilter">
     <div class="d-flex flex-wrap align-items-center gap-3">
 
         <div class="d-flex flex-wrap gap-2" role="group" aria-label="ช่วงเวลา">
