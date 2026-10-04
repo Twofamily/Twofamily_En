@@ -50,29 +50,51 @@
 
             <div class="chart-box"><canvas id="{{ $c['id'] }}"></canvas></div>
 
-            <div class="row g-3 mt-2 text-muted small">
-                <div class="col-auto">รายได้รวม <strong class="text-dark">{{ number_format(array_sum($c['data']['revenue']), 2) }}</strong> บาท</div>
-                <div class="col-auto">ต้นทุน (ปันส่วน) <strong class="text-dark">{{ number_format(array_sum($c['data']['cost']), 2) }}</strong> บาท</div>
+            @php
+                $revenueSum = array_sum($c['data']['revenue']);
+                $costSum    = array_sum($c['data']['cost']);
+            @endphp
+
+            <div class="d-flex flex-wrap gap-4 mt-3 pt-3 border-top small">
+                <div>
+                    <div class="text-muted">รายได้รวม</div>
+                    <div class="fs-5 fw-semibold">{{ number_format($revenueSum, 2) }} <span class="text-muted fs-6 fw-normal">บาท</span></div>
+                </div>
+
+                <div>
+                    <div class="text-muted">
+                        ต้นทุน
+                        <span class="badge badge-soft fw-normal ms-1"
+                              title="ค่าน้ำมันและค่าซ่อมบันทึกไว้ที่รถ ไม่ได้ผูกกับใบส่งของหรือแคมป์ จึงแบ่งเข้าสองสายตามสัดส่วนรายได้ของแต่ละช่วงเวลา">ปันส่วน</span>
+                    </div>
+                    <div class="fs-5 fw-semibold">{{ number_format($costSum, 2) }} <span class="text-muted fs-6 fw-normal">บาท</span></div>
+                </div>
+
+                <div>
+                    <div class="text-muted">ต้นทุนต่อรายได้</div>
+                    <div class="fs-5 fw-semibold">
+                        {{ $revenueSum > 0 ? number_format($costSum / $revenueSum * 100, 1) : '—' }}<span class="text-muted fs-6 fw-normal">%</span>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="text-muted">
+                        ส่วนต่าง
+                        <span class="badge badge-soft fw-normal ms-1"
+                              title="ยังไม่ใช่กำไร เพราะต้นทุนนี้ยังไม่รวมราคาทุนสินค้า — ฐานข้อมูลไม่มีคอลัมน์ราคาทุน">ยังไม่ใช่กำไร</span>
+                    </div>
+                    <div class="fs-5 fw-semibold">{{ number_format($revenueSum - $costSum, 2) }} <span class="text-muted fs-6 fw-normal">บาท</span></div>
+                </div>
             </div>
+
+            @if ($noCost)
+                <div class="text-muted small mt-3">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    เส้นต้นทุนยังเป็นศูนย์ เพราะยังไม่มีการบันทึกค่าน้ำมันและค่าซ่อมรถในช่วงนี้
+                </div>
+            @endif
         </div>
     @endforeach
-
-    {{-- หมายเหตุความถูกต้องของตัวเลข ไม่ใช่ของตกแต่ง --}}
-    <div class="p-3 section-card mt-3 small text-muted">
-        @if ($noCost)
-            <div class="alert alert-warning mb-3 small">
-                <i class="bi bi-exclamation-triangle me-1"></i>
-                <strong>เส้นต้นทุนยังเป็นศูนย์</strong> เพราะยังไม่มีการบันทึกค่าน้ำมันและค่าซ่อมรถในช่วงนี้
-            </div>
-        @endif
-
-        <i class="bi bi-info-circle me-1"></i>
-        <strong>ต้นทุนในกราฟเป็นตัวเลขปันส่วน ไม่ใช่ต้นทุนที่วัดจริงของแต่ละสาย</strong> —
-        ค่าน้ำมันและค่าซ่อมบันทึกไว้ที่ "รถ" ไม่ได้ผูกกับใบส่งของหรือแคมป์
-        จึงแบ่งเข้าสองสายตามสัดส่วนรายได้ของแต่ละเดือน ·
-        และ<strong>ยังไม่รวมราคาทุนสินค้า</strong> เพราะฐานข้อมูลไม่มีคอลัมน์ราคาทุน
-        ส่วนต่างระหว่างสองเส้นจึง<strong>ยังไม่ใช่กำไร</strong> (ดู DASHBOARD.md)
-    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
