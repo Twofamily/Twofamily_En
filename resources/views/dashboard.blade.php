@@ -69,6 +69,11 @@
             color: #333;
         }
 
+        /* แถวสรุปมี 5 การ์ด ตัวเลขต้องเล็กลงไม่ให้ล้นกรอบบนจอกว้าง */
+        .dashboard-page .kpi-row .kpi-number {
+            font-size: 1.75rem;
+        }
+
         /* กล่องกราฟต้องมีความสูงคงที่ ไม่งั้น Chart.js จะยืดไม่หยุดตอน responsive */
         .dashboard-page .chart-box {
             position: relative;
@@ -244,6 +249,10 @@
             </div>
 
         </div>
+
+        {{-- ===== กราฟภาพรวม (ล่างสุด) ===== --}}
+        <hr class="section-divider">
+        @include('partials.dashboard-chart')
 
     </div>
 @endsection

@@ -22,24 +22,34 @@
 **มุมมอง** — อัตโนมัติ / รายวัน / รายเดือน / รายปี
 ("อัตโนมัติ" เดาจากความยาวช่วง: ≤62 วันดูรายวัน, ≤3 ปีดูรายเดือน, เกินนั้นดูรายปี)
 
-**ตัวเลข 4 ตัว**
+**ตัวเลข 5 ตัว**
 
 | ตัวเลข | มาจาก | หมายเหตุ |
 |---|---|---|
-| มูลค่างานที่ส่ง | `delivery_notes` + `delivery_note_details` | **ก่อน VAT** |
+| รายได้ (งานที่ส่ง) | `delivery_notes` + `delivery_note_details` | **ก่อน VAT** |
+| ต้นทุน | `fuel_records.cost_fuel_total` + `truck_maintenances.cost` | ยังไม่รวมราคาทุนสินค้า |
 | ออกบิลแล้ว | `invoices.total` | **รวม VAT** |
 | เงินเข้าจริง | `payments.amount` | ตามวันที่รับชำระ |
 | ค้างรับ | ออกบิล − เงินเข้า | |
 
-**กราฟ 3 ตัว** — รายได้ตามช่วงเวลา (เทียบ 3 เส้นทางข้างบน), แยกตามแคมป์, แยกตามสินค้า
+**กราฟเส้น 1 ตัว (ล่างสุดของหน้า)** — เทียบ **รายได้** กับ **ต้นทุน** เพื่อดูภาพรวมบริษัท
+hover ที่เส้นต้นทุนจะเห็นว่าแยกเป็นค่าน้ำมันเท่าไร ค่าซ่อมเท่าไร
+
+ใช้ "มูลค่างานที่ส่ง" เป็นรายได้ ไม่ใช่ `invoices` เพราะ `invoices.total` รวม VAT 7%
+ซึ่งไม่ใช่รายได้บริษัท ถ้าเอาไปเทียบกับต้นทุนจะดูกำไรเกินจริง
+
+> **ค่าน้ำมันใช้ `fuel_records.cost_fuel_total` เท่านั้น**
+> `fuel_record_segments.fuel_cost` เป็นตัวย่อยที่ถูกรวมเข้า `cost_fuel_total` อยู่แล้ว
+> (ดู `FuelRecordController::calculate()`) ถ้าบวกทั้งสองตารางจะนับซ้ำเท่าตัว
 
 ### ไฟล์
 
 ```
-app/Http/Controllers/Dashboard/RevenueReport.php   # ตรรกะรวมตัวเลขทั้งหมด
-app/Http/Controllers/DashboardController.php       # เรียกใช้
-resources/views/partials/dashboard-revenue.blade.php  # หน้าจอ + กราฟ
-resources/views/dashboard.blade.php                # include ส่วนรายได้
+app/Http/Controllers/Dashboard/RevenueReport.php      # ตรรกะรวมตัวเลขทั้งหมด
+app/Http/Controllers/DashboardController.php          # เรียกใช้
+resources/views/partials/dashboard-revenue.blade.php  # ตัวกรอง + ตัวเลขสรุป (บนสุด)
+resources/views/partials/dashboard-chart.blade.php    # กราฟเส้น (ล่างสุด)
+resources/views/dashboard.blade.php                   # จัดลำดับทั้งหน้า
 ```
 
 กราฟใช้ Chart.js 4.4.1 โหลดจาก CDN — แบบเดียวกับที่ `layout.blade.php` โหลด Bootstrap อยู่แล้ว
@@ -54,6 +64,9 @@ resources/views/dashboard.blade.php                # include ส่วนรา�
 ### 1. ราคาทุนสินค้า — ไม่มีช่องเก็บเลย
 
 `products` มีแค่ `unit_price` (ราคาขาย) **ไม่มีราคาทุน** → คำนวณกำไรขั้นต้นไม่ได้
+
+ตัวเลข **ต้นทุน** บนแดชบอร์ดจึงเป็นแค่ต้นทุนค่าน้ำมัน + ค่าซ่อมรถ ยังไม่ใช่ต้นทุนเต็ม
+และยังเอาไปลบออกจากรายได้เป็น "กำไร" ไม่ได้ เพราะขาดราคาทุนสินค้าซึ่งเป็นก้อนใหญ่ที่สุด
 
 ### 2. ต้นทุนงาน — มีช่องแล้วแต่ไม่มีข้อมูล
 

@@ -7,15 +7,23 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * รวมตัวเลขรายได้สำหรับแดชบอร์ด — อ่านจากฐานข้อมูลอย่างเดียว ไม่มีค่าสมมติ
+ * รวมตัวเลขรายได้และต้นทุนสำหรับแดชบอร์ด — อ่านจากฐานข้อมูลอย่างเดียว ไม่มีค่าสมมติ
  *
- * แหล่งข้อมูล 3 ทาง ซึ่งตอบคนละคำถาม:
- *   - มูลค่างานที่ส่ง : delivery_notes + details  → งานที่ทำจริง ผูกกับแคมป์ได้
- *   - ออกบิล          : invoices                  → ยอดที่เรียกเก็บแล้ว
+ * ฝั่งรายได้ มี 3 ทาง ซึ่งตอบคนละคำถาม:
+ *   - มูลค่างานที่ส่ง : delivery_notes + details  → งานที่ทำจริง (ก่อน VAT)
+ *   - ออกบิล          : invoices                  → ยอดที่เรียกเก็บแล้ว (รวม VAT)
  *   - เงินเข้าจริง     : payments                  → เงินที่รับเข้ามาแล้ว
  *
- * หมายเหตุต้นทุน: ตอนนี้ยังคำนวณกำไรไม่ได้ เพราะ products ไม่มีราคาทุน
- * และ fuel_records / truck_maintenances ยังไม่มีข้อมูล (ดู DASHBOARD.md)
+ * ฝั่งต้นทุน รวมจาก 2 ทางที่ฐานข้อมูลมีช่องเก็บอยู่แล้ว:
+ *   - ค่าน้ำมัน  : fuel_records.cost_fuel_total   → ใช้ตัวแม่เท่านั้น
+ *                  (fuel_record_segments.fuel_cost คือตัวย่อยที่ถูกรวมมาแล้ว ถ้าบวกด้วยจะนับซ้ำ)
+ *   - ค่าซ่อมรถ  : truck_maintenances.cost
+ *
+ * กราฟเส้นเทียบ "มูลค่างานที่ส่ง" กับ "ต้นทุน" เพราะทั้งคู่ไม่รวม VAT จึงเทียบกันได้ตรง
+ * (ถ้าใช้ invoices จะมี VAT 7% ปนมา ซึ่งไม่ใช่รายได้ของบริษัท)
+ *
+ * ข้อจำกัด: ต้นทุนนี้ยังไม่รวมราคาทุนสินค้า เพราะ products ไม่มีคอลัมน์ราคาทุน
+ * จึงยังคำนวณกำไรที่แท้จริงไม่ได้ (ดู DASHBOARD.md)
  */
 class RevenueReport
 {
@@ -82,11 +90,10 @@ class RevenueReport
             ],
             'kpi' => $this->kpi(),
             'series' => $series,
-            'byCamp' => $this->byCamp(),
-            'byProduct' => $this->byProduct(),
             'hasData' => array_sum($series['delivered']) > 0
                         || array_sum($series['invoiced']) > 0
-                        || array_sum($series['paid']) > 0,
+                        || array_sum($series['paid']) > 0
+                        || array_sum($series['cost']) > 0,
         ];
     }
 
@@ -182,11 +189,23 @@ class RevenueReport
             ->whereBetween('paid_at', [$this->from->toDateString(), $this->to->toDateString()])
             ->sum('amount');
 
+        $fuel = (float) DB::table('fuel_records')
+            ->whereNull('deleted_at')
+            ->whereBetween('date_record', [$this->from->toDateString(), $this->to->toDateString()])
+            ->sum('cost_fuel_total');
+
+        $maintenance = (float) DB::table('truck_maintenances')
+            ->whereBetween('start_date', [$this->from->toDateString(), $this->to->toDateString()])
+            ->sum('cost');
+
         return [
             'delivered' => $delivered,
             'invoiced' => $invoiced,
             'paid' => $paid,
             'outstanding' => $invoiced - $paid,
+            'fuel' => $fuel,
+            'maintenance' => $maintenance,
+            'cost' => $fuel + $maintenance,
         ];
     }
 
@@ -217,11 +236,36 @@ class RevenueReport
             'amount'
         );
 
+        $fuel = $this->sumByBucket(
+            DB::table('fuel_records')
+                ->whereNull('deleted_at')
+                ->whereBetween('date_record', [$this->from->toDateString(), $this->to->toDateString()]),
+            'date_record',
+            'cost_fuel_total'
+        );
+
+        $maintenance = $this->sumByBucket(
+            DB::table('truck_maintenances')
+                ->whereBetween('start_date', [$this->from->toDateString(), $this->to->toDateString()]),
+            'start_date',
+            'cost'
+        );
+
+        $fuelAligned = $this->align($keys, $fuel);
+        $maintAligned = $this->align($keys, $maintenance);
+
         return [
             'labels' => $labels,
             'delivered' => $this->align($keys, $delivered),
             'invoiced' => $this->align($keys, $invoiced),
             'paid' => $this->align($keys, $paid),
+            'fuel' => $fuelAligned,
+            'maintenance' => $maintAligned,
+            'cost' => array_map(
+                fn ($f, $m) => round($f + $m, 2),
+                $fuelAligned,
+                $maintAligned
+            ),
         ];
     }
 
@@ -291,53 +335,5 @@ class RevenueReport
     private function align(array $keys, array $map): array
     {
         return array_map(fn ($k) => round($map[$k] ?? 0, 2), $keys);
-    }
-
-    // ================= แยกตามแคมป์ / สินค้า =================
-
-    /** รายได้ต่อแคมป์ — ใช้ delivery_notes.id_camp ซึ่งเป็นจุดเดียวที่ผูกงานเข้ากับแคมป์ */
-    private function byCamp(): array
-    {
-        $rows = DB::table('delivery_notes as dn')
-            ->join('delivery_note_details as dnd', 'dnd.id_delivery_note', '=', 'dn.id_delivery_note')
-            ->join('camps as c', 'c.id_camp', '=', 'dn.id_camp')
-            ->whereNull('c.deleted_at')
-            ->whereBetween('dn.delivery_date', [$this->from->toDateString(), $this->to->toDateString()])
-            ->groupBy('c.id_camp', 'c.code_camp', 'c.name_camp')
-            ->orderByDesc('amount')
-            ->limit(10)
-            ->selectRaw('c.id_camp, c.code_camp, c.name_camp, SUM(dnd.total_price) as amount')
-            ->get();
-
-        return [
-            'labels' => $rows->map(fn ($r) => $r->name_camp)->all(),
-            'codes' => $rows->map(fn ($r) => $r->code_camp)->all(),
-            'ids' => $rows->map(fn ($r) => $r->id_camp)->all(),
-            'amounts' => $rows->map(fn ($r) => round((float) $r->amount, 2))->all(),
-        ];
-    }
-
-    /**
-     * รายได้ต่อสินค้า — รวมตามชื่อสินค้า ไม่ใช่ id
-     * เพราะในฐานข้อมูลมีสินค้าชื่อซ้ำกันคนละ id (เช่น หินกรวด id 3 กับ 4)
-     * ถ้าแยกตาม id กราฟจะโผล่สองแท่งทั้งที่เป็นของอย่างเดียวกัน
-     */
-    private function byProduct(): array
-    {
-        $rows = DB::table('delivery_notes as dn')
-            ->join('delivery_note_details as dnd', 'dnd.id_delivery_note', '=', 'dn.id_delivery_note')
-            ->join('products as p', 'p.id_product', '=', 'dnd.id_product')
-            ->whereBetween('dn.delivery_date', [$this->from->toDateString(), $this->to->toDateString()])
-            ->groupBy('p.name_product')
-            ->orderByDesc('amount')
-            ->limit(10)
-            ->selectRaw('p.name_product, SUM(dnd.total_price) as amount, SUM(dnd.quantity) as qty')
-            ->get();
-
-        return [
-            'labels' => $rows->map(fn ($r) => $r->name_product)->all(),
-            'amounts' => $rows->map(fn ($r) => round((float) $r->amount, 2))->all(),
-            'qty' => $rows->map(fn ($r) => round((float) $r->qty, 2))->all(),
-        ];
     }
 }
