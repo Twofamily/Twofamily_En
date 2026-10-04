@@ -50,43 +50,6 @@
 
             <div class="chart-box"><canvas id="{{ $c['id'] }}"></canvas></div>
 
-            @php
-                $revenueSum = array_sum($c['data']['revenue']);
-                $costSum    = array_sum($c['data']['cost']);
-            @endphp
-
-            <div class="d-flex flex-wrap gap-4 mt-3 pt-3 border-top small">
-                <div>
-                    <div class="text-muted">รายได้รวม</div>
-                    <div class="fs-5 fw-semibold">{{ number_format($revenueSum, 2) }} <span class="text-muted fs-6 fw-normal">บาท</span></div>
-                </div>
-
-                <div>
-                    <div class="text-muted">
-                        ต้นทุน
-                        <span class="badge badge-soft fw-normal ms-1"
-                              title="ค่าน้ำมันและค่าซ่อมบันทึกไว้ที่รถ ไม่ได้ผูกกับใบส่งของหรือแคมป์ จึงแบ่งเข้าสองสายตามสัดส่วนรายได้ของแต่ละช่วงเวลา">ปันส่วน</span>
-                    </div>
-                    <div class="fs-5 fw-semibold">{{ number_format($costSum, 2) }} <span class="text-muted fs-6 fw-normal">บาท</span></div>
-                </div>
-
-                <div>
-                    <div class="text-muted">ต้นทุนต่อรายได้</div>
-                    <div class="fs-5 fw-semibold">
-                        {{ $revenueSum > 0 ? number_format($costSum / $revenueSum * 100, 1) : '—' }}<span class="text-muted fs-6 fw-normal">%</span>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="text-muted">
-                        ส่วนต่าง
-                        <span class="badge badge-soft fw-normal ms-1"
-                              title="ยังไม่ใช่กำไร เพราะต้นทุนนี้ยังไม่รวมราคาทุนสินค้า — ฐานข้อมูลไม่มีคอลัมน์ราคาทุน">ยังไม่ใช่กำไร</span>
-                    </div>
-                    <div class="fs-5 fw-semibold">{{ number_format($revenueSum - $costSum, 2) }} <span class="text-muted fs-6 fw-normal">บาท</span></div>
-                </div>
-            </div>
-
             @if ($noCost)
                 <div class="text-muted small mt-3">
                     <i class="bi bi-exclamation-triangle me-1"></i>
