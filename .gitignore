@@ -17,6 +17,13 @@
 !.env.example
 /auth.json
 
+# ---------- Docker (ใช้เฉพาะในเครื่อง ไม่เอาขึ้น repo) ----------
+/docker-compose.yml
+/docker-compose.override.yml
+/docker/
+/DOCKER.md
+/start-local.sh
+
 # ---------- Database dump ----------
 # ไฟล์ dump มีข้อมูลลูกค้า/อีเมล/password hash จริง — เก็บไว้ในเครื่องเท่านั้น
 *.sql
