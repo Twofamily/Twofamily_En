@@ -68,9 +68,27 @@
             background: rgba(0, 0, 0, .05);
             color: #333;
         }
+
+        /* กล่องกราฟต้องมีความสูงคงที่ ไม่งั้น Chart.js จะยืดไม่หยุดตอน responsive */
+        .dashboard-page .chart-box {
+            position: relative;
+            height: 320px;
+        }
+
+        .dashboard-page .section-divider {
+            border: 0;
+            border-top: 1px solid var(--card-border);
+            margin: 2rem 0 1.5rem;
+        }
     </style>
 
     <div class="container py-3 dashboard-page">
+
+        {{-- ===== รายได้ (ดูรายเดือน/รายปี/กำหนดเอง) ===== --}}
+        @include('partials.dashboard-revenue')
+
+        <hr class="section-divider">
+        <h6 class="mb-3 text-muted">ภาพรวมการปฏิบัติงาน</h6>
 
         {{-- ===== KPI ===== --}}
         <div class="row g-3">

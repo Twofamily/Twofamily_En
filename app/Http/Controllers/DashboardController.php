@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Dashboard\RevenueReport;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -13,9 +15,12 @@ class DashboardController extends Controller
         'ปิดงาน', 'ยกเลิก', 'เสร็จสิ้น', 'จบงาน',
     ];
 
-    public function index()
+    public function index(Request $request)
     {
         $data = [];
+
+        // ---------- รายได้ (กรองตามช่วงเวลาที่เลือก) ----------
+        $data['revenue'] = (new RevenueReport($request))->toArray();
 
         // ---------- กองรถ ----------
         $data['truckCounts'] = [
