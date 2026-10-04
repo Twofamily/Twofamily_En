@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\DB;
  * รายได้ใช้ delivery_notes + details (มูลค่างานที่ส่งจริง ก่อน VAT)
  * ไม่ใช้ invoices เพราะ invoices.total รวม VAT 7% ซึ่งไม่ใช่รายได้ของบริษัท
  *
+ * แยกเป็น 2 สายตาม delivery_notes.id_camp:
+ *   - ขายสินค้า     : ไม่ผูกแคมป์ (ส่งตรงให้ลูกค้า)
+ *   - บริการแคมป์   : ผูกแคมป์
+ *
  * ฝั่งต้นทุน รวมจาก 2 ทางที่ฐานข้อมูลมีช่องเก็บอยู่แล้ว:
  *   - ค่าน้ำมัน  : fuel_records.cost_fuel_total   → ใช้ตัวแม่เท่านั้น
  *                  (fuel_record_segments.fuel_cost คือตัวย่อยที่ถูกรวมมาแล้ว ถ้าบวกด้วยจะนับซ้ำ)
@@ -35,7 +39,6 @@ class RevenueReport
     ];
 
     public const BUCKETS = [
-        'day' => 'รายวัน',
         'month' => 'รายเดือน',
         'year' => 'รายปี',
     ];
@@ -86,8 +89,7 @@ class RevenueReport
                 'buckets' => self::BUCKET_CHOICES,
             ],
             'series' => $series,
-            'hasData' => array_sum($series['delivered']) > 0
-                        || array_sum($series['cost']) > 0,
+            'hasData' => $series['totalRevenue'] > 0 || $series['totalCost'] > 0,
         ];
     }
 
@@ -139,20 +141,14 @@ class RevenueReport
         }
     }
 
-    /** ถ้าเลือก "อัตโนมัติ" ให้เดาจากความยาวช่วง: ช่วงสั้นดูรายวัน ช่วงยาวดูรายปี */
+    /** ถ้าเลือก "อัตโนมัติ" ให้เดาจากความยาวช่วง: ไม่เกิน 3 ปีดูรายเดือน เกินนั้นดูรายปี */
     private function resolveBucket(): string
     {
         if ($this->bucketChoice !== 'auto') {
             return $this->bucketChoice;
         }
 
-        $days = $this->from->diffInDays($this->to);
-
-        return match (true) {
-            $days <= 62 => 'day',
-            $days <= 1100 => 'month',
-            default => 'year',
-        };
+        return $this->from->diffInDays($this->to) <= 1100 ? 'month' : 'year';
     }
 
     private function rangeLabel(): string
@@ -172,43 +168,91 @@ class RevenueReport
         $keys = $this->bucketKeys();
         $labels = array_map(fn ($k) => $this->bucketLabel($k), $keys);
 
-        $delivered = $this->sumByBucket(
-            DB::table('delivery_notes as dn')
-                ->join('delivery_note_details as dnd', 'dnd.id_delivery_note', '=', 'dn.id_delivery_note')
-                ->whereBetween('dn.delivery_date', [$this->from->toDateString(), $this->to->toDateString()]),
-            'dn.delivery_date',
-            'dnd.total_price'
-        );
+        $campRevenue = $this->align($keys, $this->deliveredByBucket(withCamp: true));
+        $productRevenue = $this->align($keys, $this->deliveredByBucket(withCamp: false));
 
-        $fuel = $this->sumByBucket(
+        $fuel = $this->align($keys, $this->sumByBucket(
             DB::table('fuel_records')
                 ->whereNull('deleted_at')
                 ->whereBetween('date_record', [$this->from->toDateString(), $this->to->toDateString()]),
             'date_record',
             'cost_fuel_total'
-        );
+        ));
 
-        $maintenance = $this->sumByBucket(
+        $maintenance = $this->align($keys, $this->sumByBucket(
             DB::table('truck_maintenances')
                 ->whereBetween('start_date', [$this->from->toDateString(), $this->to->toDateString()]),
             'start_date',
             'cost'
-        );
+        ));
 
-        $fuelAligned = $this->align($keys, $fuel);
-        $maintAligned = $this->align($keys, $maintenance);
+        $split = $this->splitCost($productRevenue, $campRevenue, $fuel, $maintenance);
 
         return [
             'labels' => $labels,
-            'delivered' => $this->align($keys, $delivered),
-            'fuel' => $fuelAligned,
-            'maintenance' => $maintAligned,
-            'cost' => array_map(
-                fn ($f, $m) => round($f + $m, 2),
-                $fuelAligned,
-                $maintAligned
-            ),
+            'product' => ['revenue' => $productRevenue] + $split['product'],
+            'camp' => ['revenue' => $campRevenue] + $split['camp'],
+            'totalRevenue' => array_sum($productRevenue) + array_sum($campRevenue),
+            'totalCost' => array_sum($fuel) + array_sum($maintenance),
         ];
+    }
+
+    /**
+     * รายได้ต่อ bucket แยกตามว่าใบส่งของผูกกับแคมป์หรือไม่
+     *
+     * delivery_notes.id_camp เป็นช่องเดียวในฐานข้อมูลที่บอกความต่างนี้ได้
+     * มีแคมป์ = งานบริการแคมป์ · ไม่มีแคมป์ = ขายสินค้าส่งตรงให้ลูกค้า
+     */
+    private function deliveredByBucket(bool $withCamp): array
+    {
+        $query = DB::table('delivery_notes as dn')
+            ->join('delivery_note_details as dnd', 'dnd.id_delivery_note', '=', 'dn.id_delivery_note')
+            ->whereBetween('dn.delivery_date', [$this->from->toDateString(), $this->to->toDateString()]);
+
+        $withCamp
+            ? $query->whereNotNull('dn.id_camp')
+            : $query->whereNull('dn.id_camp');
+
+        return $this->sumByBucket($query, 'dn.delivery_date', 'dnd.total_price');
+    }
+
+    /**
+     * ปันส่วนต้นทุนเข้าสองสายตามสัดส่วนรายได้ของแต่ละช่วงเวลา
+     *
+     * ค่าน้ำมันกับค่าซ่อมบันทึกไว้ที่ "รถ" ไม่ได้ผูกกับใบส่งของหรือแคมป์
+     * จึงแยกตามจริงไม่ได้ ตัวเลขที่ได้เป็นการประมาณ ไม่ใช่ต้นทุนที่วัดจริง
+     * (จะแยกจริงได้ต้องเพิ่ม id_camp ให้ fuel_records / truck_maintenances — ดู DASHBOARD.md)
+     *
+     * ถ้าช่วงไหนไม่มีรายได้เลยแต่มีต้นทุน จะใช้สัดส่วนรายได้ของทั้งช่วงที่เลือกแทน
+     * และถ้าทั้งช่วงก็ไม่มีรายได้ จึงค่อยหารครึ่ง — เพื่อไม่ให้ต้นทุนหายไปจากกราฟ
+     */
+    private function splitCost(array $product, array $camp, array $fuel, array $maintenance): array
+    {
+        $periodProduct = array_sum($product);
+        $periodTotal = $periodProduct + array_sum($camp);
+        $fallbackShare = $periodTotal > 0 ? $periodProduct / $periodTotal : 0.5;
+
+        $out = [
+            'product' => ['fuel' => [], 'maintenance' => [], 'cost' => []],
+            'camp' => ['fuel' => [], 'maintenance' => [], 'cost' => []],
+        ];
+
+        foreach (array_keys($fuel) as $i) {
+            $bucketTotal = $product[$i] + $camp[$i];
+            $share = $bucketTotal > 0 ? $product[$i] / $bucketTotal : $fallbackShare;
+
+            foreach (['fuel' => $fuel[$i], 'maintenance' => $maintenance[$i]] as $name => $amount) {
+                $toProduct = round($amount * $share, 2);
+                $out['product'][$name][$i] = $toProduct;
+                // ที่เหลือยกให้แคมป์ทั้งหมด ผลรวมสองสายจึงเท่ากับต้นทุนจริงเสมอ ไม่หล่นเพราะปัดเศษ
+                $out['camp'][$name][$i] = round($amount - $toProduct, 2);
+            }
+
+            $out['product']['cost'][$i] = round($out['product']['fuel'][$i] + $out['product']['maintenance'][$i], 2);
+            $out['camp']['cost'][$i] = round($out['camp']['fuel'][$i] + $out['camp']['maintenance'][$i], 2);
+        }
+
+        return $out;
     }
 
     /** @return array<string,float> key = รหัส bucket เช่น 2026-09 */
@@ -226,38 +270,23 @@ class RevenueReport
 
     private function bucketExpr(string $col): string
     {
-        return match ($this->bucket) {
-            'day' => "DATE_FORMAT($col, '%Y-%m-%d')",
-            'year' => "DATE_FORMAT($col, '%Y')",
-            default => "DATE_FORMAT($col, '%Y-%m')",
-        };
+        return $this->bucket === 'year'
+            ? "DATE_FORMAT($col, '%Y')"
+            : "DATE_FORMAT($col, '%Y-%m')";
     }
 
     /** รายการ bucket ทั้งหมดในช่วง รวมช่องที่ไม่มีข้อมูล เพื่อให้กราฟไม่ขาดช่วง */
     private function bucketKeys(): array
     {
         $keys = [];
-        $step = match ($this->bucket) {
-            'day' => '1 day',
-            'year' => '1 year',
-            default => '1 month',
-        };
+        $byYear = $this->bucket === 'year';
+        $cursor = $byYear ? $this->from->startOfYear() : $this->from->startOfMonth();
 
-        $cursor = match ($this->bucket) {
-            'day' => $this->from->startOfDay(),
-            'year' => $this->from->startOfYear(),
-            default => $this->from->startOfMonth(),
-        };
-
-        // กันลูปยาวเกินไปถ้ามีใครยิง custom range ข้ามสิบปีแบบรายวัน
+        // กันลูปยาวเกินไปถ้ามีใครยิง custom range ข้ามร้อยปี
         $guard = 0;
-        while ($cursor->lessThanOrEqualTo($this->to) && $guard++ < 3000) {
-            $keys[] = match ($this->bucket) {
-                'day' => $cursor->format('Y-m-d'),
-                'year' => $cursor->format('Y'),
-                default => $cursor->format('Y-m'),
-            };
-            $cursor = $cursor->add($step);
+        while ($cursor->lessThanOrEqualTo($this->to) && $guard++ < 1200) {
+            $keys[] = $cursor->format($byYear ? 'Y' : 'Y-m');
+            $cursor = $cursor->add($byYear ? '1 year' : '1 month');
         }
 
         return $keys;
@@ -265,13 +294,13 @@ class RevenueReport
 
     private function bucketLabel(string $key): string
     {
-        $parts = explode('-', $key);
+        if ($this->bucket === 'year') {
+            return $key;
+        }
 
-        return match ($this->bucket) {
-            'day' => (int) $parts[2].' '.self::MONTHS_TH[(int) $parts[1]],
-            'year' => $parts[0],
-            default => self::MONTHS_TH[(int) $parts[1]].' '.substr($parts[0], 2),
-        };
+        [$year, $month] = explode('-', $key);
+
+        return self::MONTHS_TH[(int) $month].' '.substr($year, 2);
     }
 
     private function align(array $keys, array $map): array

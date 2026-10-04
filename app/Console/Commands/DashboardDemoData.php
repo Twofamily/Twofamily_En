@@ -35,6 +35,12 @@ class DashboardDemoData extends Command
         .42, .39, .30, .26, .28, .33,
     ];
 
+    /** สัดส่วนที่เป็นงานบริการแคมป์ ที่เหลือเป็นการขายสินค้าส่งตรงให้ลูกค้า */
+    private const CAMP_SHARE = [
+        .72, .65, .58, .70, .76, .61,
+        .54, .63, .71, .68, .59, .66,
+    ];
+
     /** ค่าซ่อมรถ — เกิดเป็นก้อนบางเดือน ไม่ได้มีทุกเดือน */
     private const MAINTENANCE = [
         0, 18_500, 0, 0, 42_000, 0,
@@ -72,7 +78,11 @@ class DashboardDemoData extends Command
             foreach (self::MONTHLY_SALES as $i => $sales) {
                 $m = $month->copy()->addMonths($i);
 
-                $created['dn'] += $this->makeDeliveries($m, $sales, $customer, $camps, $products, $now);
+                $campSales = (int) round($sales * self::CAMP_SHARE[$i]);
+
+                // งานแคมป์ (ผูก id_camp) กับขายสินค้า (ไม่ผูกแคมป์) — คนละสายรายได้บนแดชบอร์ด
+                $created['dn'] += $this->makeDeliveries($m, $campSales, $customer, $camps, $products, $now, 'C');
+                $created['dn'] += $this->makeDeliveries($m, $sales - $campSales, $customer, null, $products, $now, 'P');
                 $created['fuel'] += $this->makeFuel($m, (int) round($sales * self::FUEL_RATIO[$i]), $trucks, $now);
 
                 if (self::MAINTENANCE[$i] > 0) {
@@ -106,20 +116,26 @@ class DashboardDemoData extends Command
         });
     }
 
-    /** กระจายยอดขายของเดือนออกเป็นใบส่งของ 3–5 ใบ ลงวันที่คนละวัน */
-    private function makeDeliveries($month, int $sales, $customer, array $camps, array $products, $now): int
+    /**
+     * กระจายยอดขายของเดือนออกเป็นใบส่งของ 3–5 ใบ ลงวันที่คนละวัน
+     *
+     * $camps = null คือใบส่งของแบบขายสินค้า ไม่ผูกแคมป์ (id_camp เป็น NULL)
+     * $kind ใช้แยกรหัสใบไม่ให้ชนกันระหว่างสองสาย
+     */
+    private function makeDeliveries($month, int $sales, $customer, ?array $camps, array $products, $now, string $kind): int
     {
         $notes = 3 + ($month->month % 3);           // 3–5 ใบ ต่างกันไปตามเดือน
         $perNote = (int) floor($sales / $notes);
         $count = 0;
 
         for ($n = 0; $n < $notes; $n++) {
-            $day = min(2 + $n * 6 + ($month->month % 5), $month->daysInMonth);
+            $offset = $kind === 'P' ? 3 : 0;
+            $day = min(2 + $n * 6 + ($month->month % 5) + $offset, $month->daysInMonth);
             $date = $month->copy()->setDay($day);
 
             $id = DB::table('delivery_notes')->insertGetId([
-                'code_dn' => sprintf('%s-%s-%02d', self::MARK, $month->format('ym'), $n + 1),
-                'id_camp' => $camps[($month->month + $n) % count($camps)],
+                'code_dn' => sprintf('%s-%s%s-%02d', self::MARK, $month->format('ym'), $kind, $n + 1),
+                'id_camp' => $camps === null ? null : $camps[($month->month + $n) % count($camps)],
                 'id_customer' => $customer,
                 'delivery_date' => $date->toDateString(),
                 'status' => 'delivered',
