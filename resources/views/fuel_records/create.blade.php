@@ -861,7 +861,7 @@
             }
 
             function getRouteColor(index) {
-                return ROUTE_COLORS[index % ROUTE_COLORS.length];
+                return '#0d6efd';
             }
 
             /*
