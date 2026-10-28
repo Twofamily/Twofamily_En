@@ -26,7 +26,11 @@
                     ];
                 })
                 ->all();
-        } elseif (isset($fuel_record) && isset($fuel_record->segments) && $fuel_record->segments->count() > 0) {
+        } elseif (
+            isset($fuel_record) &&
+            isset($fuel_record->segments) &&
+            $fuel_record->segments->count() > 0
+        ) {
             $initialSegments = $fuel_record->segments
                 ->sortBy('sequence')
                 ->values()
@@ -44,17 +48,24 @@
         } else {
             $initialSegments = [
                 [
-                    'destination' => old('destination', $fuel_record->destination ?? ''),
-
-                    'load_weight' => old('load_weight', $fuel_record->current_weight ?? 0),
-
-                    'distance' => old('distance', $fuel_record->distance ?? ''),
-
+                    'destination' => old(
+                        'destination',
+                        $fuel_record->destination ?? ''
+                    ),
+                    'load_weight' => old(
+                        'load_weight',
+                        $fuel_record->current_weight ?? 0
+                    ),
+                    'distance' => old(
+                        'distance',
+                        $fuel_record->distance ?? ''
+                    ),
                     'fuel_rate' => '',
-
                     'fuel_liters' => '',
-
-                    'fuel_cost' => old('cost_fuel_total', $fuel_record->cost_fuel_total ?? ''),
+                    'fuel_cost' => old(
+                        'cost_fuel_total',
+                        $fuel_record->cost_fuel_total ?? ''
+                    ),
                 ],
             ];
         }
@@ -253,15 +264,15 @@
             <div class="alert alert-danger">
                 <ul class="mb-0">
                     @foreach ($errors->all() as $error)
-                        <li>
-                            {{ $error }}
-                        </li>
+                        <li>{{ $error }}</li>
                     @endforeach
                 </ul>
             </div>
         @endif
 
-        <form id="fuel_record_form" method="POST"
+        <form
+            id="fuel_record_form"
+            method="POST"
             action="{{ isset($fuel_record)
                 ? route('fuel_records.update', $fuel_record->id_fuel_record)
                 : route('fuel_records.store') }}"
@@ -279,11 +290,16 @@
                             วันที่
                         </label>
 
-                        <input type="date" id="date_record" name="date_record"
+                        <input
+                            type="date"
+                            id="date_record"
+                            name="date_record"
                             class="form-control @error('date_record') is-invalid @enderror"
                             value="{{ old(
                                 'date_record',
-                                isset($fuel_record) ? $fuel_record->date_record?->format('Y-m-d') : now()->format('Y-m-d'),
+                                isset($fuel_record)
+                                    ? $fuel_record->date_record?->format('Y-m-d')
+                                    : now()->format('Y-m-d')
                             ) }}"
                             required data-required-msg="กรุณาใส่วันที่">
 
@@ -303,9 +319,17 @@
                             class="form-select @error('trucks_id_truck') is-invalid @enderror" required
                             data-required-msg="กรุณาเลือกรถบรรทุก">
                             @forelse ($trucks as $truck)
-                                <option value="{{ $truck->id_truck }}" data-fuel-rate="{{ $truck->fuel_rate }}"
-                                    data-max-load="{{ $truck->weight_truck }}" data-purchase-year="{{ $truck->year_truck }}"
-                                    @selected(old('trucks_id_truck', $fuel_record->trucks_id_truck ?? '') == $truck->id_truck)>
+                                <option
+                                    value="{{ $truck->id_truck }}"
+                                    data-fuel-rate="{{ $truck->fuel_rate }}"
+                                    data-max-load="{{ $truck->weight_truck }}"
+                                    @selected(
+                                        old(
+                                            'trucks_id_truck',
+                                            $fuel_record->trucks_id_truck ?? ''
+                                        ) == $truck->id_truck
+                                    )
+                                >
                                     {{ $truck->brand_truck ?? ($truck->brand?->name_brand ?? 'รถบรรทุก') }}
                                     ({{ $truck->id_truck }})
                                 </option>
@@ -330,31 +354,39 @@
                             </label>
 
                             <div class="input-group">
-                                <input type="number" id="max_load_weight" class="form-control bg-light" step="0.01"
-                                    readonly>
+                                <input
+                                    type="number"
+                                    id="max_load_weight"
+                                    class="form-control bg-light"
+                                    step="0.01"
+                                    readonly
+                                >
 
-                                <span class="input-group-text">
-                                    กก.
-                                </span>
+                                <span class="input-group-text">กก.</span>
                             </div>
                         </div>
 
                         <div class="col-md-6 mb-3">
                             <label for="show_fuel_rate" class="form-label">
-                                อัตรารถเปล่าหลังปรับตามอายุ
+                                อัตราสิ้นเปลืองรถเปล่า (จากข้อมูลรถ)
                             </label>
 
                             <div class="input-group">
-                                <input type="number" id="show_fuel_rate" class="form-control bg-light" step="0.01"
-                                    readonly>
+                                <input
+                                    type="number"
+                                    id="show_fuel_rate"
+                                    class="form-control bg-light"
+                                    step="0.01"
+                                    readonly
+                                >
 
                                 <span class="input-group-text">
                                     กม./ลิตร
                                 </span>
                             </div>
 
-                            <div id="fuel_rate_age_help" class="form-text">
-                                คำนวณจากอัตราตอนรถใหม่และปีที่ซื้อ
+                            <div id="fuel_rate_help" class="form-text">
+                                ใช้ค่าอัตราสิ้นเปลืองจากรถที่เลือก โดยไม่หักตามอายุรถ
                             </div>
                         </div>
                     </div>
@@ -365,15 +397,22 @@
                         </label>
 
                         <div class="input-group">
-                            <input type="number" id="cost_fuel" name="cost_fuel"
-                                class="form-control bg-light @error('cost_fuel') is-invalid @enderror" min="0"
+                            <input
+                                type="number"
+                                id="cost_fuel"
+                                name="cost_fuel"
+                                class="form-control bg-light @error('cost_fuel') is-invalid @enderror"
+                                min="0"
                                 step="0.01"
-                                value="{{ old('cost_fuel', $fuel_record->cost_fuel ?? ($dieselPrice ?? '')) }}"
-                                readonly required>
+                                value="{{ old(
+                                    'cost_fuel',
+                                    $fuel_record->cost_fuel ?? ($dieselPrice ?? '')
+                                ) }}"
+                                readonly
+                                required
+                            >
 
-                            <span class="input-group-text">
-                                บาท/ลิตร
-                            </span>
+                            <span class="input-group-text">บาท/ลิตร</span>
 
                             @error('cost_fuel')
                                 <div class="invalid-feedback">
@@ -387,15 +426,15 @@
 
                     <div class="mb-3">
                         <label for="start_point" class="form-label fw-semibold">
-                            จุดเริ่มต้น
-
-                            <span class="text-danger">
-                                *
-                            </span>
+                            จุดเริ่มต้น <span class="text-danger">*</span>
                         </label>
 
-                        <input type="text" id="start_point" name="start_point"
-                            class="form-control @error('start_point') is-invalid @enderror" placeholder="ค้นหาจุดเริ่มต้น"
+                        <input
+                            type="text"
+                            id="start_point"
+                            name="start_point"
+                            class="form-control @error('start_point') is-invalid @enderror"
+                            placeholder="ค้นหาจุดเริ่มต้น"
                             value="{{ old('start_point', $fuel_record->start_point ?? '') }}"
                             autocomplete="off" required data-required-msg="กรุณาใส่จุดเริ่มต้น">
 
@@ -410,27 +449,52 @@
                         @enderror
                     </div>
 
-                    <div id="segments_container" class="d-flex flex-column gap-3"></div>
+                    <div
+                        id="segments_container"
+                        class="d-flex flex-column gap-3"
+                    ></div>
 
                     <div class="d-flex flex-wrap gap-2 my-3 justify-content-end">
-                        <button type="button" id="add_segment_button" class="btn btn-outline-primary">
+                        <button
+                            type="button"
+                            id="add_segment_button"
+                            class="btn btn-outline-primary"
+                        >
                             + เพิ่มปลายทางถัดไป
                         </button>
 
-                        <button type="button" id="calculate_all_routes_button" class="btn btn-primary">
+                        <button
+                            type="button"
+                            id="calculate_all_routes_button"
+                            class="btn btn-primary"
+                        >
                             คำนวณทุกช่วง
                         </button>
 
-                        {{-- <button type="button" id="clear_routes_button" class="btn btn-outline-secondary">
+                        {{--
+                        <button
+                            type="button"
+                            id="clear_routes_button"
+                            class="btn btn-outline-secondary"
+                        >
                             ล้างเส้นทาง
-                        </button> --}}
+                        </button>
+                        --}}
                     </div>
 
-                    <input type="hidden" id="legacy_destination" name="destination"
-                        value="{{ old('destination', $fuel_record->destination ?? '') }}">
+                    <input
+                        type="hidden"
+                        id="legacy_destination"
+                        name="destination"
+                        value="{{ old('destination', $fuel_record->destination ?? '') }}"
+                    >
 
-                    <input type="hidden" id="legacy_load_weight" name="load_weight"
-                        value="{{ old('load_weight', $fuel_record->current_weight ?? 0) }}">
+                    <input
+                        type="hidden"
+                        id="legacy_load_weight"
+                        name="load_weight"
+                        value="{{ old('load_weight', $fuel_record->current_weight ?? 0) }}"
+                    >
 
                     <div class="fuel-summary mb-3">
                         <div class="fw-semibold mb-2">
@@ -438,44 +502,25 @@
                         </div>
 
                         <div class="fuel-summary-row">
-                            <span>
-                                จำนวนเส้นทาง
-                            </span>
-
-                            <strong id="segment_count_display">
-                            </strong>
+                            <span>จำนวนเส้นทาง</span>
+                            <strong id="segment_count_display"></strong>
                         </div>
 
                         <div class="fuel-summary-row">
-                            <span>
-                                ระยะทางรวม
-                            </span>
-
-                            <strong id="total_distance_display">
-                                0.00 กม.
-                            </strong>
+                            <span>ระยะทางรวม</span>
+                            <strong id="total_distance_display">0.00 กม.</strong>
                         </div>
 
                         <div class="fuel-summary-row">
-                            <span>
-                                น้ำมันรวม
-                            </span>
-
-                            <strong id="total_fuel_display">
-                                0.00 ลิตร
-                            </strong>
+                            <span>น้ำมันรวม</span>
+                            <strong id="total_fuel_display">0.00 ลิตร</strong>
                         </div>
 
                         <hr class="my-2">
 
                         <div class="fuel-summary-row">
-                            <span>
-                                ค่าน้ำมันรวม
-                            </span>
-
-                            <strong id="total_cost_display">
-                                0.00 บาท
-                            </strong>
+                            <span>ค่าน้ำมันรวม</span>
+                            <strong id="total_cost_display">0.00 บาท</strong>
                         </div>
                     </div>
 
@@ -486,15 +531,19 @@
                             </label>
 
                             <div class="input-group">
-                                <input type="number" id="distance" name="distance"
-                                    class="form-control bg-light @error('distance') is-invalid @enderror" min="0"
+                                <input
+                                    type="number"
+                                    id="distance"
+                                    name="distance"
+                                    class="form-control bg-light @error('distance') is-invalid @enderror"
+                                    min="0"
                                     step="0.01"
                                     value="{{ old('distance', $fuel_record->distance ?? '') }}"
-                                    readonly required>
+                                    readonly
+                                    required
+                                >
 
-                                <span class="input-group-text">
-                                    กม.
-                                </span>
+                                <span class="input-group-text">กม.</span>
 
                                 @error('distance')
                                     <div class="invalid-feedback">
@@ -510,15 +559,22 @@
                             </label>
 
                             <div class="input-group">
-                                <input type="number" id="cost_fuel_total" name="cost_fuel_total"
+                                <input
+                                    type="number"
+                                    id="cost_fuel_total"
+                                    name="cost_fuel_total"
                                     class="form-control bg-light @error('cost_fuel_total') is-invalid @enderror"
-                                    min="0" step="0.01"
-                                    value="{{ old('cost_fuel_total', $fuel_record->cost_fuel_total ?? '') }}"
-                                    readonly required>
+                                    min="0"
+                                    step="0.01"
+                                    value="{{ old(
+                                        'cost_fuel_total',
+                                        $fuel_record->cost_fuel_total ?? ''
+                                    ) }}"
+                                    readonly
+                                    required
+                                >
 
-                                <span class="input-group-text">
-                                    บาท
-                                </span>
+                                <span class="input-group-text">บาท</span>
 
                                 @error('cost_fuel_total')
                                     <div class="invalid-feedback">
@@ -529,15 +585,25 @@
                         </div>
                     </div>
 
-                    <input type="hidden" id="total_fuel_liters" name="total_fuel_liters"
-                        value="{{ old('total_fuel_liters', $fuel_record->total_fuel_liters ?? '') }}">
+                    <input
+                        type="hidden"
+                        id="total_fuel_liters"
+                        name="total_fuel_liters"
+                        value="{{ old(
+                            'total_fuel_liters',
+                            $fuel_record->total_fuel_liters ?? ''
+                        ) }}"
+                    >
 
                     <div class="d-flex gap-2 justify-content-end">
                         <button type="submit" class="btn btn-success">
                             บันทึก
                         </button>
 
-                        <a href="{{ route('fuel_records.index') }}" class="btn btn-outline-secondary">
+                        <a
+                            href="{{ route('fuel_records.index') }}"
+                            class="btn btn-outline-secondary"
+                        >
                             ย้อนกลับ
                         </a>
                     </div>
@@ -548,9 +614,17 @@
 
                     <div id="map_legend" class="map-legend mt-3"></div>
 
-                    <div id="map_status" class="alert alert-info mt-3 d-none" role="status"></div>
+                    <div
+                        id="map_status"
+                        class="alert alert-info mt-3 d-none"
+                        role="status"
+                    ></div>
 
-                    <div id="map_error" class="alert alert-danger mt-3 d-none" role="alert"></div>
+                    <div
+                        id="map_error"
+                        class="alert alert-danger mt-3 d-none"
+                        role="alert"
+                    ></div>
                 </div>
             </div>
         </form>
@@ -561,22 +635,19 @@
             <div class="segment-header">
                 <div class="segment-title">
                     <span class="segment-color-dot"></span>
-
-                    <span class="segment-title-text">
-                        ช่วงที่ 1
-                    </span>
+                    <span class="segment-title-text">ช่วงที่ 1</span>
                 </div>
 
-                <button type="button" class="btn btn-sm btn-outline-danger remove-segment-button">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-danger remove-segment-button"
+                >
                     ลบ
                 </button>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">
-                    ต้นทาง
-                </label>
-
+                <label class="form-label">ต้นทาง</label>
                 <div class="segment-origin-box">
                     กรุณาเลือกจุดเริ่มต้น
                 </div>
@@ -584,11 +655,7 @@
 
             <div class="mb-3">
                 <label class="form-label">
-                    สถานที่ถัดไป
-
-                    <span class="text-danger">
-                        *
-                    </span>
+                    สถานที่ถัดไป <span class="text-danger">*</span>
                 </label>
 
                 <input type="text" class="form-control segment-destination" placeholder="ค้นหาปลายทาง"
@@ -601,9 +668,7 @@
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">
-                        น้ำหนักบรรทุก
-                    </label>
+                    <label class="form-label">น้ำหนักบรรทุก</label>
 
                     <div class="input-group">
                         <input type="number" class="form-control segment-load-weight" min="0" step="0.01"
@@ -614,82 +679,56 @@
                         </span>
                     </div>
 
-                    <small class="text-muted">
-                        (รถเปล่ากรอก 0)
-                    </small>
+                    <small class="text-muted">(รถเปล่ากรอก 0)</small>
                 </div>
 
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">
-                        ระยะทาง
-                    </label>
+                    <label class="form-label">ระยะทาง</label>
 
                     <div class="input-group">
-                        <input type="number" class="form-control bg-light segment-distance" min="0"
-                            step="0.01" readonly required>
+                        <input
+                            type="number"
+                            class="form-control bg-light segment-distance"
+                            min="0"
+                            step="0.01"
+                            readonly
+                            required
+                        >
 
-                        <span class="input-group-text">
-                            กม.
-                        </span>
+                        <span class="input-group-text">กม.</span>
                     </div>
                 </div>
             </div>
 
             <div class="segment-summary">
                 <div class="segment-summary-row">
-                    <span>
-                        สัดส่วนบรรทุก
-                    </span>
-
-                    <strong class="segment-load-percentage-display">
-                        - %
-                    </strong>
+                    <span>สัดส่วนบรรทุก</span>
+                    <strong class="segment-load-percentage-display">- %</strong>
                 </div>
 
                 <div class="segment-summary-row">
-                    <span>
-                        อัตราสิ้นเปลือง
-                    </span>
-
-                    <strong class="segment-fuel-rate-display">
-                        - กม./ลิตร
-                    </strong>
+                    <span>อัตราสิ้นเปลือง</span>
+                    <strong class="segment-fuel-rate-display">- กม./ลิตร</strong>
                 </div>
 
                 <div class="segment-summary-row">
-                    <span>
-                        น้ำมันที่ใช้
-                    </span>
-
-                    <strong class="segment-fuel-liters-display">
-                        - ลิตร
-                    </strong>
+                    <span>น้ำมันที่ใช้</span>
+                    <strong class="segment-fuel-liters-display">- ลิตร</strong>
                 </div>
 
                 <div class="segment-summary-row">
-                    <span>
-                        ค่าน้ำมัน
-                    </span>
-
-                    <strong class="segment-fuel-cost-display">
-                        - บาท
-                    </strong>
+                    <span>ค่าน้ำมัน</span>
+                    <strong class="segment-fuel-cost-display">- บาท</strong>
                 </div>
             </div>
 
             <input type="hidden" class="segment-start-point">
-
             <input type="hidden" class="segment-fuel-rate">
-
             <input type="hidden" class="segment-fuel-liters">
-
             <input type="hidden" class="segment-fuel-cost">
 
             <div class="route-options-box d-none">
-                <div class="fw-semibold mb-2">
-                    ทางเลือก
-                </div>
-
+                <div class="fw-semibold mb-2">ทางเลือก</div>
                 <div class="segment-route-options d-flex flex-column gap-2"></div>
             </div>
         </div>
@@ -698,12 +737,6 @@
     <script>
         (() => {
             const FULL_LOAD_EFFICIENCY_LOSS = 0.20;
-
-            // ประสิทธิภาพ กม./ลิตร ลดลงตามอายุปีละ 0.75%
-            const ANNUAL_AGE_EFFICIENCY_LOSS = 0.0075;
-
-            // จำกัดผลจากอายุไม่ให้ลดลงเกิน 10%
-            const MAXIMUM_AGE_EFFICIENCY_LOSS = 0.10;
 
             const ROUTE_COLORS = [
                 '#0d6efd',
@@ -723,114 +756,45 @@
 
             const initialSegments = @json($initialSegments);
 
-            const form = document.getElementById(
-                'fuel_record_form'
-            );
-
-            const dateRecordInput = document.getElementById(
-                'date_record'
-            );
-
-            const startInput = document.getElementById(
-                'start_point'
-            );
-
-            const truckSelect = document.getElementById(
-                'truck_select'
-            );
-
-            const maximumLoadInput = document.getElementById(
-                'max_load_weight'
-            );
-
-            const emptyFuelRateInput = document.getElementById(
-                'show_fuel_rate'
-            );
-
-            const fuelRateAgeHelp = document.getElementById(
-                'fuel_rate_age_help'
-            );
-
-            const fuelPriceInput = document.getElementById(
-                'cost_fuel'
-            );
-
-            const segmentsContainer = document.getElementById(
-                'segments_container'
-            );
-
-            const segmentTemplate = document.getElementById(
-                'segment_template'
-            );
-
-            const addSegmentButton = document.getElementById(
-                'add_segment_button'
-            );
-
+            const form = document.getElementById('fuel_record_form');
+            const startInput = document.getElementById('start_point');
+            const truckSelect = document.getElementById('truck_select');
+            const maximumLoadInput = document.getElementById('max_load_weight');
+            const emptyFuelRateInput = document.getElementById('show_fuel_rate');
+            const fuelRateHelp = document.getElementById('fuel_rate_help');
+            const fuelPriceInput = document.getElementById('cost_fuel');
+            const segmentsContainer = document.getElementById('segments_container');
+            const segmentTemplate = document.getElementById('segment_template');
+            const addSegmentButton = document.getElementById('add_segment_button');
             const calculateAllRoutesButton = document.getElementById(
                 'calculate_all_routes_button'
             );
-
-            const clearRoutesButton = document.getElementById(
-                'clear_routes_button'
-            );
-
-            const distanceInput = document.getElementById(
-                'distance'
-            );
-
-            const fuelTotalInput = document.getElementById(
-                'cost_fuel_total'
-            );
-
-            const totalFuelLitersInput = document.getElementById(
-                'total_fuel_liters'
-            );
-
+            const clearRoutesButton = document.getElementById('clear_routes_button');
+            const distanceInput = document.getElementById('distance');
+            const fuelTotalInput = document.getElementById('cost_fuel_total');
+            const totalFuelLitersInput = document.getElementById('total_fuel_liters');
             const legacyDestinationInput = document.getElementById(
                 'legacy_destination'
             );
-
             const legacyLoadWeightInput = document.getElementById(
                 'legacy_load_weight'
             );
-
             const segmentCountDisplay = document.getElementById(
                 'segment_count_display'
             );
-
             const totalDistanceDisplay = document.getElementById(
                 'total_distance_display'
             );
-
-            const totalFuelDisplay = document.getElementById(
-                'total_fuel_display'
-            );
-
-            const totalCostDisplay = document.getElementById(
-                'total_cost_display'
-            );
-
-            const mapLegend = document.getElementById(
-                'map_legend'
-            );
-
-            const statusElement = document.getElementById(
-                'map_status'
-            );
-
-            const errorElement = document.getElementById(
-                'map_error'
-            );
+            const totalFuelDisplay = document.getElementById('total_fuel_display');
+            const totalCostDisplay = document.getElementById('total_cost_display');
+            const mapLegend = document.getElementById('map_legend');
+            const statusElement = document.getElementById('map_status');
+            const errorElement = document.getElementById('map_error');
 
             let map = null;
-
             let directionsService = null;
-
             let placesService = null;
-
             let startLocation = null;
-
             let startAutocomplete = null;
 
             let activeField = {
@@ -839,147 +803,50 @@
             };
 
             let segmentCounter = 0;
-
             let routeCalculationVersion = 0;
-
             let segments = [];
-
             let mapMarkers = [];
 
             function showStatus(message) {
                 statusElement.textContent = message;
-
-                statusElement.classList.remove(
-                    'd-none'
-                );
+                statusElement.classList.remove('d-none');
             }
 
             function clearStatus() {
                 statusElement.textContent = '';
-
-                statusElement.classList.add(
-                    'd-none'
-                );
+                statusElement.classList.add('d-none');
             }
 
             function showError(message) {
                 clearStatus();
-
                 errorElement.textContent = message;
-
-                errorElement.classList.remove(
-                    'd-none'
-                );
+                errorElement.classList.remove('d-none');
             }
 
             function clearError() {
                 errorElement.textContent = '';
-
-                errorElement.classList.add(
-                    'd-none'
-                );
+                errorElement.classList.add('d-none');
             }
 
             function getRouteColor(index) {
-                return ROUTE_COLORS[
-                    index % ROUTE_COLORS.length
-                ];
+                return ROUTE_COLORS[index % ROUTE_COLORS.length];
             }
 
-            function getCalculationYear() {
-                const dateValue = dateRecordInput.value;
-
-                if (dateValue) {
-                    const selectedYear = Number.parseInt(
-                        dateValue.substring(0, 4),
-                        10
-                    );
-
-                    if (Number.isInteger(selectedYear)) {
-                        return selectedYear;
-                    }
-                }
-
-                return new Date().getFullYear();
-            }
-
-            function calculateFuelRateByAge(
-                baseFuelRate,
-                purchaseYear
-            ) {
-                const calculationYear = getCalculationYear();
-
-                const hasPurchaseYear =
-                    Number.isInteger(purchaseYear) &&
-                    purchaseYear > 0;
-
-                // หากไม่มีปีที่ซื้อ จะใช้ค่าเดิมโดยไม่หักตามอายุ
-                const truckAge = hasPurchaseYear ?
-                    Math.max(calculationYear - purchaseYear, 0) :
-                    0;
-
-                const ageLossRatio = Math.min(
-                    truckAge * ANNUAL_AGE_EFFICIENCY_LOSS,
-                    MAXIMUM_AGE_EFFICIENCY_LOSS
-                );
-
-                const adjustedFuelRate =
-                    baseFuelRate * (1 - ageLossRatio);
-
-                return {
-                    calculationYear,
-                    purchaseYear: hasPurchaseYear ?
-                        purchaseYear :
-                        null,
-                    truckAge,
-                    ageLossRatio,
-                    baseFuelRate,
-                    adjustedFuelRate,
-                };
-            }
-
+            /*
+             * อ่าน fuel_rate จาก Truck ของรถที่เลือกโดยตรง
+             * ไม่มีการปรับลดตามอายุรถ
+             */
             function getSelectedTruckInformation() {
-                const selectedOption =
-                    truckSelect.options[
-                        truckSelect.selectedIndex
-                    ];
+                const selectedOption = truckSelect.selectedOptions[0];
 
-                if (
-                    !selectedOption ||
-                    !selectedOption.value
-                ) {
+                if (!selectedOption || !selectedOption.value) {
                     return null;
                 }
 
-                const baseFuelRate = Number.parseFloat(
-                    selectedOption.dataset.fuelRate
-                );
-
-                const purchaseYear = Number.parseInt(
-                    selectedOption.dataset.purchaseYear,
-                    10
-                );
-
-                const ageInformation = calculateFuelRateByAge(
-                    baseFuelRate,
-                    purchaseYear
-                );
-
                 return {
-                    // ค่า กม./ลิตรตอนรถใหม่จากตาราง trucks
-                    baseFuelRate,
-
-                    // ค่า กม./ลิตรหลังปรับลดตามอายุ
-                    fuelRate: ageInformation.adjustedFuelRate,
-
-                    purchaseYear: ageInformation.purchaseYear,
-
-                    calculationYear: ageInformation.calculationYear,
-
-                    truckAge: ageInformation.truckAge,
-
-                    ageLossRatio: ageInformation.ageLossRatio,
-
+                    fuelRate: Number.parseFloat(
+                        selectedOption.dataset.fuelRate
+                    ),
                     maximumLoad: Number.parseFloat(
                         selectedOption.dataset.maxLoad
                     ),
@@ -987,98 +854,58 @@
             }
 
             function updateTruckInformation() {
-                const information =
-                    getSelectedTruckInformation();
+                const information = getSelectedTruckInformation();
+
+                const hasMaximumLoad =
+                    information &&
+                    Number.isFinite(information.maximumLoad) &&
+                    information.maximumLoad > 0;
+
+                const hasFuelRate =
+                    information &&
+                    Number.isFinite(information.fuelRate) &&
+                    information.fuelRate > 0;
+
+                maximumLoadInput.value = hasMaximumLoad
+                    ? information.maximumLoad.toFixed(2)
+                    : '';
+
+                emptyFuelRateInput.value = hasFuelRate
+                    ? information.fuelRate.toFixed(2)
+                    : '';
 
                 if (!information) {
-                    maximumLoadInput.value = '';
-
-                    emptyFuelRateInput.value = '';
-
-                    fuelRateAgeHelp.textContent =
-                        'กรุณาเลือกรถบรรทุก';
-
-                    segments.forEach(
-                        function(segment) {
-                            segment.weightInput.removeAttribute(
-                                'max'
-                            );
-                        }
-                    );
-
-                    return;
-                }
-
-                maximumLoadInput.value =
-                    Number.isFinite(
-                        information.maximumLoad
-                    ) &&
-                    information.maximumLoad > 0 ?
-                    information.maximumLoad.toFixed(2) :
-                    '';
-
-                emptyFuelRateInput.value =
-                    Number.isFinite(
-                        information.fuelRate
-                    ) &&
-                    information.fuelRate > 0 ?
-                    information.fuelRate.toFixed(2) :
-                    '';
-
-                if (
-                    Number.isFinite(information.baseFuelRate) &&
-                    information.baseFuelRate > 0
-                ) {
-                    if (information.purchaseYear) {
-                        fuelRateAgeHelp.innerHTML =
-                            `ค่าตอนรถใหม่ ${information.baseFuelRate.toFixed(2)} กม./ลิตร<br>` +
-                            `ซื้อปี ${information.purchaseYear}<br>` +
-                            `อายุ ณ ปี ${information.calculationYear} = ${information.truckAge} ปี<br>` +
-                            `ลดตามอายุ ${(information.ageLossRatio * 100).toFixed(2)}%`;
-                    } else {
-                        fuelRateAgeHelp.textContent =
-                            'รถคันนี้ไม่มีข้อมูลปีที่ซื้อ จึงยังไม่หักผลจากอายุรถ';
-                    }
+                    fuelRateHelp.textContent = 'กรุณาเลือกรถบรรทุก';
+                } else if (hasFuelRate) {
+                    fuelRateHelp.textContent =
+                        ' ' +
+                        ' ';
                 } else {
-                    fuelRateAgeHelp.textContent =
-                        'รถคันนี้ไม่มีข้อมูลอัตราสิ้นเปลือง';
+                    fuelRateHelp.textContent =
+                        'กรุณากำหนดอัตราสิ้นเปลืองของรถให้มากกว่า 0 ในข้อมูลรถ';
                 }
 
-                segments.forEach(
-                    function(segment) {
-                        if (
-                            Number.isFinite(
-                                information.maximumLoad
-                            ) &&
-                            information.maximumLoad > 0
-                        ) {
-                            segment.weightInput.max =
-                                String(
-                                    information.maximumLoad
-                                );
-                        } else {
-                            segment.weightInput.removeAttribute(
-                                'max'
-                            );
-                        }
+                segments.forEach(function(segment) {
+                    if (hasMaximumLoad) {
+                        segment.weightInput.max = String(
+                            information.maximumLoad
+                        );
+                    } else {
+                        segment.weightInput.removeAttribute('max');
                     }
-                );
+                });
             }
 
             function getSegmentIndex(segmentId) {
-                return segments.findIndex(
-                    function(segment) {
-                        return segment.id === segmentId;
-                    }
-                );
+                return segments.findIndex(function(segment) {
+                    return segment.id === segmentId;
+                });
             }
 
             function getSegment(segmentId) {
-                return segments.find(
-                    function(segment) {
-                        return segment.id === segmentId;
-                    }
-                ) || null;
+                return segments.find(function(segment) {
+                    return segment.id === segmentId;
+                }) || null;
             }
 
             function getSegmentOriginText(index) {
@@ -1086,9 +913,7 @@
                     return startInput.value.trim();
                 }
 
-                return segments[
-                    index - 1
-                ]?.destinationInput.value.trim() || '';
+                return segments[index - 1]?.destinationInput.value.trim() || '';
             }
 
             function getSegmentOriginLocation(index) {
@@ -1096,16 +921,10 @@
                     return startLocation;
                 }
 
-                return segments[
-                    index - 1
-                ]?.destinationLocation || null;
+                return segments[index - 1]?.destinationLocation || null;
             }
 
-            function setActiveField(
-                type,
-
-                segmentId = null
-            ) {
+            function setActiveField(type, segmentId = null) {
                 activeField = {
                     type,
                     segmentId,
@@ -1113,603 +932,315 @@
 
                 startInput.classList.toggle(
                     'location-input-active',
-
                     type === 'start'
                 );
 
-                segments.forEach(
-                    function(segment) {
-                        const isActive =
-                            type === 'destination' &&
-                            segment.id === segmentId;
+                segments.forEach(function(segment) {
+                    const isActive =
+                        type === 'destination' &&
+                        segment.id === segmentId;
 
-                        segment.destinationInput.classList.toggle(
-                            'location-input-active',
+                    segment.destinationInput.classList.toggle(
+                        'location-input-active',
+                        isActive
+                    );
 
-                            isActive
-                        );
-
-                        segment.card.classList.toggle(
-                            'active',
-
-                            isActive
-                        );
-                    }
-                );
+                    segment.card.classList.toggle('active', isActive);
+                });
             }
 
             function createSegment(data = {}) {
-                const fragment =
-                    segmentTemplate.content.cloneNode(
-                        true
-                    );
+                const fragment = segmentTemplate.content.cloneNode(true);
 
-                const card =
-                    fragment.querySelector(
-                        '.segment-card'
-                    );
-
-                const titleElement =
-                    fragment.querySelector(
-                        '.segment-title-text'
-                    );
-
-                const colorDot =
-                    fragment.querySelector(
-                        '.segment-color-dot'
-                    );
-
-                const originBox =
-                    fragment.querySelector(
-                        '.segment-origin-box'
-                    );
-
-                const destinationInput =
-                    fragment.querySelector(
-                        '.segment-destination'
-                    );
-
-                const weightInput =
-                    fragment.querySelector(
-                        '.segment-load-weight'
-                    );
-
-                const distanceInputElement =
-                    fragment.querySelector(
-                        '.segment-distance'
-                    );
-
-                const startPointInput =
-                    fragment.querySelector(
-                        '.segment-start-point'
-                    );
-
-                const fuelRateInput =
-                    fragment.querySelector(
-                        '.segment-fuel-rate'
-                    );
-
-                const fuelLitersInput =
-                    fragment.querySelector(
-                        '.segment-fuel-liters'
-                    );
-
-                const fuelCostInput =
-                    fragment.querySelector(
-                        '.segment-fuel-cost'
-                    );
-
-                const loadPercentageDisplay =
-                    fragment.querySelector(
-                        '.segment-load-percentage-display'
-                    );
-
-                const fuelRateDisplay =
-                    fragment.querySelector(
-                        '.segment-fuel-rate-display'
-                    );
-
-                const fuelLitersDisplay =
-                    fragment.querySelector(
-                        '.segment-fuel-liters-display'
-                    );
-
-                const fuelCostDisplay =
-                    fragment.querySelector(
-                        '.segment-fuel-cost-display'
-                    );
-
-                const removeButton =
-                    fragment.querySelector(
-                        '.remove-segment-button'
-                    );
-
-                const routeOptionsBox =
-                    fragment.querySelector(
-                        '.route-options-box'
-                    );
-
-                const routeOptionsContainer =
-                    fragment.querySelector(
-                        '.segment-route-options'
-                    );
+                const card = fragment.querySelector('.segment-card');
+                const titleElement = fragment.querySelector('.segment-title-text');
+                const colorDot = fragment.querySelector('.segment-color-dot');
+                const originBox = fragment.querySelector('.segment-origin-box');
+                const destinationInput = fragment.querySelector(
+                    '.segment-destination'
+                );
+                const weightInput = fragment.querySelector('.segment-load-weight');
+                const distanceInputElement = fragment.querySelector(
+                    '.segment-distance'
+                );
+                const startPointInput = fragment.querySelector(
+                    '.segment-start-point'
+                );
+                const fuelRateInput = fragment.querySelector('.segment-fuel-rate');
+                const fuelLitersInput = fragment.querySelector(
+                    '.segment-fuel-liters'
+                );
+                const fuelCostInput = fragment.querySelector('.segment-fuel-cost');
+                const loadPercentageDisplay = fragment.querySelector(
+                    '.segment-load-percentage-display'
+                );
+                const fuelRateDisplay = fragment.querySelector(
+                    '.segment-fuel-rate-display'
+                );
+                const fuelLitersDisplay = fragment.querySelector(
+                    '.segment-fuel-liters-display'
+                );
+                const fuelCostDisplay = fragment.querySelector(
+                    '.segment-fuel-cost-display'
+                );
+                const removeButton = fragment.querySelector(
+                    '.remove-segment-button'
+                );
+                const routeOptionsBox = fragment.querySelector('.route-options-box');
+                const routeOptionsContainer = fragment.querySelector(
+                    '.segment-route-options'
+                );
 
                 segmentCounter += 1;
 
-                const segmentId =
-                    segmentCounter;
+                const segmentId = segmentCounter;
 
-                destinationInput.value =
-                    data.destination || '';
-
-                weightInput.value =
-                    String(
-                        data.load_weight ?? 0
-                    );
-
-                distanceInputElement.value =
-                    data.distance || '';
-
-                fuelRateInput.value =
-                    data.fuel_rate || '';
-
-                fuelLitersInput.value =
-                    data.fuel_liters || '';
-
-                fuelCostInput.value =
-                    data.fuel_cost || '';
+                destinationInput.value = data.destination || '';
+                weightInput.value = String(data.load_weight ?? 0);
+                distanceInputElement.value = data.distance || '';
+                fuelRateInput.value = data.fuel_rate || '';
+                fuelLitersInput.value = data.fuel_liters || '';
+                fuelCostInput.value = data.fuel_cost || '';
 
                 const segment = {
                     id: segmentId,
-
                     card,
-
                     titleElement,
-
                     colorDot,
-
                     originBox,
-
                     destinationInput,
-
                     weightInput,
-
                     distanceInput: distanceInputElement,
-
                     startPointInput,
-
                     fuelRateInput,
-
                     fuelLitersInput,
-
                     fuelCostInput,
-
                     loadPercentageDisplay,
-
                     fuelRateDisplay,
-
                     fuelLitersDisplay,
-
                     fuelCostDisplay,
-
                     removeButton,
-
                     routeOptionsBox,
-
                     routeOptionsContainer,
-
                     destinationLocation: null,
-
                     autocomplete: null,
-
                     routes: [],
-
                     selectedRouteIndex: 0,
-
                     polylines: [],
                 };
 
-                segments.push(
-                    segment
-                );
+                segments.push(segment);
+                segmentsContainer.appendChild(fragment);
 
-                segmentsContainer.appendChild(
-                    fragment
-                );
+                destinationInput.addEventListener('focus', function() {
+                    setActiveField('destination', segment.id);
+                });
 
-                destinationInput.addEventListener(
-                    'focus',
+                destinationInput.addEventListener('input', function() {
+                    handleDestinationInput(segment.id);
+                });
 
-                    function() {
-                        setActiveField(
-                            'destination',
+                weightInput.addEventListener('input', function() {
+                    handleWeightInput(segment.id);
+                });
 
-                            segment.id
-                        );
-                    }
-                );
+                removeButton.addEventListener('click', function() {
+                    removeSegment(segment.id);
+                });
 
-                destinationInput.addEventListener(
-                    'input',
-
-                    function() {
-                        handleDestinationInput(
-                            segment.id
-                        );
-                    }
-                );
-
-                weightInput.addEventListener(
-                    'input',
-
-                    function() {
-                        handleWeightInput(
-                            segment.id
-                        );
-                    }
-                );
-
-                removeButton.addEventListener(
-                    'click',
-
-                    function() {
-                        removeSegment(
-                            segment.id
-                        );
-                    }
-                );
-
-                if (
-                    map &&
-                    google.maps.places
-                ) {
-                    initializeSegmentAutocomplete(
-                        segment
-                    );
+                if (map && google.maps.places) {
+                    initializeSegmentAutocomplete(segment);
                 }
 
                 refreshSegmentIndexes();
-
                 updateTruckInformation();
-
-                updateSegmentPreview(
-                    segment
-                );
-
+                updateSegmentPreview(segment);
                 updateTotals();
 
                 return segment;
             }
 
             function refreshSegmentIndexes() {
-                segments.forEach(
-                    function(
-                        segment,
+                segments.forEach(function(segment, index) {
+                    const segmentNumber = index + 1;
+                    const routeColor = getRouteColor(index);
 
-                        index
-                    ) {
-                        const segmentNumber =
-                            index + 1;
+                    segment.titleElement.textContent = `ช่วงที่ ${segmentNumber}`;
+                    segment.colorDot.style.backgroundColor = routeColor;
 
-                        const routeColor =
-                            getRouteColor(
-                                index
-                            );
+                    segment.destinationInput.name =
+                        `segments[${index}][destination]`;
 
-                        segment.titleElement.textContent =
-                            `ช่วงที่ ${segmentNumber}`;
+                    segment.weightInput.name =
+                        `segments[${index}][load_weight]`;
 
-                        segment.colorDot.style.backgroundColor =
-                            routeColor;
+                    segment.distanceInput.name =
+                        `segments[${index}][distance]`;
 
-                        segment.destinationInput.name =
-                            `segments[${index}][destination]`;
+                    segment.startPointInput.name =
+                        `segments[${index}][start_point]`;
 
-                        segment.weightInput.name =
-                            `segments[${index}][load_weight]`;
+                    segment.fuelRateInput.name =
+                        `segments[${index}][fuel_rate]`;
 
-                        segment.distanceInput.name =
-                            `segments[${index}][distance]`;
+                    segment.fuelLitersInput.name =
+                        `segments[${index}][fuel_liters]`;
 
-                        segment.startPointInput.name =
-                            `segments[${index}][start_point]`;
+                    segment.fuelCostInput.name =
+                        `segments[${index}][fuel_cost]`;
 
-                        segment.fuelRateInput.name =
-                            `segments[${index}][fuel_rate]`;
+                    segment.removeButton.disabled = segments.length === 1;
 
-                        segment.fuelLitersInput.name =
-                            `segments[${index}][fuel_liters]`;
-
-                        segment.fuelCostInput.name =
-                            `segments[${index}][fuel_cost]`;
-
-                        segment.removeButton.disabled =
-                            segments.length === 1;
-
-                        segment.polylines.forEach(
-                            function(
-                                polyline,
-
-                                routeIndex
-                            ) {
-                                polyline.setOptions(
-                                    getPolylineStyle(
-                                        index,
-
-                                        routeIndex ===
-                                        segment.selectedRouteIndex
-                                    )
-                                );
-                            }
+                    segment.polylines.forEach(function(polyline, routeIndex) {
+                        polyline.setOptions(
+                            getPolylineStyle(
+                                index,
+                                routeIndex === segment.selectedRouteIndex
+                            )
                         );
-                    }
-                );
+                    });
+                });
 
                 refreshSegmentOrigins();
-
                 renderMapLegend();
-
                 updateLegacyFields();
             }
 
             function refreshSegmentOrigins() {
-                segments.forEach(
-                    function(
-                        segment,
+                segments.forEach(function(segment, index) {
+                    const originText = getSegmentOriginText(index);
 
-                        index
-                    ) {
-                        const originText =
-                            getSegmentOriginText(
-                                index
-                            );
+                    segment.originBox.textContent = originText || (
+                        index === 0
+                            ? 'กรุณาเลือกจุดเริ่มต้น'
+                            : 'กรุณาเลือกปลายทางของช่วงก่อนหน้า'
+                    );
 
-                        segment.originBox.textContent =
-                            originText ||
-                            (
-                                index === 0 ?
-                                'กรุณาเลือกจุดเริ่มต้น' :
-                                'กรุณาเลือกปลายทางของช่วงก่อนหน้า'
-                            );
-
-                        segment.startPointInput.value =
-                            originText;
-                    }
-                );
+                    segment.startPointInput.value = originText;
+                });
 
                 updateLegacyFields();
             }
 
             function updateLegacyFields() {
                 if (!segments.length) {
-                    legacyDestinationInput.value =
-                        '';
-
-                    legacyLoadWeightInput.value =
-                        '0';
-
+                    legacyDestinationInput.value = '';
+                    legacyLoadWeightInput.value = '0';
                     return;
                 }
 
-                const lastSegment =
-                    segments[
-                        segments.length - 1
-                    ];
+                const lastSegment = segments[segments.length - 1];
 
                 legacyDestinationInput.value =
                     lastSegment.destinationInput.value.trim();
 
-                const weights =
-                    segments.map(
-                        function(segment) {
-                            const weight =
-                                Number.parseFloat(
-                                    segment.weightInput.value || '0'
-                                );
-
-                            return Number.isFinite(
-                                    weight
-                                ) ?
-                                weight :
-                                0;
-                        }
+                const weights = segments.map(function(segment) {
+                    const weight = Number.parseFloat(
+                        segment.weightInput.value || '0'
                     );
 
-                legacyLoadWeightInput.value =
-                    String(
-                        Math.max(
-                            0,
+                    return Number.isFinite(weight) ? weight : 0;
+                });
 
-                            ...weights
-                        )
-                    );
+                legacyLoadWeightInput.value = String(
+                    Math.max(0, ...weights)
+                );
             }
 
             function clearSegmentSummary(segment) {
-                segment.loadPercentageDisplay.textContent =
-                    '- %';
+                segment.loadPercentageDisplay.textContent = '- %';
+                segment.fuelRateDisplay.textContent = '- กม./ลิตร';
+                segment.fuelLitersDisplay.textContent = '- ลิตร';
+                segment.fuelCostDisplay.textContent = '- บาท';
 
-                segment.fuelRateDisplay.textContent =
-                    '- กม./ลิตร';
-
-                segment.fuelLitersDisplay.textContent =
-                    '- ลิตร';
-
-                segment.fuelCostDisplay.textContent =
-                    '- บาท';
-
-                segment.fuelRateInput.value =
-                    '';
-
-                segment.fuelLitersInput.value =
-                    '';
-
-                segment.fuelCostInput.value =
-                    '';
+                segment.fuelRateInput.value = '';
+                segment.fuelLitersInput.value = '';
+                segment.fuelCostInput.value = '';
             }
 
             function clearSegmentRoute(segment) {
-                segment.polylines.forEach(
-                    function(polyline) {
-                        polyline.setMap(
-                            null
-                        );
-                    }
-                );
+                segment.polylines.forEach(function(polyline) {
+                    polyline.setMap(null);
+                });
 
                 segment.polylines = [];
-
                 segment.routes = [];
+                segment.selectedRouteIndex = 0;
+                segment.distanceInput.value = '';
+                segment.routeOptionsContainer.innerHTML = '';
+                segment.routeOptionsBox.classList.add('d-none');
 
-                segment.selectedRouteIndex =
-                    0;
-
-                segment.distanceInput.value =
-                    '';
-
-                segment.routeOptionsContainer.innerHTML =
-                    '';
-
-                segment.routeOptionsBox.classList.add(
-                    'd-none'
-                );
-
-                clearSegmentSummary(
-                    segment
-                );
+                clearSegmentSummary(segment);
             }
 
-            function invalidateSegmentAndFollowing(
-                startIndex
-            ) {
+            function invalidateSegmentAndFollowing(startIndex) {
                 routeCalculationVersion += 1;
 
-                segments.forEach(
-                    function(
-                        segment,
-
-                        index
-                    ) {
-                        if (
-                            index >= startIndex
-                        ) {
-                            clearSegmentRoute(
-                                segment
-                            );
-                        }
+                segments.forEach(function(segment, index) {
+                    if (index >= startIndex) {
+                        clearSegmentRoute(segment);
                     }
-                );
+                });
 
                 refreshSegmentOrigins();
-
                 refreshMapMarkers();
-
                 updateTotals();
             }
 
             function removeSegment(segmentId) {
-                if (
-                    segments.length <= 1
-                ) {
+                if (segments.length <= 1) {
                     return;
                 }
 
-                const index =
-                    getSegmentIndex(
-                        segmentId
-                    );
+                const index = getSegmentIndex(segmentId);
 
-                if (
-                    index < 0
-                ) {
+                if (index < 0) {
                     return;
                 }
 
-                const segment =
-                    segments[
-                        index
-                    ];
+                const segment = segments[index];
 
-                clearSegmentRoute(
-                    segment
-                );
+                clearSegmentRoute(segment);
 
-                if (
-                    segment.autocomplete
-                ) {
+                if (segment.autocomplete) {
                     google.maps.event.clearInstanceListeners(
                         segment.autocomplete
                     );
                 }
 
                 segment.card.remove();
-
-                segments.splice(
-                    index,
-
-                    1
-                );
+                segments.splice(index, 1);
 
                 refreshSegmentIndexes();
-
-                invalidateSegmentAndFollowing(
-                    index
-                );
-
+                invalidateSegmentAndFollowing(index);
                 clearError();
-
                 clearStatus();
 
-                if (
-                    segments.length
-                ) {
-                    const activeSegment =
-                        segments[
-                            Math.min(
-                                index,
+                if (segments.length) {
+                    const activeSegment = segments[
+                        Math.min(index, segments.length - 1)
+                    ];
 
-                                segments.length - 1
-                            )
-                        ];
-
-                    setActiveField(
-                        'destination',
-
-                        activeSegment.id
-                    );
+                    setActiveField('destination', activeSegment.id);
                 } else {
-                    setActiveField(
-                        'start'
-                    );
+                    setActiveField('start');
                 }
             }
 
-            function getSegmentLoadInformation(
-                segment,
+            function getSegmentLoadInformation(segment, segmentIndex) {
+                const truckInformation = getSelectedTruckInformation();
 
-                segmentIndex
-            ) {
-                const truckInformation =
-                    getSelectedTruckInformation();
-
-                if (
-                    !truckInformation
-                ) {
-                    throw new Error(
-                        'กรุณาเลือกรถบรรทุก'
-                    );
+                if (!truckInformation) {
+                    throw new Error('กรุณาเลือกรถบรรทุก');
                 }
 
-                const maximumLoad =
-                    truckInformation.maximumLoad;
+                const maximumLoad = truckInformation.maximumLoad;
 
-                const emptyFuelRate =
-                    truckInformation.fuelRate;
+                // ค่าอัตราสิ้นเปลืองจาก Truck โดยตรง
+                const emptyFuelRate = truckInformation.fuelRate;
 
                 if (
-                    !Number.isFinite(
-                        maximumLoad
-                    ) ||
+                    !Number.isFinite(maximumLoad) ||
                     maximumLoad <= 0
                 ) {
                     throw new Error(
@@ -1718,9 +1249,7 @@
                 }
 
                 if (
-                    !Number.isFinite(
-                        emptyFuelRate
-                    ) ||
+                    !Number.isFinite(emptyFuelRate) ||
                     emptyFuelRate <= 0
                 ) {
                     throw new Error(
@@ -1728,15 +1257,12 @@
                     );
                 }
 
-                const loadWeight =
-                    Number.parseFloat(
-                        segment.weightInput.value || '0'
-                    );
+                const loadWeight = Number.parseFloat(
+                    segment.weightInput.value || '0'
+                );
 
                 if (
-                    !Number.isFinite(
-                        loadWeight
-                    ) ||
+                    !Number.isFinite(loadWeight) ||
                     loadWeight < 0
                 ) {
                     throw new Error(
@@ -1744,32 +1270,22 @@
                     );
                 }
 
-                if (
-                    loadWeight > maximumLoad
-                ) {
+                if (loadWeight > maximumLoad) {
                     throw new Error(
-                        `น้ำหนักบรรทุก ${segmentIndex + 1} ต้องไม่เกิน ${maximumLoad.toFixed(2)} กก.`
+                        `น้ำหนักบรรทุก ${segmentIndex + 1} ` +
+                        `ต้องไม่เกิน ${maximumLoad.toFixed(2)} กก.`
                     );
                 }
 
-                const loadRatio =
-                    loadWeight /
-                    maximumLoad;
+                const loadRatio = loadWeight / maximumLoad;
 
-                const fuelRate =
-                    emptyFuelRate *
-                    (
-                        1 -
-                        (
-                            loadRatio *
-                            FULL_LOAD_EFFICIENCY_LOSS
-                        )
-                    );
+                // ใช้ค่าจาก Truck เป็นค่าตั้งต้น แล้วปรับตามน้ำหนักเดิม
+                const fuelRate = emptyFuelRate * (
+                    1 - (loadRatio * FULL_LOAD_EFFICIENCY_LOSS)
+                );
 
                 if (
-                    !Number.isFinite(
-                        fuelRate
-                    ) ||
+                    !Number.isFinite(fuelRate) ||
                     fuelRate <= 0
                 ) {
                     throw new Error(
@@ -1779,38 +1295,23 @@
 
                 return {
                     maximumLoad,
-
                     emptyFuelRate,
-
                     loadWeight,
-
                     loadRatio,
-
                     fuelRate,
                 };
             }
 
-            function getSegmentFuelInformation(
-                segment,
+            function getSegmentFuelInformation(segment, distance) {
+                const segmentIndex = getSegmentIndex(segment.id);
 
-                distance
-            ) {
-                const segmentIndex =
-                    getSegmentIndex(
-                        segment.id
-                    );
-
-                const loadInformation =
-                    getSegmentLoadInformation(
-                        segment,
-
-                        segmentIndex
-                    );
+                const loadInformation = getSegmentLoadInformation(
+                    segment,
+                    segmentIndex
+                );
 
                 if (
-                    !Number.isFinite(
-                        distance
-                    ) ||
+                    !Number.isFinite(distance) ||
                     distance <= 0
                 ) {
                     throw new Error(
@@ -1818,56 +1319,35 @@
                     );
                 }
 
-                const fuelPrice =
-                    Number.parseFloat(
-                        fuelPriceInput.value
-                    );
+                const fuelPrice = Number.parseFloat(fuelPriceInput.value);
 
                 if (
-                    !Number.isFinite(
-                        fuelPrice
-                    ) ||
+                    !Number.isFinite(fuelPrice) ||
                     fuelPrice <= 0
                 ) {
-                    throw new Error(
-                        'กรุณาตรวจสอบราคาน้ำมัน'
-                    );
+                    throw new Error('กรุณาตรวจสอบราคาน้ำมัน');
                 }
 
-                const fuelLiters =
-                    distance /
-                    loadInformation.fuelRate;
-
-                const fuelCost =
-                    fuelLiters *
-                    fuelPrice;
+                const fuelLiters = distance / loadInformation.fuelRate;
+                const fuelCost = fuelLiters * fuelPrice;
 
                 return {
                     ...loadInformation,
-
                     distance,
-
                     fuelPrice,
-
                     fuelLiters,
-
                     fuelCost,
                 };
             }
 
             function updateSegmentPreview(segment) {
-                const segmentIndex =
-                    getSegmentIndex(
-                        segment.id
-                    );
+                const segmentIndex = getSegmentIndex(segment.id);
 
                 try {
-                    const loadInformation =
-                        getSegmentLoadInformation(
-                            segment,
-
-                            segmentIndex
-                        );
+                    const loadInformation = getSegmentLoadInformation(
+                        segment,
+                        segmentIndex
+                    );
 
                     segment.loadPercentageDisplay.textContent =
                         `${(loadInformation.loadRatio * 100).toFixed(2)} %`;
@@ -1880,60 +1360,39 @@
 
                     return true;
                 } catch (error) {
-                    clearSegmentSummary(
-                        segment
-                    );
-
+                    clearSegmentSummary(segment);
                     return false;
                 }
             }
 
-            function calculateSegmentFuel(
-                segment,
-
-                options = {}
-            ) {
+            function calculateSegmentFuel(segment, options = {}) {
                 const {
                     showErrors = false,
                 } = options;
 
-                updateSegmentPreview(
-                    segment
+                updateSegmentPreview(segment);
+
+                const distance = Number.parseFloat(
+                    segment.distanceInput.value
                 );
 
-                const distance =
-                    Number.parseFloat(
-                        segment.distanceInput.value
-                    );
-
                 if (
-                    !Number.isFinite(
-                        distance
-                    ) ||
+                    !Number.isFinite(distance) ||
                     distance <= 0
                 ) {
-                    segment.fuelLitersInput.value =
-                        '';
-
-                    segment.fuelCostInput.value =
-                        '';
-
-                    segment.fuelLitersDisplay.textContent =
-                        '- ลิตร';
-
-                    segment.fuelCostDisplay.textContent =
-                        '- บาท';
+                    segment.fuelLitersInput.value = '';
+                    segment.fuelCostInput.value = '';
+                    segment.fuelLitersDisplay.textContent = '- ลิตร';
+                    segment.fuelCostDisplay.textContent = '- บาท';
 
                     return null;
                 }
 
                 try {
-                    const information =
-                        getSegmentFuelInformation(
-                            segment,
-
-                            distance
-                        );
+                    const information = getSegmentFuelInformation(
+                        segment,
+                        distance
+                    );
 
                     segment.loadPercentageDisplay.textContent =
                         `${(information.loadRatio * 100).toFixed(2)} %`;
@@ -1958,16 +1417,10 @@
 
                     return information;
                 } catch (error) {
-                    clearSegmentSummary(
-                        segment
-                    );
+                    clearSegmentSummary(segment);
 
-                    if (
-                        showErrors
-                    ) {
-                        showError(
-                            error.message
-                        );
+                    if (showErrors) {
+                        showError(error.message);
                     }
 
                     return null;
@@ -1976,76 +1429,44 @@
 
             function updateTotals() {
                 let totalDistance = 0;
-
                 let totalFuelLiters = 0;
-
                 let totalFuelCost = 0;
-
                 let calculatedSegments = 0;
 
-                segments.forEach(
-                    function(segment) {
-                        const distance =
-                            Number.parseFloat(
-                                segment.distanceInput.value
-                            );
+                segments.forEach(function(segment) {
+                    const distance = Number.parseFloat(
+                        segment.distanceInput.value
+                    );
 
-                        const fuelLiters =
-                            Number.parseFloat(
-                                segment.fuelLitersInput.value
-                            );
+                    const fuelLiters = Number.parseFloat(
+                        segment.fuelLitersInput.value
+                    );
 
-                        const fuelCost =
-                            Number.parseFloat(
-                                segment.fuelCostInput.value
-                            );
+                    const fuelCost = Number.parseFloat(
+                        segment.fuelCostInput.value
+                    );
 
-                        if (
-                            Number.isFinite(
-                                distance
-                            ) &&
-                            distance > 0
-                        ) {
-                            totalDistance +=
-                                distance;
-                        }
-
-                        if (
-                            Number.isFinite(
-                                fuelLiters
-                            ) &&
-                            fuelLiters >= 0
-                        ) {
-                            totalFuelLiters +=
-                                fuelLiters;
-                        }
-
-                        if (
-                            Number.isFinite(
-                                fuelCost
-                            ) &&
-                            fuelCost >= 0
-                        ) {
-                            totalFuelCost +=
-                                fuelCost;
-                        }
-
-                        if (
-                            Number.isFinite(
-                                distance
-                            ) &&
-                            distance > 0 &&
-                            Number.isFinite(
-                                fuelLiters
-                            ) &&
-                            Number.isFinite(
-                                fuelCost
-                            )
-                        ) {
-                            calculatedSegments += 1;
-                        }
+                    if (Number.isFinite(distance) && distance > 0) {
+                        totalDistance += distance;
                     }
-                );
+
+                    if (Number.isFinite(fuelLiters) && fuelLiters >= 0) {
+                        totalFuelLiters += fuelLiters;
+                    }
+
+                    if (Number.isFinite(fuelCost) && fuelCost >= 0) {
+                        totalFuelCost += fuelCost;
+                    }
+
+                    if (
+                        Number.isFinite(distance) &&
+                        distance > 0 &&
+                        Number.isFinite(fuelLiters) &&
+                        Number.isFinite(fuelCost)
+                    ) {
+                        calculatedSegments += 1;
+                    }
+                });
 
                 segmentCountDisplay.textContent =
                     `${calculatedSegments} / ${segments.length} ช่วง`;
@@ -2059,150 +1480,84 @@
                 totalCostDisplay.textContent =
                     `${totalFuelCost.toFixed(2)} บาท`;
 
-                distanceInput.value =
-                    totalDistance > 0 ?
-                    totalDistance.toFixed(2) :
-                    '';
+                distanceInput.value = totalDistance > 0
+                    ? totalDistance.toFixed(2)
+                    : '';
 
-                totalFuelLitersInput.value =
-                    calculatedSegments > 0 ?
-                    totalFuelLiters.toFixed(2) :
-                    '';
+                totalFuelLitersInput.value = calculatedSegments > 0
+                    ? totalFuelLiters.toFixed(2)
+                    : '';
 
-                fuelTotalInput.value =
-                    calculatedSegments > 0 ?
-                    totalFuelCost.toFixed(2) :
-                    '';
+                fuelTotalInput.value = calculatedSegments > 0
+                    ? totalFuelCost.toFixed(2)
+                    : '';
 
                 updateLegacyFields();
             }
 
-            function updateAllFuelCalculations(
-                options = {}
-            ) {
-                segments.forEach(
-                    function(segment) {
-                        calculateSegmentFuel(
-                            segment,
-
-                            options
-                        );
-
-                        renderRouteOptions(
-                            segment
-                        );
-                    }
-                );
+            function updateAllFuelCalculations(options = {}) {
+                segments.forEach(function(segment) {
+                    calculateSegmentFuel(segment, options);
+                    renderRouteOptions(segment);
+                });
 
                 updateTotals();
             }
 
             function handleWeightInput(segmentId) {
-                const segment =
-                    getSegment(
-                        segmentId
-                    );
+                const segment = getSegment(segmentId);
 
-                if (
-                    !segment
-                ) {
+                if (!segment) {
                     return;
                 }
 
-                const index =
-                    getSegmentIndex(
-                        segment.id
-                    );
+                const index = getSegmentIndex(segment.id);
 
                 try {
-                    getSegmentLoadInformation(
-                        segment,
-
-                        index
-                    );
-
+                    getSegmentLoadInformation(segment, index);
                     clearError();
-
-                    calculateSegmentFuel(
-                        segment
-                    );
-
-                    renderRouteOptions(
-                        segment
-                    );
+                    calculateSegmentFuel(segment);
+                    renderRouteOptions(segment);
                 } catch (error) {
-                    clearSegmentSummary(
-                        segment
-                    );
-
-                    showError(
-                        error.message
-                    );
+                    clearSegmentSummary(segment);
+                    showError(error.message);
                 }
 
                 updateTotals();
             }
 
-            function handleDestinationInput(
-                segmentId
-            ) {
-                const segment =
-                    getSegment(
-                        segmentId
-                    );
+            function handleDestinationInput(segmentId) {
+                const segment = getSegment(segmentId);
 
-                if (
-                    !segment
-                ) {
+                if (!segment) {
                     return;
                 }
 
-                const index =
-                    getSegmentIndex(
-                        segmentId
-                    );
+                const index = getSegmentIndex(segmentId);
 
-                segment.destinationLocation =
-                    null;
+                segment.destinationLocation = null;
 
-                invalidateSegmentAndFollowing(
-                    index
-                );
-
+                invalidateSegmentAndFollowing(index);
                 clearError();
-
                 clearStatus();
             }
 
             function formatCoordinates(position) {
                 return [
                     position.lat().toFixed(6),
-
                     position.lng().toFixed(6),
-                ].join(
-                    ','
-                );
+                ].join(',');
             }
 
             function buildPlaceLabel(place) {
-                const name =
-                    place.name || '';
+                const name = place.name || '';
+                const address = place.formatted_address || '';
 
-                const address =
-                    place.formatted_address || '';
-
-                if (
-                    !name
-                ) {
+                if (!name) {
                     return address;
                 }
 
-                if (
-                    !address ||
-                    address.includes(
-                        name
-                    )
-                ) {
+                if (!address || address.includes(name)) {
                     return address || name;
                 }
 
@@ -2210,97 +1565,67 @@
             }
 
             function removeMapMarkers() {
-                mapMarkers.forEach(
-                    function(marker) {
-                        marker.setMap(
-                            null
-                        );
-                    }
-                );
+                mapMarkers.forEach(function(marker) {
+                    marker.setMap(null);
+                });
 
                 mapMarkers = [];
             }
 
             function refreshMapMarkers() {
-                if (
-                    !map
-                ) {
+                if (!map) {
                     return;
                 }
 
                 removeMapMarkers();
 
-                const firstRoute =
-                    segments[0]?.routes[
-                        segments[0]?.selectedRouteIndex || 0
-                    ] || null;
+                const firstRoute = segments[0]?.routes[
+                    segments[0]?.selectedRouteIndex || 0
+                ] || null;
 
-                const firstLeg =
-                    firstRoute?.legs?.[0] || null;
+                const firstLeg = firstRoute?.legs?.[0] || null;
 
                 const startPosition =
                     startLocation ||
                     firstLeg?.start_location ||
                     null;
 
-                if (
-                    startPosition
-                ) {
+                if (startPosition) {
                     mapMarkers.push(
                         new google.maps.Marker({
                             map,
-
                             position: startPosition,
-
                             label: '1',
-
-                            title: startInput.value.trim() ||
-                                'จุดเริ่มต้น',
+                            title: startInput.value.trim() || 'จุดเริ่มต้น',
                         })
                     );
                 }
 
-                segments.forEach(
-                    function(
-                        segment,
+                segments.forEach(function(segment, index) {
+                    const selectedRoute = segment.routes[
+                        segment.selectedRouteIndex
+                    ];
 
-                        index
-                    ) {
-                        const selectedRoute =
-                            segment.routes[
-                                segment.selectedRouteIndex
-                            ];
+                    const leg = selectedRoute?.legs?.[0] || null;
 
-                        const leg =
-                            selectedRoute?.legs?.[0] ||
-                            null;
+                    const destinationPosition =
+                        segment.destinationLocation ||
+                        leg?.end_location ||
+                        null;
 
-                        const destinationPosition =
-                            segment.destinationLocation ||
-                            leg?.end_location ||
-                            null;
-
-                        if (
-                            !destinationPosition
-                        ) {
-                            return;
-                        }
-
-                        mapMarkers.push(
-                            new google.maps.Marker({
-                                map,
-
-                                position: destinationPosition,
-
-                                label: String(
-                                    index + 2
-                                ),
-
-                                title: segment.destinationInput.value.trim(),
-                            })
-                        );
+                    if (!destinationPosition) {
+                        return;
                     }
-                );
+
+                    mapMarkers.push(
+                        new google.maps.Marker({
+                            map,
+                            position: destinationPosition,
+                            label: String(index + 2),
+                            title: segment.destinationInput.value.trim(),
+                        })
+                    );
+                });
             }
 
             function getRouteLeg(route) {
@@ -2308,14 +1633,9 @@
             }
 
             function getRouteDistance(route) {
-                const leg =
-                    getRouteLeg(
-                        route
-                    );
+                const leg = getRouteLeg(route);
 
-                if (
-                    !leg?.distance?.value
-                ) {
+                if (!leg?.distance?.value) {
                     return 0;
                 }
 
@@ -2323,68 +1643,41 @@
             }
 
             function getRouteDuration(route) {
-                const leg =
-                    getRouteLeg(
-                        route
-                    );
+                const leg = getRouteLeg(route);
 
-                if (
-                    !leg?.duration?.value
-                ) {
+                if (!leg?.duration?.value) {
                     return 0;
                 }
 
-                return Math.round(
-                    leg.duration.value / 60
-                );
+                return Math.round(leg.duration.value / 60);
             }
 
-            function formatDuration(
-                totalMinutes
-            ) {
+            function formatDuration(totalMinutes) {
                 if (
-                    !Number.isFinite(
-                        totalMinutes
-                    ) ||
+                    !Number.isFinite(totalMinutes) ||
                     totalMinutes <= 0
                 ) {
                     return '-';
                 }
 
-                const hours =
-                    Math.floor(
-                        totalMinutes / 60
-                    );
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
 
-                const minutes =
-                    totalMinutes % 60;
-
-                if (
-                    hours <= 0
-                ) {
+                if (hours <= 0) {
                     return `${minutes} นาที`;
                 }
 
-                if (
-                    minutes === 0
-                ) {
+                if (minutes === 0) {
                     return `${hours} ชม.`;
                 }
 
                 return `${hours} ชม. ${minutes} นาที`;
             }
 
-            function getRouteSummary(
-                route,
+            function getRouteSummary(route, index) {
+                const routeSummary = route?.summary?.trim();
 
-                index
-            ) {
-                const routeSummary =
-                    route?.summary?.trim();
-
-                if (
-                    routeSummary
-                ) {
+                if (routeSummary) {
                     return routeSummary;
                 }
 
@@ -2393,9 +1686,7 @@
 
             function getRoutePath(route) {
                 if (
-                    Array.isArray(
-                        route?.overview_path
-                    ) &&
+                    Array.isArray(route?.overview_path) &&
                     route.overview_path.length
                 ) {
                     return route.overview_path;
@@ -2403,177 +1694,89 @@
 
                 const path = [];
 
-                (
-                    route?.legs || []
-                ).forEach(
-                    function(leg) {
-                        (
-                            leg.steps || []
-                        ).forEach(
-                            function(step) {
-                                (
-                                    step.path || []
-                                ).forEach(
-                                    function(point) {
-                                        path.push(
-                                            point
-                                        );
-                                    }
-                                );
-                            }
-                        );
-                    }
-                );
+                (route?.legs || []).forEach(function(leg) {
+                    (leg.steps || []).forEach(function(step) {
+                        (step.path || []).forEach(function(point) {
+                            path.push(point);
+                        });
+                    });
+                });
 
                 return path;
             }
 
-            function getPolylineStyle(
-                segmentIndex,
-
-                isSelected
-            ) {
+            function getPolylineStyle(segmentIndex, isSelected) {
                 return {
-                    strokeColor: isSelected ?
-                        getRouteColor(
-                            segmentIndex
-                        ) :
-                        '#9aa4af',
-
-                    strokeOpacity: isSelected ?
-                        0.90 :
-                        0.45,
-
-                    strokeWeight: isSelected ?
-                        7 :
-                        4,
-
-                    zIndex: isSelected ?
-                        100 + segmentIndex :
-                        10,
-
+                    strokeColor: isSelected
+                        ? getRouteColor(segmentIndex)
+                        : '#9aa4af',
+                    strokeOpacity: isSelected ? 0.90 : 0.45,
+                    strokeWeight: isSelected ? 7 : 4,
+                    zIndex: isSelected ? 100 + segmentIndex : 10,
                     clickable: true,
                 };
             }
 
             function drawSegmentRoutes(segment) {
-                const segmentIndex =
-                    getSegmentIndex(
-                        segment.id
-                    );
+                const segmentIndex = getSegmentIndex(segment.id);
 
-                segment.polylines.forEach(
-                    function(polyline) {
-                        polyline.setMap(
-                            null
-                        );
-                    }
-                );
+                segment.polylines.forEach(function(polyline) {
+                    polyline.setMap(null);
+                });
 
                 segment.polylines = [];
 
-                segment.routes.forEach(
-                    function(
-                        route,
+                segment.routes.forEach(function(route, routeIndex) {
+                    const path = getRoutePath(route);
 
-                        routeIndex
-                    ) {
-                        const path =
-                            getRoutePath(
-                                route
-                            );
-
-                        if (
-                            !path.length
-                        ) {
-                            return;
-                        }
-
-                        const polyline =
-                            new google.maps.Polyline({
-                                map,
-
-                                path,
-
-                                ...getPolylineStyle(
-                                    segmentIndex,
-
-                                    routeIndex ===
-                                    segment.selectedRouteIndex
-                                ),
-                            });
-
-                        polyline.addListener(
-                            'click',
-
-                            function() {
-                                selectSegmentRoute(
-                                    segment.id,
-
-                                    routeIndex
-                                );
-                            }
-                        );
-
-                        segment.polylines.push(
-                            polyline
-                        );
+                    if (!path.length) {
+                        return;
                     }
-                );
+
+                    const polyline = new google.maps.Polyline({
+                        map,
+                        path,
+                        ...getPolylineStyle(
+                            segmentIndex,
+                            routeIndex === segment.selectedRouteIndex
+                        ),
+                    });
+
+                    polyline.addListener('click', function() {
+                        selectSegmentRoute(segment.id, routeIndex);
+                    });
+
+                    segment.polylines.push(polyline);
+                });
             }
 
-            function refreshSegmentRouteStyles(
-                segment
-            ) {
-                const segmentIndex =
-                    getSegmentIndex(
-                        segment.id
+            function refreshSegmentRouteStyles(segment) {
+                const segmentIndex = getSegmentIndex(segment.id);
+
+                segment.polylines.forEach(function(polyline, routeIndex) {
+                    polyline.setOptions(
+                        getPolylineStyle(
+                            segmentIndex,
+                            routeIndex === segment.selectedRouteIndex
+                        )
                     );
-
-                segment.polylines.forEach(
-                    function(
-                        polyline,
-
-                        routeIndex
-                    ) {
-                        polyline.setOptions(
-                            getPolylineStyle(
-                                segmentIndex,
-
-                                routeIndex ===
-                                segment.selectedRouteIndex
-                            )
-                        );
-                    }
-                );
+                });
 
                 segment.routeOptionsContainer
-                    .querySelectorAll(
-                        '[data-route-index]'
-                    )
-                    .forEach(
-                        function(button) {
-                            button.classList.toggle(
-                                'active',
-
-                                Number(
-                                    button.dataset.routeIndex
-                                ) ===
+                    .querySelectorAll('[data-route-index]')
+                    .forEach(function(button) {
+                        button.classList.toggle(
+                            'active',
+                            Number(button.dataset.routeIndex) ===
                                 segment.selectedRouteIndex
-                            );
-                        }
-                    );
+                        );
+                    });
             }
 
-            function calculateEstimatedSegmentCost(
-                segment,
-
-                distance
-            ) {
+            function calculateEstimatedSegmentCost(segment, distance) {
                 try {
                     return getSegmentFuelInformation(
                         segment,
-
                         distance
                     ).fuelCost;
                 } catch (error) {
@@ -2581,291 +1784,152 @@
                 }
             }
 
-            function renderRouteOptions(
-                segment
-            ) {
-                segment.routeOptionsContainer.innerHTML =
-                    '';
+            function renderRouteOptions(segment) {
+                segment.routeOptionsContainer.innerHTML = '';
 
-                if (
-                    segment.routes.length <= 1
-                ) {
-                    segment.routeOptionsBox.classList.add(
-                        'd-none'
-                    );
-
+                if (segment.routes.length <= 1) {
+                    segment.routeOptionsBox.classList.add('d-none');
                     return;
                 }
 
-                segment.routes.forEach(
-                    function(
-                        route,
+                segment.routes.forEach(function(route, routeIndex) {
+                    const routeDistance = getRouteDistance(route);
+                    const routeDuration = getRouteDuration(route);
 
-                        routeIndex
-                    ) {
-                        const routeDistance =
-                            getRouteDistance(
-                                route
-                            );
-
-                        const routeDuration =
-                            getRouteDuration(
-                                route
-                            );
-
-                        const estimatedCost =
-                            calculateEstimatedSegmentCost(
-                                segment,
-
-                                routeDistance
-                            );
-
-                        const button =
-                            document.createElement(
-                                'button'
-                            );
-
-                        button.type =
-                            'button';
-
-                        button.className =
-                            'route-option';
-
-                        button.dataset.routeIndex =
-                            String(
-                                routeIndex
-                            );
-
-                        button.classList.toggle(
-                            'active',
-
-                            routeIndex ===
-                            segment.selectedRouteIndex
-                        );
-
-                        const title =
-                            document.createElement(
-                                'div'
-                            );
-
-                        title.className =
-                            'route-option-title';
-
-                        title.textContent =
-                            `${getRouteSummary(route, routeIndex)} — ${formatDuration(routeDuration)}`;
-
-                        const details =
-                            document.createElement(
-                                'div'
-                            );
-
-                        details.className =
-                            'route-option-details';
-
-                        const detailParts = [
-                            `${routeDistance.toFixed(2)} กม.`,
-                        ];
-
-                        if (
-                            Number.isFinite(
-                                estimatedCost
-                            )
-                        ) {
-                            detailParts.push(
-                                `ประมาณ ${estimatedCost.toFixed(2)} บาท`
-                            );
-                        }
-
-                        details.textContent =
-                            detailParts.join(
-                                ' • '
-                            );
-
-                        button.appendChild(
-                            title
-                        );
-
-                        button.appendChild(
-                            details
-                        );
-
-                        button.addEventListener(
-                            'click',
-
-                            function() {
-                                selectSegmentRoute(
-                                    segment.id,
-
-                                    routeIndex
-                                );
-                            }
-                        );
-
-                        segment.routeOptionsContainer.appendChild(
-                            button
-                        );
-                    }
-                );
-
-                segment.routeOptionsBox.classList.remove(
-                    'd-none'
-                );
-            }
-
-            function selectSegmentRoute(
-                segmentId,
-
-                routeIndex
-            ) {
-                const segment =
-                    getSegment(
-                        segmentId
+                    const estimatedCost = calculateEstimatedSegmentCost(
+                        segment,
+                        routeDistance
                     );
 
-                if (
-                    !segment
-                ) {
-                    return;
-                }
+                    const button = document.createElement('button');
 
-                const route =
-                    segment.routes[
-                        routeIndex
+                    button.type = 'button';
+                    button.className = 'route-option';
+                    button.dataset.routeIndex = String(routeIndex);
+
+                    button.classList.toggle(
+                        'active',
+                        routeIndex === segment.selectedRouteIndex
+                    );
+
+                    const title = document.createElement('div');
+
+                    title.className = 'route-option-title';
+                    title.textContent =
+                        `${getRouteSummary(route, routeIndex)} — ` +
+                        `${formatDuration(routeDuration)}`;
+
+                    const details = document.createElement('div');
+
+                    details.className = 'route-option-details';
+
+                    const detailParts = [
+                        `${routeDistance.toFixed(2)} กม.`,
                     ];
 
-                if (
-                    !route
-                ) {
-                    return;
-                }
-
-                const routeDistance =
-                    getRouteDistance(
-                        route
-                    );
-
-                if (
-                    routeDistance <= 0
-                ) {
-                    showError(
-                        'ไม่พบข้อมูลระยะทางของเส้นทางนี้'
-                    );
-
-                    return;
-                }
-
-                segment.selectedRouteIndex =
-                    routeIndex;
-
-                segment.distanceInput.value =
-                    routeDistance.toFixed(2);
-
-                refreshSegmentRouteStyles(
-                    segment
-                );
-
-                calculateSegmentFuel(
-                    segment,
-
-                    {
-                        showErrors: true,
+                    if (Number.isFinite(estimatedCost)) {
+                        detailParts.push(
+                            `ประมาณ ${estimatedCost.toFixed(2)} บาท`
+                        );
                     }
-                );
 
-                renderRouteOptions(
-                    segment
-                );
+                    details.textContent = detailParts.join(' • ');
 
+                    button.appendChild(title);
+                    button.appendChild(details);
+
+                    button.addEventListener('click', function() {
+                        selectSegmentRoute(segment.id, routeIndex);
+                    });
+
+                    segment.routeOptionsContainer.appendChild(button);
+                });
+
+                segment.routeOptionsBox.classList.remove('d-none');
+            }
+
+            function selectSegmentRoute(segmentId, routeIndex) {
+                const segment = getSegment(segmentId);
+
+                if (!segment) {
+                    return;
+                }
+
+                const route = segment.routes[routeIndex];
+
+                if (!route) {
+                    return;
+                }
+
+                const routeDistance = getRouteDistance(route);
+
+                if (routeDistance <= 0) {
+                    showError('ไม่พบข้อมูลระยะทางของเส้นทางนี้');
+                    return;
+                }
+
+                segment.selectedRouteIndex = routeIndex;
+                segment.distanceInput.value = routeDistance.toFixed(2);
+
+                refreshSegmentRouteStyles(segment);
+
+                calculateSegmentFuel(segment, {
+                    showErrors: true,
+                });
+
+                renderRouteOptions(segment);
                 refreshMapMarkers();
-
                 updateTotals();
             }
 
-            async function calculateSegmentRoute(
-                segment,
-
-                calculationVersion
-            ) {
-                if (
-                    !map ||
-                    !directionsService
-                ) {
+            async function calculateSegmentRoute(segment, calculationVersion) {
+                if (!map || !directionsService) {
                     throw new Error(
                         'Google Maps ยังโหลดไม่เสร็จ กรุณารอสักครู่'
                     );
                 }
 
-                const index =
-                    getSegmentIndex(
-                        segment.id
-                    );
+                const index = getSegmentIndex(segment.id);
+                const originText = getSegmentOriginText(index);
+                const destinationText = segment.destinationInput.value.trim();
 
-                const originText =
-                    getSegmentOriginText(
-                        index
-                    );
-
-                const destinationText =
-                    segment.destinationInput.value.trim();
-
-                if (
-                    !originText
-                ) {
+                if (!originText) {
                     throw new Error(
                         `กรุณาระบุต้นทางของช่วงที่ ${index + 1}`
                     );
                 }
 
-                if (
-                    !destinationText
-                ) {
+                if (!destinationText) {
                     throw new Error(
                         `กรุณาระบุปลายทางของช่วงที่ ${index + 1}`
                     );
                 }
 
-                getSegmentLoadInformation(
-                    segment,
-
-                    index
-                );
+                getSegmentLoadInformation(segment, index);
 
                 const origin =
-                    getSegmentOriginLocation(
-                        index
-                    ) ||
+                    getSegmentOriginLocation(index) ||
                     originText;
 
                 const destination =
                     segment.destinationLocation ||
                     destinationText;
 
-                const result =
-                    await directionsService.route({
-                        origin,
+                const result = await directionsService.route({
+                    origin,
+                    destination,
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    region: 'TH',
+                    provideRouteAlternatives: true,
+                    avoidFerries: true,
+                });
 
-                        destination,
-
-                        travelMode: google.maps.TravelMode.DRIVING,
-
-                        region: 'TH',
-
-                        provideRouteAlternatives: true,
-
-                        avoidFerries: true,
-                    });
-
-                if (
-                    calculationVersion !==
-                    routeCalculationVersion
-                ) {
+                if (calculationVersion !== routeCalculationVersion) {
                     return false;
                 }
 
                 if (
-                    !Array.isArray(
-                        result.routes
-                    ) ||
+                    !Array.isArray(result.routes) ||
                     result.routes.length === 0
                 ) {
                     throw new Error(
@@ -2873,369 +1937,205 @@
                     );
                 }
 
-                clearSegmentRoute(
-                    segment
-                );
+                clearSegmentRoute(segment);
 
-                segment.routes =
-                    result.routes;
+                segment.routes = result.routes;
+                segment.selectedRouteIndex = 0;
 
-                segment.selectedRouteIndex =
-                    0;
-
-                drawSegmentRoutes(
-                    segment
-                );
-
-                renderRouteOptions(
-                    segment
-                );
-
-                selectSegmentRoute(
-                    segment.id,
-
-                    0
-                );
+                drawSegmentRoutes(segment);
+                renderRouteOptions(segment);
+                selectSegmentRoute(segment.id, 0);
 
                 return true;
             }
 
             function fitRoutesToMap() {
-                if (
-                    !map
-                ) {
+                if (!map) {
                     return;
                 }
 
-                const bounds =
-                    new google.maps.LatLngBounds();
+                const bounds = new google.maps.LatLngBounds();
+                let hasPoints = false;
 
-                let hasPoints =
-                    false;
+                segments.forEach(function(segment) {
+                    const route = segment.routes[
+                        segment.selectedRouteIndex
+                    ];
 
-                segments.forEach(
-                    function(segment) {
-                        const route =
-                            segment.routes[
-                                segment.selectedRouteIndex
-                            ];
-
-                        if (
-                            !route
-                        ) {
-                            return;
-                        }
-
-                        const path =
-                            getRoutePath(
-                                route
-                            );
-
-                        path.forEach(
-                            function(position) {
-                                bounds.extend(
-                                    position
-                                );
-
-                                hasPoints =
-                                    true;
-                            }
-                        );
+                    if (!route) {
+                        return;
                     }
-                );
 
-                if (
-                    hasPoints
-                ) {
-                    map.fitBounds(
-                        bounds,
+                    const path = getRoutePath(route);
 
-                        60
-                    );
+                    path.forEach(function(position) {
+                        bounds.extend(position);
+                        hasPoints = true;
+                    });
+                });
+
+                if (hasPoints) {
+                    map.fitBounds(bounds, 60);
                 }
             }
 
-            function normalizeDirectionsError(
-                error
-            ) {
-                const errorText =
-                    String(
-                        error?.code ||
-                        error?.message ||
-                        error
-                    );
+            function normalizeDirectionsError(error) {
+                const errorText = String(
+                    error?.code ||
+                    error?.message ||
+                    error
+                );
 
-                if (
-                    errorText.includes(
-                        'ZERO_RESULTS'
-                    )
-                ) {
+                if (errorText.includes('ZERO_RESULTS')) {
                     return 'ไม่พบเส้นทางรถยนต์ระหว่างสถานที่ที่เลือก';
                 }
 
-                if (
-                    errorText.includes(
-                        'NOT_FOUND'
-                    )
-                ) {
+                if (errorText.includes('NOT_FOUND')) {
                     return 'ไม่พบสถานที่ กรุณาเลือกสถานที่จากรายการที่ Google แนะนำ';
                 }
 
                 if (
-                    errorText.includes(
-                        'REQUEST_DENIED'
-                    ) ||
-                    errorText.includes(
-                        'API_KEY'
-                    )
+                    errorText.includes('REQUEST_DENIED') ||
+                    errorText.includes('API_KEY')
                 ) {
-                    return 'Google ปฏิเสธคำขอ กรุณาตรวจสอบ Billing, Directions API, Places API และ API Key';
+                    return 'Google ปฏิเสธคำขอ กรุณาตรวจสอบ Billing, ' +
+                        'Directions API, Places API และ API Key';
                 }
 
-                if (
-                    errorText.includes(
-                        'OVER_QUERY_LIMIT'
-                    )
-                ) {
-                    return 'มีการเรียก Google Maps มากเกินไป กรุณารอสักครู่แล้วลองใหม่';
+                if (errorText.includes('OVER_QUERY_LIMIT')) {
+                    return 'มีการเรียก Google Maps มากเกินไป ' +
+                        'กรุณารอสักครู่แล้วลองใหม่';
                 }
 
-                return error.message ||
-                    'ไม่สามารถคำนวณเส้นทางได้';
+                return error.message || 'ไม่สามารถคำนวณเส้นทางได้';
             }
 
             async function calculateAllRoutes() {
-                if (
-                    !segments.length
-                ) {
-                    showError(
-                        'กรุณาเพิ่มปลายทางอย่างน้อย 1 จุด'
-                    );
-
+                if (!segments.length) {
+                    showError('กรุณาเพิ่มปลายทางอย่างน้อย 1 จุด');
                     return false;
                 }
 
-                if (
-                    !startInput.value.trim()
-                ) {
-                    showError(
-                        'กรุณาเลือกจุดเริ่มต้น'
-                    );
-
+                if (!startInput.value.trim()) {
+                    showError('กรุณาเลือกจุดเริ่มต้น');
                     startInput.focus();
-
                     return false;
                 }
 
-                const incompleteSegment =
-                    segments.find(
-                        function(segment) {
-                            return !segment.destinationInput.value.trim();
-                        }
-                    );
+                const incompleteSegment = segments.find(function(segment) {
+                    return !segment.destinationInput.value.trim();
+                });
 
-                if (
-                    incompleteSegment
-                ) {
-                    const index =
-                        getSegmentIndex(
-                            incompleteSegment.id
-                        );
+                if (incompleteSegment) {
+                    const index = getSegmentIndex(incompleteSegment.id);
 
                     showError(
                         `กรุณาระบุปลายทางช่วงที่ ${index + 1}`
                     );
 
                     incompleteSegment.destinationInput.focus();
-
                     return false;
                 }
 
                 routeCalculationVersion += 1;
 
-                const calculationVersion =
-                    routeCalculationVersion;
+                const calculationVersion = routeCalculationVersion;
 
                 clearError();
 
-                calculateAllRoutesButton.disabled =
-                    true;
-
-                addSegmentButton.disabled =
-                    true;
+                calculateAllRoutesButton.disabled = true;
+                addSegmentButton.disabled = true;
 
                 try {
-                    for (
-                        let index = 0; index < segments.length; index += 1
-                    ) {
-                        const segment =
-                            segments[
-                                index
-                            ];
+                    for (let index = 0; index < segments.length; index += 1) {
+                        const segment = segments[index];
 
                         showStatus(
-                            `กำลังคำนวณช่วงที่ ${index + 1} จาก ${segments.length} ช่วง...`
+                            `กำลังคำนวณช่วงที่ ${index + 1} ` +
+                            `จาก ${segments.length} ช่วง...`
                         );
 
-                        const completed =
-                            await calculateSegmentRoute(
-                                segment,
+                        const completed = await calculateSegmentRoute(
+                            segment,
+                            calculationVersion
+                        );
 
-                                calculationVersion
-                            );
-
-                        if (
-                            !completed
-                        ) {
+                        if (!completed) {
                             return false;
                         }
                     }
 
                     refreshMapMarkers();
-
                     fitRoutesToMap();
-
                     renderMapLegend();
-
                     updateTotals();
 
-                    if (
-                        !errorElement.classList.contains(
-                            'd-none'
-                        )
-                    ) {
+                    if (!errorElement.classList.contains('d-none')) {
                         return false;
                     }
 
                     showStatus(
-                        `คำนวณครบ ${segments.length} ช่วง ระยะทางรวม ${distanceInput.value || '0.00'} กม.`
+                        `คำนวณครบ ${segments.length} ช่วง ` +
+                        `ระยะทางรวม ${distanceInput.value || '0.00'} กม.`
                     );
 
                     return true;
                 } catch (error) {
-                    showError(
-                        normalizeDirectionsError(
-                            error
-                        )
-                    );
-
-                    console.error(
-                        'Google Directions error:',
-
-                        error
-                    );
-
+                    showError(normalizeDirectionsError(error));
+                    console.error('Google Directions error:', error);
                     return false;
                 } finally {
-                    calculateAllRoutesButton.disabled =
-                        false;
-
-                    addSegmentButton.disabled =
-                        false;
+                    calculateAllRoutesButton.disabled = false;
+                    addSegmentButton.disabled = false;
                 }
             }
 
             function renderMapLegend() {
-                mapLegend.innerHTML =
-                    '';
+                mapLegend.innerHTML = '';
 
-                segments.forEach(
-                    function(
-                        segment,
+                segments.forEach(function(segment, index) {
+                    const item = document.createElement('div');
+                    item.className = 'map-legend-item';
 
-                        index
-                    ) {
-                        const item =
-                            document.createElement(
-                                'div'
-                            );
+                    const dot = document.createElement('span');
+                    dot.className = 'map-legend-dot';
+                    dot.style.backgroundColor = getRouteColor(index);
 
-                        item.className =
-                            'map-legend-item';
+                    const label = document.createElement('span');
+                    label.textContent = `ช่วงที่ ${index + 1}`;
 
-                        const dot =
-                            document.createElement(
-                                'span'
-                            );
-
-                        dot.className =
-                            'map-legend-dot';
-
-                        dot.style.backgroundColor =
-                            getRouteColor(
-                                index
-                            );
-
-                        const label =
-                            document.createElement(
-                                'span'
-                            );
-
-                        label.textContent =
-                            `ช่วงที่ ${index + 1}`;
-
-                        item.appendChild(
-                            dot
-                        );
-
-                        item.appendChild(
-                            label
-                        );
-
-                        mapLegend.appendChild(
-                            item
-                        );
-                    }
-                );
+                    item.appendChild(dot);
+                    item.appendChild(label);
+                    mapLegend.appendChild(item);
+                });
             }
 
-            async function assignStartPlace(
-                label,
+            async function assignStartPlace(label, location) {
+                startInput.value = label;
+                startLocation = location;
 
-                location
-            ) {
-                startInput.value =
-                    label;
-
-                startLocation =
-                    location;
-
-                invalidateSegmentAndFollowing(
-                    0
-                );
-
+                invalidateSegmentAndFollowing(0);
                 clearError();
 
                 setActiveField(
                     'destination',
-
                     segments[0]?.id || null
                 );
 
                 refreshMapMarkers();
 
-                if (
-                    map &&
-                    location
-                ) {
-                    map.panTo(
-                        location
-                    );
-
-                    map.setZoom(
-                        15
-                    );
+                if (map && location) {
+                    map.panTo(location);
+                    map.setZoom(15);
                 }
 
                 if (
                     segments.length &&
-                    segments.every(
-                        function(segment) {
-                            return Boolean(
-                                segment.destinationInput.value.trim()
-                            );
-                        }
-                    )
+                    segments.every(function(segment) {
+                        return Boolean(
+                            segment.destinationInput.value.trim()
+                        );
+                    })
                 ) {
                     await calculateAllRoutes();
                 } else {
@@ -3245,75 +2145,36 @@
                 }
             }
 
-            async function assignSegmentPlace(
-                segment,
+            async function assignSegmentPlace(segment, label, location) {
+                const index = getSegmentIndex(segment.id);
 
-                label,
+                segment.destinationInput.value = label;
+                segment.destinationLocation = location;
 
-                location
-            ) {
-                const index =
-                    getSegmentIndex(
-                        segment.id
-                    );
-
-                segment.destinationInput.value =
-                    label;
-
-                segment.destinationLocation =
-                    location;
-
-                invalidateSegmentAndFollowing(
-                    index
-                );
-
+                invalidateSegmentAndFollowing(index);
                 clearError();
-
                 refreshMapMarkers();
 
-                if (
-                    map &&
-                    location
-                ) {
-                    map.panTo(
-                        location
-                    );
-
-                    map.setZoom(
-                        15
-                    );
+                if (map && location) {
+                    map.panTo(location);
+                    map.setZoom(15);
                 }
 
-                const nextSegment =
-                    segments[
-                        index + 1
-                    ];
+                const nextSegment = segments[index + 1];
 
-                if (
-                    nextSegment
-                ) {
-                    setActiveField(
-                        'destination',
-
-                        nextSegment.id
-                    );
+                if (nextSegment) {
+                    setActiveField('destination', nextSegment.id);
                 } else {
-                    setActiveField(
-                        'destination',
-
-                        segment.id
-                    );
+                    setActiveField('destination', segment.id);
                 }
 
                 if (
                     startInput.value.trim() &&
-                    segments.every(
-                        function(item) {
-                            return Boolean(
-                                item.destinationInput.value.trim()
-                            );
-                        }
-                    )
+                    segments.every(function(item) {
+                        return Boolean(
+                            item.destinationInput.value.trim()
+                        );
+                    })
                 ) {
                     await calculateAllRoutes();
                 } else {
@@ -3324,71 +2185,48 @@
             }
 
             function initializeStartAutocomplete() {
-                if (
-                    !map ||
-                    !google.maps.places
-                ) {
+                if (!map || !google.maps.places) {
                     return;
                 }
 
-                startAutocomplete =
-                    new google.maps.places.Autocomplete(
-                        startInput,
-
-                        {
-                            componentRestrictions: {
-                                country: 'th',
-                            },
-
-                            fields: [
-                                'place_id',
-
-                                'name',
-
-                                'formatted_address',
-
-                                'geometry',
-                            ],
-                        }
-                    );
-
-                startAutocomplete.bindTo(
-                    'bounds',
-
-                    map
+                startAutocomplete = new google.maps.places.Autocomplete(
+                    startInput,
+                    {
+                        componentRestrictions: {
+                            country: 'th',
+                        },
+                        fields: [
+                            'place_id',
+                            'name',
+                            'formatted_address',
+                            'geometry',
+                        ],
+                    }
                 );
+
+                startAutocomplete.bindTo('bounds', map);
 
                 startAutocomplete.addListener(
                     'place_changed',
-
                     async function() {
-                        const place =
-                            startAutocomplete.getPlace();
+                        const place = startAutocomplete.getPlace();
 
-                        if (
-                            !place?.geometry?.location
-                        ) {
+                        if (!place?.geometry?.location) {
                             showError(
                                 'สถานที่นี้ไม่มีข้อมูลพิกัด กรุณาเลือกสถานที่ใหม่'
                             );
-
                             return;
                         }
 
                         await assignStartPlace(
-                            buildPlaceLabel(
-                                place
-                            ),
-
+                            buildPlaceLabel(place),
                             place.geometry.location
                         );
                     }
                 );
             }
 
-            function initializeSegmentAutocomplete(
-                segment
-            ) {
+            function initializeSegmentAutocomplete(segment) {
                 if (
                     !map ||
                     !google.maps.places ||
@@ -3397,122 +2235,73 @@
                     return;
                 }
 
-                const autocomplete =
-                    new google.maps.places.Autocomplete(
-                        segment.destinationInput,
-
-                        {
-                            componentRestrictions: {
-                                country: 'th',
-                            },
-
-                            fields: [
-                                'place_id',
-
-                                'name',
-
-                                'formatted_address',
-
-                                'geometry',
-                            ],
-                        }
-                    );
-
-                autocomplete.bindTo(
-                    'bounds',
-
-                    map
+                const autocomplete = new google.maps.places.Autocomplete(
+                    segment.destinationInput,
+                    {
+                        componentRestrictions: {
+                            country: 'th',
+                        },
+                        fields: [
+                            'place_id',
+                            'name',
+                            'formatted_address',
+                            'geometry',
+                        ],
+                    }
                 );
+
+                autocomplete.bindTo('bounds', map);
 
                 autocomplete.addListener(
                     'place_changed',
-
                     async function() {
-                        const place =
-                            autocomplete.getPlace();
+                        const place = autocomplete.getPlace();
 
-                        if (
-                            !place?.geometry?.location
-                        ) {
+                        if (!place?.geometry?.location) {
                             showError(
                                 'สถานที่นี้ไม่มีข้อมูลพิกัด กรุณาเลือกสถานที่ใหม่'
                             );
-
                             return;
                         }
 
                         await assignSegmentPlace(
                             segment,
-
-                            buildPlaceLabel(
-                                place
-                            ),
-
+                            buildPlaceLabel(place),
                             place.geometry.location
                         );
                     }
                 );
 
-                segment.autocomplete =
-                    autocomplete;
+                segment.autocomplete = autocomplete;
             }
 
-            async function assignCoordinates(
-                position
-            ) {
-                const coordinates =
-                    formatCoordinates(
-                        position
-                    );
+            async function assignCoordinates(position) {
+                const coordinates = formatCoordinates(position);
 
-                if (
-                    activeField.type === 'start'
-                ) {
-                    await assignStartPlace(
-                        coordinates,
-
-                        position
-                    );
-
+                if (activeField.type === 'start') {
+                    await assignStartPlace(coordinates, position);
                     return;
                 }
 
-                const segment =
-                    getSegment(
-                        activeField.segmentId
-                    );
+                const segment = getSegment(activeField.segmentId);
 
-                if (
-                    !segment
-                ) {
+                if (!segment) {
                     showError(
                         'กรุณาเลือกช่องปลายทางที่ต้องการก่อน'
                     );
-
                     return;
                 }
 
                 await assignSegmentPlace(
                     segment,
-
                     coordinates,
-
                     position
                 );
             }
 
-            function selectMapPlace(
-                placeId,
-
-                fallbackPosition
-            ) {
-                if (
-                    !placesService
-                ) {
-                    assignCoordinates(
-                        fallbackPosition
-                    );
-
+            function selectMapPlace(placeId, fallbackPosition) {
+                if (!placesService) {
+                    assignCoordinates(fallbackPosition);
                     return;
                 }
 
@@ -3520,149 +2309,91 @@
                     ...activeField,
                 };
 
-                placesService.getDetails({
+                placesService.getDetails(
+                    {
                         placeId,
-
                         fields: [
                             'place_id',
-
                             'name',
-
                             'formatted_address',
-
                             'geometry',
                         ],
                     },
-
-                    async function(
-                        place,
-
-                        status
-                    ) {
+                    async function(place, status) {
                         if (
-                            status !==
-                            google.maps.places.PlacesServiceStatus.OK ||
+                            status !== google.maps.places.PlacesServiceStatus.OK ||
                             !place?.geometry?.location
                         ) {
-                            activeField =
-                                selectedField;
+                            activeField = selectedField;
 
-                            await assignCoordinates(
-                                fallbackPosition
-                            );
-
+                            await assignCoordinates(fallbackPosition);
                             return;
                         }
 
-                        const label =
-                            buildPlaceLabel(
-                                place
-                            );
+                        const label = buildPlaceLabel(place);
+                        const location = place.geometry.location;
 
-                        const location =
-                            place.geometry.location;
-
-                        if (
-                            selectedField.type === 'start'
-                        ) {
-                            await assignStartPlace(
-                                label,
-
-                                location
-                            );
-
+                        if (selectedField.type === 'start') {
+                            await assignStartPlace(label, location);
                             return;
                         }
 
-                        const segment =
-                            getSegment(
-                                selectedField.segmentId
-                            );
+                        const segment = getSegment(
+                            selectedField.segmentId
+                        );
 
-                        if (
-                            !segment
-                        ) {
+                        if (!segment) {
                             return;
                         }
 
                         await assignSegmentPlace(
                             segment,
-
                             label,
-
                             location
                         );
                     }
                 );
             }
 
-            function handleMapClick(
-                event
-            ) {
+            function handleMapClick(event) {
                 clearError();
 
-                if (
-                    !event.latLng
-                ) {
+                if (!event.latLng) {
                     return;
                 }
 
-                if (
-                    event.placeId
-                ) {
+                if (event.placeId) {
                     event.stop();
 
                     selectMapPlace(
                         event.placeId,
-
                         event.latLng
                     );
 
                     return;
                 }
 
-                assignCoordinates(
-                    event.latLng
-                );
+                assignCoordinates(event.latLng);
             }
 
             function resetAllRoutes() {
                 routeCalculationVersion += 1;
 
-                startInput.value =
-                    '';
+                startInput.value = '';
+                startLocation = null;
 
-                startLocation =
-                    null;
+                segments.forEach(function(segment) {
+                    clearSegmentRoute(segment);
 
-                segments.forEach(
-                    function(segment) {
-                        clearSegmentRoute(
-                            segment
-                        );
+                    segment.destinationInput.value = '';
+                    segment.destinationLocation = null;
+                    segment.weightInput.value = '0';
 
-                        segment.destinationInput.value =
-                            '';
+                    updateSegmentPreview(segment);
+                });
 
-                        segment.destinationLocation =
-                            null;
-
-                        segment.weightInput.value =
-                            '0';
-
-                        updateSegmentPreview(
-                            segment
-                        );
-                    }
-                );
-
-                while (
-                    segments.length > 1
-                ) {
-                    const lastSegment =
-                        segments[
-                            segments.length - 1
-                        ];
+                while (segments.length > 1) {
+                    const lastSegment = segments[segments.length - 1];
 
                     if (
                         lastSegment.autocomplete &&
@@ -3674,376 +2405,233 @@
                     }
 
                     lastSegment.card.remove();
-
                     segments.pop();
                 }
 
                 removeMapMarkers();
-
                 refreshSegmentIndexes();
-
                 updateTotals();
-
                 clearError();
-
                 clearStatus();
+                setActiveField('start');
 
-                setActiveField(
-                    'start'
-                );
-
-                if (
-                    map
-                ) {
-                    map.setCenter(
-                        defaultCenter
-                    );
-
-                    map.setZoom(
-                        11
-                    );
+                if (map) {
+                    map.setCenter(defaultCenter);
+                    map.setZoom(11);
                 }
 
                 startInput.focus();
             }
 
             function validateBeforeSubmit() {
-                if (
-                    !startInput.value.trim()
-                ) {
-                    throw new Error(
-                        'กรุณาระบุจุดเริ่มต้น'
-                    );
+                if (!startInput.value.trim()) {
+                    throw new Error('กรุณาระบุจุดเริ่มต้น');
                 }
 
-                if (
-                    !segments.length
-                ) {
+                if (!segments.length) {
                     throw new Error(
                         'กรุณาเพิ่มปลายทางอย่างน้อย 1 จุด'
                     );
                 }
 
-                segments.forEach(
-                    function(
-                        segment,
-
-                        index
-                    ) {
-                        if (
-                            !segment.destinationInput.value.trim()
-                        ) {
-                            throw new Error(
-                                `กรุณาระบุปลายทางช่วงที่ ${index + 1}`
-                            );
-                        }
-
-                        const distance =
-                            Number.parseFloat(
-                                segment.distanceInput.value
-                            );
-
-                        getSegmentFuelInformation(
-                            segment,
-
-                            distance
+                segments.forEach(function(segment, index) {
+                    if (!segment.destinationInput.value.trim()) {
+                        throw new Error(
+                            `กรุณาระบุปลายทางช่วงที่ ${index + 1}`
                         );
                     }
-                );
+
+                    const distance = Number.parseFloat(
+                        segment.distanceInput.value
+                    );
+
+                    getSegmentFuelInformation(segment, distance);
+                });
 
                 updateLegacyFields();
-
                 updateTotals();
             }
 
-            window.initGoogleMap =
-                function() {
-                    map =
-                        new google.maps.Map(
-                            document.getElementById(
-                                'map'
-                            ),
-
-                            {
-                                center: defaultCenter,
-
-                                zoom: 11,
-
-                                mapTypeControl: false,
-
-                                streetViewControl: false,
-
-                                fullscreenControl: true,
-
-                                clickableIcons: true,
-                            }
-                        );
-
-                    directionsService =
-                        new google.maps.DirectionsService();
-
-                    if (
-                        google.maps.places
-                    ) {
-                        placesService =
-                            new google.maps.places.PlacesService(
-                                map
-                            );
-
-                        initializeStartAutocomplete();
-
-                        segments.forEach(
-                            function(segment) {
-                                initializeSegmentAutocomplete(
-                                    segment
-                                );
-                            }
-                        );
-                    } else {
-                        showError(
-                            'Google Places โหลดไม่สำเร็จ กรุณาตรวจสอบ Places API'
-                        );
+            window.initGoogleMap = function() {
+                map = new google.maps.Map(
+                    document.getElementById('map'),
+                    {
+                        center: defaultCenter,
+                        zoom: 11,
+                        mapTypeControl: false,
+                        streetViewControl: false,
+                        fullscreenControl: true,
+                        clickableIcons: true,
                     }
+                );
 
-                    map.addListener(
-                        'click',
+                directionsService = new google.maps.DirectionsService();
 
-                        handleMapClick
-                    );
+                if (google.maps.places) {
+                    placesService = new google.maps.places.PlacesService(map);
 
-                    setActiveField(
-                        'start'
-                    );
+                    initializeStartAutocomplete();
 
-                    if (
-                        startInput.value.trim() &&
-                        segments.length &&
-                        segments.every(
-                            function(segment) {
-                                return Boolean(
-                                    segment.destinationInput.value.trim()
-                                );
-                            }
-                        )
-                    ) {
-                        calculateAllRoutes();
-                    }
-                };
-
-            window.gm_authFailure =
-                function() {
+                    segments.forEach(function(segment) {
+                        initializeSegmentAutocomplete(segment);
+                    });
+                } else {
                     showError(
-                        'Google Maps โหลดไม่ได้ กรุณาตรวจสอบ API Key, Billing และ Website restrictions'
-                    );
-                };
-
-            initialSegments.forEach(
-                function(segmentData) {
-                    createSegment(
-                        segmentData
+                        'Google Places โหลดไม่สำเร็จ กรุณาตรวจสอบ Places API'
                     );
                 }
-            );
 
-            if (
-                !segments.length
-            ) {
+                map.addListener('click', handleMapClick);
+
+                setActiveField('start');
+
+                if (
+                    startInput.value.trim() &&
+                    segments.length &&
+                    segments.every(function(segment) {
+                        return Boolean(
+                            segment.destinationInput.value.trim()
+                        );
+                    })
+                ) {
+                    calculateAllRoutes();
+                }
+            };
+
+            window.gm_authFailure = function() {
+                showError(
+                    'Google Maps โหลดไม่ได้ กรุณาตรวจสอบ API Key, ' +
+                    'Billing และ Website restrictions'
+                );
+            };
+
+            initialSegments.forEach(function(segmentData) {
+                createSegment(segmentData);
+            });
+
+            if (!segments.length) {
                 createSegment();
             }
 
-            startInput.addEventListener(
-                'focus',
+            startInput.addEventListener('focus', function() {
+                setActiveField('start');
+            });
 
-                function() {
-                    setActiveField(
-                        'start'
+            startInput.addEventListener('input', function() {
+                startLocation = null;
+
+                invalidateSegmentAndFollowing(0);
+                clearError();
+                clearStatus();
+            });
+
+            addSegmentButton.addEventListener('click', function() {
+                const lastSegment = segments[segments.length - 1];
+
+                if (
+                    lastSegment &&
+                    !lastSegment.destinationInput.value.trim()
+                ) {
+                    showError(
+                        'กรุณาระบุปลายทางของช่วงล่าสุดก่อนเพิ่มสถานที่ถัดไป'
                     );
+
+                    lastSegment.destinationInput.focus();
+                    return;
                 }
-            );
 
-            startInput.addEventListener(
-                'input',
+                clearError();
 
-                function() {
-                    startLocation =
-                        null;
+                const segment = createSegment({
+                    load_weight: 0,
+                });
 
-                    invalidateSegmentAndFollowing(
-                        0
-                    );
+                setActiveField('destination', segment.id);
 
-                    clearError();
+                segment.destinationInput.focus();
 
-                    clearStatus();
-                }
-            );
-
-            addSegmentButton.addEventListener(
-                'click',
-
-                function() {
-                    const lastSegment =
-                        segments[
-                            segments.length - 1
-                        ];
-
-                    if (
-                        lastSegment &&
-                        !lastSegment.destinationInput.value.trim()
-                    ) {
-                        showError(
-                            'กรุณาระบุปลายทางของช่วงล่าสุดก่อนเพิ่มสถานที่ถัดไป'
-                        );
-
-                        lastSegment.destinationInput.focus();
-
-                        return;
-                    }
-
-                    clearError();
-
-                    const segment =
-                        createSegment({
-                            load_weight: 0,
-                        });
-
-                    setActiveField(
-                        'destination',
-
-                        segment.id
-                    );
-
-                    segment.destinationInput.focus();
-
-                    showStatus(
-                        `เพิ่มช่วงที่ ${segments.length} แล้ว`
-                    );
-                }
-            );
+                showStatus(`เพิ่มช่วงที่ ${segments.length} แล้ว`);
+            });
 
             calculateAllRoutesButton.addEventListener(
                 'click',
-
                 calculateAllRoutes
             );
 
-            clearRoutesButton.addEventListener(
-                'click',
+            // ปุ่มนี้อาจถูกคอมเมนต์ไว้ใน HTML
+            if (clearRoutesButton) {
+                clearRoutesButton.addEventListener(
+                    'click',
+                    resetAllRoutes
+                );
+            }
 
-                resetAllRoutes
-            );
+            // เปลี่ยนรถแล้วดึงอัตราสิ้นเปลืองจาก Truck ใหม่
+            truckSelect.addEventListener('change', function() {
+                updateTruckInformation();
+                clearError();
 
-            truckSelect.addEventListener(
-                'change',
+                updateAllFuelCalculations({
+                    showErrors: true,
+                });
+            });
 
-                function() {
-                    updateTruckInformation();
+            fuelPriceInput.addEventListener('input', function() {
+                clearError();
 
-                    clearError();
+                updateAllFuelCalculations({
+                    showErrors: true,
+                });
+            });
 
-                    updateAllFuelCalculations({
-                        showErrors: true,
-                    });
+            form.addEventListener('keydown', function(event) {
+                if (
+                    event.key === 'Enter' &&
+                    event.target !== startInput &&
+                    !event.target.classList.contains('segment-destination')
+                ) {
+                    event.preventDefault();
                 }
-            );
+            });
 
-            // เมื่อเปลี่ยนวันที่บันทึก ให้คำนวณอายุรถและทุกช่วงใหม่
-            dateRecordInput.addEventListener(
-                'change',
+            form.addEventListener('submit', function(event) {
+                try {
+                    validateBeforeSubmit();
+                } catch (error) {
+                    event.preventDefault();
 
-                function() {
-                    updateTruckInformation();
-
-                    clearError();
-
-                    updateAllFuelCalculations({
-                        showErrors: true,
-                    });
+                    showError(
+                        error.message ||
+                        'กรุณาตรวจสอบข้อมูลก่อนบันทึก'
+                    );
                 }
-            );
-
-            fuelPriceInput.addEventListener(
-                'input',
-
-                function() {
-                    clearError();
-
-                    updateAllFuelCalculations({
-                        showErrors: true,
-                    });
-                }
-            );
-
-            form.addEventListener(
-                'keydown',
-
-                function(event) {
-                    if (
-                        event.key === 'Enter' &&
-                        event.target !== startInput &&
-                        !event.target.classList.contains(
-                            'segment-destination'
-                        )
-                    ) {
-                        event.preventDefault();
-                    }
-                }
-            );
-
-            form.addEventListener(
-                'submit',
-
-                function(event) {
-                    try {
-                        validateBeforeSubmit();
-                    } catch (error) {
-                        event.preventDefault();
-
-                        showError(
-                            error.message ||
-                            'กรุณาตรวจสอบข้อมูลก่อนบันทึก'
-                        );
-                    }
-                }
-            );
+            });
 
             updateTruckInformation();
 
-            segments.forEach(
-                function(segment) {
-                    updateSegmentPreview(
-                        segment
-                    );
-
-                    calculateSegmentFuel(
-                        segment
-                    );
-                }
-            );
+            segments.forEach(function(segment) {
+                updateSegmentPreview(segment);
+                calculateSegmentFuel(segment);
+            });
 
             updateTotals();
-
             renderMapLegend();
         })();
     </script>
 
     @if (config('services.google_maps.key'))
-        <script async
-            src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&libraries=places&callback=initGoogleMap&loading=async&language=th&region=TH">
-        </script>
+        <script
+            async
+            src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&libraries=places&callback=initGoogleMap&loading=async&language=th&region=TH"
+        ></script>
     @else
         <script>
-            const mapError =
-                document.getElementById(
-                    'map_error'
-                );
+            const mapError = document.getElementById('map_error');
 
             mapError.textContent =
                 'ยังไม่ได้ตั้งค่า GOOGLE_MAPS_API_KEY ในไฟล์ .env';
 
-            mapError.classList.remove(
-                'd-none'
-            );
+            mapError.classList.remove('d-none');
         </script>
     @endif
 @endsection
