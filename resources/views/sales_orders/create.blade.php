@@ -40,7 +40,7 @@
                 @else
                     <div class="list-group">
                         @foreach ($quotations as $item)
-                            <a href="{{ route('sales-orders.create', ['quotation' => $item->id_quot]) }}"
+                            <a href="{{ route('sales_orders.create', ['quotation' => $item->id_quot]) }}"
                                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                                 <div>
                                     <span class="fw-semibold">{{ $item->code_quot }}</span>
@@ -74,12 +74,12 @@
                 สร้างจากใบเสนอราคา <strong>{{ $quotation->code_quot }}</strong>
                 — {{ $quotation->customer->name_customer ?? '-' }}
             </div>
-            <a href="{{ route('sales-orders.create') }}" class="btn btn-sm btn-outline-secondary">
+            <a href="{{ route('sales_orders.create') }}" class="btn btn-sm btn-outline-secondary">
                 เปลี่ยนใบเสนอราคา
             </a>
         </div>
 
-        <form method="POST" action="{{ route('sales-orders.store') }}" autocomplete="off"
+        <form method="POST" action="{{ route('sales_orders.store') }}" autocomplete="off"
             data-confirm="ต้องการบันทึกใบสั่งขายนี้หรือไม่" data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
             <input type="hidden" name="id_quot" value="{{ $quotation->id_quot }}">
@@ -124,7 +124,7 @@
             ])
 
             <div class="d-flex justify-content-end gap-2">
-                <a href="{{ route('sales-orders.index') }}" class="btn btn-outline-secondary">ยกเลิก</a>
+                <a href="{{ route('sales_orders.index') }}" class="btn btn-outline-secondary">ยกเลิก</a>
                 <button class="btn btn-dark">บันทึกเป็นร่าง</button>
             </div>
         </form>

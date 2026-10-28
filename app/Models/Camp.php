@@ -41,9 +41,34 @@ class Camp extends Model
         'note',
     ];
 
+    /**
+     * วงจรของแคมป์
+     *   preparing → active → completed → closed
+     *   เตรียมงาน   ดำเนินงาน  ส่งครบ รอเก็บเงิน  ปิดแคมป์
+     */
     public const STATUS_LABELS = [
-        'active' => 'เปิดใช้งาน',
-        'closed' => 'ปิดแคมป์แล้ว',
+        'preparing' => 'เตรียมงาน',
+        'active'    => 'กำลังดำเนินงาน',
+        'completed' => 'ส่งงานครบ รอเก็บเงิน',
+        'closed'    => 'ปิดแคมป์แล้ว',
+    ];
+
+    public const STATUS_COLORS = [
+        'preparing' => 'info',
+        'active'    => 'success',
+        'completed' => 'warning',
+        'closed'    => 'secondary',
+    ];
+
+    /** สถานะที่ยังส่งของ / วิ่งรถ / บันทึกน้ำมันได้ */
+    public const WORKING_STATUSES = ['preparing', 'active'];
+
+    /** ปุ่มขั้นถัดไปบนหน้าแคมป์: สถานะปัจจุบัน => [สถานะถัดไป, ข้อความปุ่ม, ไอคอน] */
+    public const NEXT_STEP = [
+        'preparing' => ['active',    'เริ่มดำเนินงาน',        'bi-play-circle'],
+        'active'    => ['completed', 'ส่งงานครบแล้ว',        'bi-check2-circle'],
+        'completed' => ['closed',    'ปิดแคมป์',            'bi-lock'],
+        'closed'    => ['active',    'เปิดแคมป์อีกครั้ง',      'bi-unlock'],
     ];
 
     /** สถานะใบสั่งขายที่นับเป็นยอดตามสัญญา (ไม่นับร่างและที่ยกเลิก) */
@@ -272,9 +297,105 @@ class Camp extends Model
 
     /* ==================== Scopes & Accessors ==================== */
 
+    /** แคมป์ที่ยังทำงานอยู่ (เตรียมงาน / กำลังดำเนินงาน) — ส่งของ วิ่งรถ บันทึกน้ำมันได้ */
     public function scopeActive($query)
     {
-        return $query->where('status_camp', 'active');
+        return $query->whereIn('status_camp', self::WORKING_STATUSES);
+    }
+
+    /** แคมป์ที่ยังไม่ปิด — รับเงินล่วงหน้า / เพิ่มใบสั่งขาย / ออกใบแจ้งหนี้ได้ */
+    public function scopeOpen($query)
+    {
+        return $query->where('status_camp', '!=', 'closed');
+    }
+
+    public function isWorking(): bool
+    {
+        return in_array($this->status_camp, self::WORKING_STATUSES, true);
+    }
+
+    public function isOpen(): bool
+    {
+        return $this->status_camp !== 'closed';
+    }
+
+    public function getStatusColorAttribute(): string
+    {
+        return self::STATUS_COLORS[$this->status_camp] ?? 'secondary';
+    }
+
+    /** ส่งของใบแรกแล้ว → แคมป์ที่ยังเตรียมงานอยู่ ถือว่าเริ่มงาน */
+    public function markStartedIfPreparing(): void
+    {
+        if ($this->status_camp === 'preparing') {
+            $this->update(['status_camp' => 'active']);
+        }
+    }
+
+    /**
+     * เหตุผลที่ลบแคมป์ไม่ได้ (ว่าง = ลบได้)
+     *
+     * แคมป์ที่มีเอกสารแล้วต้องเก็บไว้ ให้ใช้ "ปิดแคมป์" แทน
+     * นับเอกสารที่ยกเลิกแล้วด้วย เพราะเอกสารเหล่านั้นยังอ้างถึงแคมป์นี้อยู่
+     */
+    public function deleteBlocker(): ?string
+    {
+        $reasons = [];
+
+        if ($n = $this->deliveryNotes()->withTrashed()->count()) {
+            $reasons[] = "ใบส่งของ {$n} ใบ";
+        }
+        if ($n = $this->invoices()->withTrashed()->count()) {
+            $reasons[] = "ใบแจ้งหนี้ {$n} ใบ";
+        }
+        if ($n = $this->receipts()->withTrashed()->count()) {
+            $reasons[] = "ใบเสร็จ {$n} ใบ";
+        }
+        if ($n = FuelRecord::where('id_camp', $this->id_camp)->count()) {
+            $reasons[] = "บันทึกน้ำมัน {$n} รายการ";
+        }
+        if ($n = $this->activeTrucks()->count()) {
+            $reasons[] = "รถประจำแคมป์ {$n} คัน";
+        }
+
+        return $reasons ? 'มี' . implode(' · ', $reasons) . ' — ใช้ "ปิดแคมป์" แทน' : null;
+    }
+
+    /**
+     * เหตุผลที่ยังปิดแคมป์ไม่ได้ (ว่าง = ปิดได้)
+     *
+     * ปิดแคมป์ = จบงานทั้งหมดแล้ว จึงต้อง
+     *   1. ใบส่งของทุกใบออกใบแจ้งหนี้แล้ว (ไม่มีงานที่ลืมเก็บเงิน)
+     *   2. ไม่มียอดค้างชำระ
+     *   3. เงินรับล่วงหน้าหักหมดแล้ว (ถ้าเหลือ ต้องหักในใบแจ้งหนี้ หรือคืนลูกค้าก่อน)
+     *   4. ถอนรถออกจากแคมป์หมดแล้ว
+     */
+    public function closeBlockers(): array
+    {
+        $blockers = [];
+
+        $pending = $this->deliveryNotes()->whereNull('id_invoice')->count();
+        if ($pending > 0) {
+            $blockers[] = "ใบส่งของ {$pending} ใบ ยังไม่ได้ออกใบแจ้งหนี้";
+        }
+
+        $summary = $this->financialSummary();
+
+        if ($summary['outstanding'] > 0) {
+            $blockers[] = 'ลูกค้ายังค้างชำระ ' . number_format($summary['outstanding'], 2) . ' บาท';
+        }
+
+        if ($summary['advance_balance'] > 0) {
+            $blockers[] = 'เงินรับล่วงหน้ายังเหลือ ' . number_format($summary['advance_balance'], 2)
+                . ' บาท (หักในใบแจ้งหนี้ หรือคืนลูกค้าก่อน)';
+        }
+
+        $trucks = $this->activeTrucks()->count();
+        if ($trucks > 0) {
+            $blockers[] = "ยังมีรถประจำแคมป์ {$trucks} คัน (ถอนรถออกก่อน)";
+        }
+
+        return $blockers;
     }
 
     public function getStatusLabelAttribute(): string

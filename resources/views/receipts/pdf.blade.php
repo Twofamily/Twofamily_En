@@ -229,6 +229,7 @@
 </head>
 
 <body>
+    @include('partials.pdf-cancelled', ['doc' => $receipt])
 
     <div class="footer">
         <table width="100%">
@@ -299,7 +300,7 @@
             <td>{{ $customer ? customer_address($customer) : '-' }}</td>
             <td class="label divider">ใบส่งของ</td>
             <td>
-                {{ $inv?->deliveryNote?->code_dn ?? '-' }}
+                {{ $inv?->deliveryNotes->pluck('code_dn')->implode(', ') ?: '-' }}
             </td>
         </tr>
         <tr>

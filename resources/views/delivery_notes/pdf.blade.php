@@ -160,6 +160,7 @@
 </head>
 
 <body>
+    @include('partials.pdf-cancelled', ['doc' => $deliveryNote])
 
     <div class="footer">
         <table width="100%">

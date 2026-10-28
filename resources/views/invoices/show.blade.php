@@ -16,7 +16,8 @@
     $canManage = in_array(auth()->user()->role, ['admin', 'staff']);
 
     $paid      = $invoice->paidAmount();
-    $remaining = $invoice->remainingAmount();
+    // ใบที่ยกเลิกแล้วไม่ใช่หนี้ → ไม่มียอดคงเหลือ
+    $remaining = $invoice->isCancelled() ? 0 : $invoice->remainingAmount();
 
     $showDelete = $canManage && $invoice->canEditPayments();
     $showForm   = $showDelete && $remaining > 0;
@@ -33,20 +34,19 @@
 
     {{-- ส่วนหัวเอกสาร (แบบเดียวกับใบเสนอราคา) --}}
     <div class="text-center mb-4">
-        <h2>ใบแจ้งหนี้ (Invoice)</h2>
-        <p>บริษัท Two Family Engineering Co., Ltd.</p>
-        <p>
-            โทร: 02-123-4567 |
-            ที่อยู่: 189 หมู่ที่ 14 ตำบลสูงเนิน อำเภอสูงเนิน
-            จ.นครราชสีมา 30170
-        </p>
+        <h2>ใบแจ้งหนี้ / ใบวางบิล (Invoice)</h2>
+        @include('partials.company-line')
     </div>
+
+    @include('partials.cancelled-banner', ['doc' => $invoice, 'label' => 'ใบแจ้งหนี้'])
 
     {{-- แถบสถานะการทำงาน --}}
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body d-flex flex-wrap gap-2 justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                @if ($invoice->hasReceipt())
+                @if ($invoice->isCancelled())
+                    <span class="badge bg-dark fs-6">ยกเลิกแล้ว</span>
+                @elseif ($invoice->hasReceipt())
                     <span class="text-success">
                         <i class="bi bi-check2-all me-1"></i> ออกใบเสร็จแล้ว
                     </span>
@@ -95,18 +95,13 @@
                     <i class="bi bi-printer me-1"></i> พิมพ์
                 </a>
 
-                @if ($canManage && ! $invoice->hasPayments() && ! $invoice->hasReceipt())
-                    <form method="POST" action="{{ route('invoices.destroy', $invoice->id_invoice) }}"
-                          style="display:inline;"
-                          data-confirm="ใบแจ้งหนี้ {{ $invoice->code_inv }} จะถูกลบออกจากระบบ"
-                          data-confirm-title="ยืนยันการลบข้อมูล"
-                          data-confirm-variant="danger"
-                          data-confirm-ok="ลบข้อมูล">
-                        @csrf @method('DELETE')
-                        <button class="btn btn-sm btn-outline-danger" type="submit">
-                            ลบ
-                        </button>
-                    </form>
+                @if ($canManage && ! $invoice->isCancelled())
+                    @include('partials.cancel-button', [
+                        'action'  => route('invoices.destroy', $invoice->id_invoice),
+                        'label'   => 'ยกเลิกใบแจ้งหนี้',
+                        'message' => "ยกเลิกใบแจ้งหนี้ {$invoice->code_inv} — ใบส่งของในใบนี้จะกลับไปรอออกใบแจ้งหนี้",
+                        'blocker' => $invoice->cancelBlocker(),
+                    ])
                 @endif
             </div>
         </div>
@@ -144,6 +139,38 @@
                         <dt class="col-5 text-muted fw-normal">วันที่ออก</dt>
                         <dd class="col-7">{{ ($invoice->invoice_date ?? $invoice->created_at)?->format('d/m/Y') ?? '-' }}</dd>
 
+                        <dt class="col-5 text-muted fw-normal">ครบกำหนดชำระ</dt>
+                        <dd class="col-7">
+                            {{ $invoice->due_date?->format('d/m/Y') ?? '-' }}
+                            <span class="text-muted">(เครดิต {{ $invoice->credit_days }} วัน)</span>
+                            @if ($invoice->isOverdue())
+                                <div><span class="badge bg-danger">เลยกำหนด {{ $invoice->daysOverdue() }} วัน</span></div>
+                            @endif
+                        </dd>
+
+                        <dt class="col-5 text-muted fw-normal">ลูกค้ารับบิล</dt>
+                        <dd class="col-7">
+                            @if ($canManage && ! $invoice->hasReceipt() && ! $invoice->isCancelled())
+                                {{-- ใบแจ้งหนี้ทำหน้าที่ใบวางบิล: บันทึกวันที่ลูกค้าเซ็นรับ --}}
+                                <form method="POST" action="{{ route('invoices.billReceived', $invoice->id_invoice) }}"
+                                      class="d-flex gap-1 align-items-start">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="date" name="bill_received_date"
+                                           class="form-control form-control-sm @error('bill_received_date') is-invalid @enderror"
+                                           value="{{ old('bill_received_date', $invoice->bill_received_date?->format('Y-m-d')) }}"
+                                           min="{{ $invoice->invoice_date?->format('Y-m-d') }}"
+                                           max="{{ now()->format('Y-m-d') }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-dark text-nowrap">บันทึก</button>
+                                </form>
+                                @error('bill_received_date')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                            @else
+                                {{ $invoice->bill_received_date?->format('d/m/Y') ?? 'ยังไม่ได้บันทึก' }}
+                            @endif
+                        </dd>
+
                         <dt class="col-5 text-muted fw-normal">ใบเสนอราคา</dt>
                         <dd class="col-7">
                             @if ($invoice->quotation)
@@ -156,16 +183,18 @@
                             @endif
                         </dd>
 
-                        <dt class="col-5 text-muted fw-normal">ใบส่งของ</dt>
+                        <dt class="col-5 text-muted fw-normal">ใบส่งของ ({{ $invoice->deliveryNotes->count() }})</dt>
                         <dd class="col-7">
-                            @if ($invoice->deliveryNote)
-                                <a href="{{ route('delivery-notes.show', $invoice->deliveryNote) }}"
-                                   class="text-decoration-none">
-                                    {{ $invoice->deliveryNote->code_delivery }}
-                                </a>
-                            @else
+                            @forelse ($invoice->deliveryNotes as $dn)
+                                <div>
+                                    <a href="{{ route('delivery_notes.show', $dn) }}" class="text-decoration-none">
+                                        {{ $dn->code_delivery }}
+                                    </a>
+                                    <span class="text-muted">· {{ $dn->delivery_date?->format('d/m/Y') }}</span>
+                                </div>
+                            @empty
                                 <span class="text-muted">-</span>
-                            @endif
+                            @endforelse
                         </dd>
 
                         <dt class="col-5 text-muted fw-normal">ใบเสร็จ</dt>

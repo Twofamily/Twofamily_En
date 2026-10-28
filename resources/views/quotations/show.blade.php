@@ -31,12 +31,7 @@
         {{-- ==================== ส่วนหัว (ภาพที่ 1) ==================== --}}
         <div class="text-center mb-4">
             <h2>ใบเสนอราคา (Quotation)</h2>
-            <p>บริษัท Two Family Engineering Co., Ltd.</p>
-            <p>
-                โทร: 02-123-4567 |
-                ที่อยู่: 189 หมู่ที่ 14 ตำบลสูงเนิน อำเภอสูงเนิน
-                จ.นครราชสีมา 30170
-            </p>
+            @include('partials.company-line')
         </div>
 
         {{-- ==================== แถบสถานะ + ปุ่มจัดการ ==================== --}}
@@ -60,7 +55,7 @@
                         <span class="text-primary fw-semibold">
                             <i class="bi bi-arrow-right-circle me-2"></i>พร้อมออกใบสั่งขาย
                         </span>
-                        <a href="{{ route('sales-orders.create', ['quotation' => $quotation->id_quot]) }}"
+                        <a href="{{ route('sales_orders.create', ['quotation' => $quotation->id_quot]) }}"
                             class="btn btn-primary">
                             ออกใบสั่งขายจากใบเสนอราคานี้
                         </a>
@@ -69,7 +64,7 @@
                         <span class="text-success fw-semibold">
                             <i class="bi bi-check-circle me-2"></i>ออกใบสั่งขายแล้ว
                         </span>
-                        <a href="{{ route('sales-orders.show', $so->id_so) }}" class="btn btn-outline-primary">
+                        <a href="{{ route('sales_orders.show', $so->id_so) }}" class="btn btn-outline-primary">
                             {{ $so->code_so }}
                         </a>
 
@@ -148,7 +143,7 @@
                             <dt class="col-5 fw-normal text-muted mb-3">ใบสั่งขาย</dt>
                             <dd class="col-7 mb-3">
                                 @if ($so)
-                                    <a href="{{ route('sales-orders.show', $so->id_so) }}"
+                                    <a href="{{ route('sales_orders.show', $so->id_so) }}"
                                         class="text-decoration-none">{{ $so->code_so }}</a>
                                 @else
                                     -

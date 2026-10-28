@@ -31,7 +31,7 @@
 
         <x-search-bar :action="route('receipts.index')"
                       placeholder="ค้นหาเลขที่ใบเสร็จ / ใบแจ้งหนี้ / แคมป์ / ชื่อลูกค้า"
-                      :statuses="\App\Models\Receipt::TYPES" :status="$type"
+                      :statuses="\App\Models\Receipt::TYPES + ['cancelled' => ['label' => 'ยกเลิกแล้ว', 'badge' => 'dark']]" :status="$type"
                       status-name="type" status-label="ประเภท"
                       :search="$search" :per-page="$perPage"
                       :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่รับชำระ"
@@ -49,21 +49,27 @@
                         <th>ลูกค้า</th>
                         <th>อ้างอิง</th>
                         <th class="text-end">ยอดรับชำระ</th>
-                        <th class="text-center" style="width:140px;">จัดการ</th>
+                        <th class="text-center" style="width:80px;">จัดการ</th>
                     </tr>
                 </thead>
 
                 <tbody>
                     @forelse ($receipts as $r)
-                        <tr>
+                        @php $cancelled = $r->isCancelled(); @endphp
+                        <tr @class(['text-muted' => $cancelled])>
                             {{-- ลำดับต่อเนื่องข้ามหน้า --}}
                             <td class="text-center text-muted">
                                 {{ $receipts->firstItem() + $loop->index }}
                             </td>
 
-                            <td><strong>{{ $r->code_rc }}</strong></td>
+                            <td><strong @class(['text-decoration-line-through' => $cancelled])>{{ $r->code_rc }}</strong></td>
 
-                            <td><span class="badge bg-{{ $r->type_badge }}">{{ $r->type_label }}</span></td>
+                            <td>
+                                <span class="badge bg-{{ $r->type_badge }}">{{ $r->type_label }}</span>
+                                @if ($cancelled)
+                                    <span class="badge bg-dark" title="{{ $r->cancel_reason }}">ยกเลิกแล้ว</span>
+                                @endif
+                            </td>
 
                             <td>{{ thai_date($r->date_receipt) }}</td>
 
@@ -88,39 +94,18 @@
                                 @endif
                             </td>
 
-                            <td class="text-end">{{ number_format($r->total, 2) }}</td>
+                            <td @class(['text-end', 'text-decoration-line-through' => $cancelled])>{{ number_format($r->total, 2) }}</td>
 
                             <td class="text-center">
-                                <div class="action-buttons">
-                                    {{-- ดูข้อมูล --}}
-                                    <a href="{{ route('receipts.show', $r->id_receipt) }}"
-                                        class="btn action-button action-view"
-                                        title="ดูข้อมูล"
-                                        aria-label="ดูใบเสร็จ {{ $r->code_rc }}">
-                                        <i class="bi bi-eye" aria-hidden="true"></i>
-                                    </a>
-
-                                    {{-- ลบข้อมูล --}}
-                                    @if ($canManage)
-                                        <form method="POST"
-                                            action="{{ route('receipts.destroy', $r->id_receipt) }}"
-                                            class="delete-form"
-                                            data-confirm="ใบเสร็จ {{ $r->code_rc }} จะถูกลบออกจากระบบ{{ $r->isInvoiceType() ? ' และรายการชำระของใบแจ้งหนี้จะกลับมาแก้ไขได้อีกครั้ง' : ' พร้อมหลักฐานการชำระที่แนบไว้' }}"
-                                            data-confirm-title="ยืนยันการลบข้อมูล"
-                                            data-confirm-variant="danger"
-                                            data-confirm-ok="ลบข้อมูล">
-                                            @csrf
-                                            @method('DELETE')
-
-                                            <button class="btn btn-outline-danger action-button"
-                                                type="submit"
-                                                title="ลบข้อมูล"
-                                                aria-label="ลบใบเสร็จ {{ $r->code_rc }}">
-                                                <i class="bi bi-trash" aria-hidden="true"></i>
-                                            </button>
-                                        </form>
-                                    @endif
-                                </div>
+                                @php $blocker = ($canManage && ! $cancelled) ? $r->cancelBlocker() : null; @endphp
+                                <x-row-actions :show="route('receipts.show', $r->id_receipt)"
+                                               :delete="($canManage && ! $cancelled && ! $blocker) ? route('receipts.destroy', $r->id_receipt) : null"
+                                               :delete-disabled="$blocker ? 'เงินล่วงหน้าถูกหักใช้แล้ว' : null"
+                                               :label="$r->code_rc"
+                                               delete-label="ยกเลิกใบเสร็จ" delete-icon="bi-x-octagon"
+                                               delete-title="ยกเลิกใบเสร็จ" delete-ok="ยกเลิกใบเสร็จ"
+                                               delete-reason="cancel_reason"
+                                               :delete-confirm="'ยกเลิกใบเสร็จ ' . $r->code_rc . ($r->isInvoiceType() ? ' — ใบแจ้งหนี้จะกลับมาแก้ไขรายการชำระ / ออกใบเสร็จใหม่ได้ ' : ' — ') . 'ยกเลิกแล้วเอกสารยังอยู่ในระบบ (เลขที่ไม่หาย) แต่จะไม่นับในยอดใด ๆ และย้อนกลับไม่ได้'" />
                             </td>
                         </tr>
                     @empty
@@ -149,7 +134,7 @@
                         <tr class="table-primary fw-bold">
                             <td colspan="6" class="text-end">
                                 {{ $hasFilter ? 'ยอดรับชำระรวมตามเงื่อนไข' : 'ยอดรับชำระรวมทั้งหมด' }}
-                                ({{ number_format($receipts->total()) }} ใบ)
+                                ({{ number_format($receipts->total()) }} ใบ · ไม่นับใบที่ยกเลิก)
                             </td>
                             <td class="text-end">{{ number_format($sumTotal, 2) }}</td>
                             <td></td>

@@ -121,7 +121,7 @@
                             ค่าน้ำมันทั้งหมด
                         </th>
 
-                        <th class="text-center">
+                        <th class="text-center" style="width:80px;">
                             จัดการ
                         </th>
                     </tr>
@@ -206,54 +206,13 @@
                                 </small>
                             </td>
 
-                            <td>
-                                <div class="d-flex justify-content-center gap-2 flex-nowrap">
-                                    <a href="{{ route('fuel_records.show', $record->id_fuel_record) }}"
-                                        class="btn btn-outline-info fuel-action-button" title="ดูรายละเอียด"
-                                        aria-label="ดูรายละเอียด">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                            stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M2.25 12s3.75-7.5 9.75-7.5 9.75 7.5 9.75 7.5-3.75 7.5-9.75 7.5S2.25 12 2.25 12Z" />
-
-                                            <circle cx="12" cy="12" r="3" />
-                                        </svg>
-                                    </a>
-
-                                    @if (in_array(auth()->user()->role, ['admin', 'staff'], true))
-                                        <a href="{{ route('fuel_records.edit', $record->id_fuel_record) }}"
-                                            class="btn btn-outline-primary fuel-action-button" title="แก้ไข"
-                                            aria-label="แก้ไข">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                                stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                    d="m16.862 4.487 1.687-1.688a1.875 1.875 0 0 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.862 4.487Zm0 0L19.5 7.125" />
-
-                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                    d="M19.5 13.5v6h-15v-15h6" />
-                                            </svg>
-                                        </a>
-
-                                        <form method="POST"
-                                            action="{{ route('fuel_records.destroy', $record->id_fuel_record) }}"
-                                            class="m-0" data-confirm="ต้องการลบข้อมูลบันทึกน้ำมันรายการนี้หรือไม่"
-                                            data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
-                                            data-confirm-ok="ลบข้อมูล">
-                                            @csrf
-                                            @method('DELETE')
-
-                                            <button type="submit" class="btn btn-outline-danger fuel-action-button"
-                                                title="ลบ" aria-label="ลบ">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none"
-                                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
-                                                    aria-hidden="true">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673A2.25 2.25 0 0 1 15.916 21.75H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.108 48.108 0 0 1 3.478-.397m7.5 0V4.477c0-1.18-.91-2.166-2.09-2.203a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.203v.916m7.5 0a48.67 48.67 0 0 0-7.5 0" />
-                                                </svg>
-                                            </button>
-                                        </form>
-                                    @endif
-                                </div>
+                            <td class="text-center">
+                                @php($canEditFuel = in_array(auth()->user()->role, ['admin', 'staff'], true))
+                                <x-row-actions :show="route('fuel_records.show', $record->id_fuel_record)"
+                                               :edit="$canEditFuel ? route('fuel_records.edit', $record->id_fuel_record) : null"
+                                               :delete="$canEditFuel ? route('fuel_records.destroy', $record->id_fuel_record) : null"
+                                               label="บันทึกน้ำมันรายการนี้"
+                                               delete-confirm="ต้องการลบข้อมูลบันทึกน้ำมันรายการนี้หรือไม่" />
                             </td>
                         </tr>
                     @empty

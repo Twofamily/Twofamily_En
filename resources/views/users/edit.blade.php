@@ -76,6 +76,79 @@
 
         <hr class="my-4">
 
+        {{-- ============ ลายเซ็นอิเล็กทรอนิกส์ ============ --}}
+        <h5 class="mb-1">ลายเซ็นอิเล็กทรอนิกส์</h5>
+        <p class="text-muted small mb-3">แสดงในกรอบ "ผู้จัดทำ / ผู้อนุมัติ / ผู้รับเงิน" ของเอกสาร PDF ที่ผู้ใช้นี้ออก</p>
+
+        @php
+            $gdLoaded = extension_loaded('gd');
+            $sigIsPng = $user->signature_path && str_ends_with(strtolower($user->signature_path), '.png');
+        @endphp
+
+        @unless ($gdLoaded)
+            <div class="alert alert-warning small">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                <strong>เว็บเซิร์ฟเวอร์ยังไม่ได้เปิด PHP GD</strong> — ลายเซ็นไฟล์ <b>PNG</b> จะไม่แสดงใน PDF
+                (ไฟล์ <b>JPG</b> ใช้ได้เลย)
+                <div class="mt-1">
+                    วิธีแก้: เปิดไฟล์ <code>{{ php_ini_loaded_file() ?: 'php.ini' }}</code>
+                    ลบ <code>;</code> หน้าบรรทัด <code>extension=gd</code> แล้วกด Stop / Start Apache ใน XAMPP Control Panel
+                </div>
+            </div>
+        @endunless
+
+        @if ($errors->updateSignature->any())
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    @foreach ($errors->updateSignature->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <form method="POST" action="{{ route('users.signature', $user) }}" enctype="multipart/form-data">
+            @csrf
+
+            <div class="row g-3 align-items-start">
+                <div class="col-md-5">
+                    <label class="form-label">ตำแหน่ง (พิมพ์ใต้ชื่อในเอกสาร)</label>
+                    <input type="text" name="position" maxlength="100" class="form-control"
+                           value="{{ old('position', $user->position) }}" placeholder="เช่น ผู้จัดการฝ่ายขาย">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">ไฟล์ลายเซ็น (PNG / JPG ไม่เกิน 1 MB)</label>
+                    <input type="file" name="signature" accept=".png,.jpg,.jpeg" class="form-control">
+                    <div class="form-text">แนะนำพื้นหลังขาว/โปร่งใส ขนาดประมาณ 400×150 px</div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-label">ลายเซ็นปัจจุบัน</div>
+                    @if ($user->hasSignature())
+                        <div class="border rounded p-2 bg-white text-center">
+                            <img src="{{ asset($user->signature_path) }}" alt="ลายเซ็น" style="max-height: 60px; max-width: 100%;">
+                        </div>
+                        @if ($sigIsPng && ! $gdLoaded)
+                            <div class="small text-warning mt-1">ไฟล์ PNG — จะยังไม่แสดงใน PDF จนกว่าจะเปิด GD</div>
+                        @endif
+                        <div class="form-check mt-1">
+                            <input class="form-check-input" type="checkbox" name="remove_signature" value="1" id="remove_signature">
+                            <label class="form-check-label small" for="remove_signature">ลบลายเซ็นนี้</label>
+                        </div>
+                    @else
+                        <div class="text-muted small">ยังไม่มีลายเซ็น</div>
+                    @endif
+                </div>
+            </div>
+
+            <button class="btn btn-outline-dark mt-3">
+                <i class="bi bi-pen me-1"></i>บันทึกลายเซ็น
+            </button>
+        </form>
+
+        <hr class="my-4">
+
         {{-- ============ รีเซ็ตรหัสผ่าน ============ --}}
         <h5 class="mb-3">รีเซ็ตรหัสผ่าน</h5>
 

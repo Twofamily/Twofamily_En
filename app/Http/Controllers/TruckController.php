@@ -7,13 +7,63 @@ use App\Http\Requests\TruckUpdateRequest;
 use App\Models\Truck;
 use App\Models\TruckBrand;
 use App\Models\TruckMaintenance;
+use App\Models\TruckModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class TruckController extends Controller
 {
+    /** แท็บในหน้ารถบรรทุก => [ชื่อ, ไอคอน, สิทธิ์ที่ต้องมี] */
+    private const TABS = [
+        'trucks' => ['label' => 'รถบรรทุก', 'icon' => 'bi-truck-front', 'module' => 'trucks'],
+        'models' => ['label' => 'รุ่นรถ',    'icon' => 'bi-card-list',   'module' => 'truck_models'],
+        'brands' => ['label' => 'ยี่ห้อ',     'icon' => 'bi-award',       'module' => 'truck_brands'],
+    ];
+
+    /**
+     * หน้ารถบรรทุก มี 3 แท็บ (?tab=)
+     *   trucks : รถบรรทุกในบริษัท (ค่าเริ่มต้น)
+     *   models : รุ่นรถ — เห็นเฉพาะคนที่มีสิทธิ์ดูหน้ารุ่นรถ
+     *   brands : ยี่ห้อ — เห็นเฉพาะคนที่มีสิทธิ์ดูหน้ายี่ห้อ
+     *
+     * ปุ่มเพิ่มของทุกแท็บเปิดเป็น modal ในหน้านี้ ไม่ย้ายหน้า
+     * query เฉพาะแท็บที่เปิดอยู่ แท็บอื่นนับแค่จำนวนไว้โชว์บนป้าย
+     */
     public function index(Request $request)
+    {
+        $user = $request->user();
+
+        $tabs = collect(self::TABS)
+            ->filter(fn ($t) => $user?->canViewModule($t['module']))
+            ->all();
+
+        $tab = array_key_exists((string) $request->query('tab'), $tabs) ? $request->query('tab') : 'trucks';
+
+        $counts = [
+            'trucks' => Truck::count(),
+            'models' => TruckModel::count(),
+            'brands' => TruckBrand::count(),
+        ];
+
+        $data = match ($tab) {
+            'models' => app(TruckModelController::class)->listData($request),
+            'brands' => app(TruckBrandController::class)->listData($request),
+            default  => $this->truckListData($request),
+        };
+
+        // dropdown ใน modal เพิ่มรถ (ยี่ห้อ → รุ่น → สเปค) และ modal เพิ่มรุ่น
+        $brandOptions = match ($tab) {
+            'trucks' => TruckBrand::with('models')->orderBy('name_brand')->get(),
+            'models' => TruckBrand::orderBy('name_brand')->get(),
+            default  => collect(),
+        };
+
+        return view('trucks.index', $data + compact('tab', 'tabs', 'counts', 'brandOptions'));
+    }
+
+    /** ข้อมูลตารางรถบรรทุก (แท็บแรก) */
+    private function truckListData(Request $request): array
     {
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
@@ -51,15 +101,13 @@ class TruckController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('trucks.index', compact('trucks', 'search', 'perPage', 'status', 'ranges'));
+        return compact('trucks', 'search', 'perPage', 'status', 'ranges');
     }
 
+    /** ฟอร์มเพิ่มรถย้ายไปเป็น modal ในหน้ารายการแล้ว — เปิด URL เดิมก็เด้ง modal ให้ */
     public function create()
     {
-        $truck = new Truck();
-        $brands = TruckBrand::with('models')->orderBy('name_brand')->get();
-
-        return view('trucks.create', compact('truck', 'brands'));
+        return redirect()->route('trucks.index', ['open' => 'truck']);
     }
 
     public function store(TruckStoreRequest $request)

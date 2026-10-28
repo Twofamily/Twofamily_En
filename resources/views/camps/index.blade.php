@@ -7,6 +7,10 @@
 @endsection
 
 @section('content')
+    @php
+        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
+        $canEdit = auth()->user()->canEdit('camps');
+    @endphp
     <style>
         .table-card {
             border: 1px solid rgba(0, 0, 0, 0.08);
@@ -21,8 +25,8 @@
         }
 
         .action-col {
-            width: 190px;
-            min-width: 190px;
+            width: 80px;
+            min-width: 80px;
         }
 
         .addr-col {
@@ -164,10 +168,12 @@
 
         {{-- ปุ่มเพิ่มแคมป์ --}}
         <div class="d-flex justify-content-end mb-3">
+            @if ($canEdit)
             <a href="{{ route('camps.create') }}" class="btn btn-dark add-camp-button">
                 <i class="bi bi-plus-lg me-1"></i>
                 เพิ่มแคมป์
             </a>
+            @endif
         </div>
 
         {{-- ตารางข้อมูลแคมป์ --}}
@@ -247,9 +253,7 @@
                                 {{-- สถานะ --}}
                                 <td>
                                     <span
-                                        class="badge bg-{{ $camp->status_camp === 'active'
-                                            ? 'success'
-                                            : 'secondary' }}"
+                                        class="badge bg-{{ $camp->status_color }}"
                                     >
                                         {{ $camp->status_label }}
                                     </span>
@@ -257,68 +261,11 @@
 
                                 {{-- ปุ่มจัดการ --}}
                                 <td class="text-center">
-                                    <div class="action-buttons">
-                                        {{-- ดูข้อมูล --}}
-                                        <a
-                                            href="{{ route(
-                                                'camps.show',
-                                                $camp->id_camp
-                                            ) }}"
-                                            class="btn action-button action-view"
-                                            title="ดูข้อมูล"
-                                            aria-label="ดูข้อมูลแคมป์ {{ $camp->name_camp }}"
-                                        >
-                                            <i
-                                                class="bi bi-eye"
-                                                aria-hidden="true"
-                                            ></i>
-                                        </a>
-
-                                        {{-- แก้ไขข้อมูล --}}
-                                        <a
-                                            href="{{ route(
-                                                'camps.edit',
-                                                $camp->id_camp
-                                            ) }}"
-                                            class="btn btn-outline-primary action-button"
-                                            title="แก้ไขข้อมูล"
-                                            aria-label="แก้ไขข้อมูลแคมป์ {{ $camp->name_camp }}"
-                                        >
-                                            <i
-                                                class="bi bi-pencil-square"
-                                                aria-hidden="true"
-                                            ></i>
-                                        </a>
-
-                                        {{-- ลบข้อมูล --}}
-                                        <form
-                                            method="POST"
-                                            action="{{ route(
-                                                'camps.destroy',
-                                                $camp
-                                            ) }}"
-                                            class="delete-form"
-                                            data-confirm="ข้อมูล {{ $camp->code_camp }} จะถูกลบออกจากระบบ"
-                                            data-confirm-title="ยืนยันการลบข้อมูล"
-                                            data-confirm-variant="danger"
-                                            data-confirm-ok="ลบข้อมูล"
-                                        >
-                                            @csrf
-                                            @method('DELETE')
-
-                                            <button
-                                                class="btn btn-outline-danger action-button"
-                                                type="submit"
-                                                title="ลบข้อมูล"
-                                                aria-label="ลบข้อมูลแคมป์ {{ $camp->name_camp }}"
-                                            >
-                                                <i
-                                                    class="bi bi-trash"
-                                                    aria-hidden="true"
-                                                ></i>
-                                            </button>
-                                        </form>
-                                    </div>
+                                    <x-row-actions :show="route('camps.show', $camp->id_camp)"
+                                                   :edit="$canEdit ? route('camps.edit', $camp->id_camp) : null"
+                                                   :delete="$canEdit && ! ($blocker = $camp->deleteBlocker()) ? route('camps.destroy', $camp) : null"
+                                                   :delete-disabled="$canEdit ? ($blocker ?? null) : null"
+                                                   :label="$camp->code_camp" />
                                 </td>
                             </tr>
                         @empty

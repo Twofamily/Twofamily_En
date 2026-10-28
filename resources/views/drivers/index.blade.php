@@ -7,6 +7,10 @@
 @endsection
 
 @section('content')
+    @php
+        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
+        $canEdit = auth()->user()->canEdit('drivers');
+    @endphp
     <div class="container py-3">
 
         <x-search-bar :action="route('drivers.index')"
@@ -14,10 +18,12 @@
                       :search="$search" :per-page="$perPage" />
 
         <div class="d-flex justify-content-end mb-3">
+            @if ($canEdit)
             <a href="{{ route('drivers.create') }}" class="btn btn-dark text-nowrap">
                 <i class="bi bi-plus-lg me-1"></i>
                 เพิ่มพนักงานขับรถ
             </a>
+            @endif
         </div>
 
         <div class="table-responsive shadow-sm rounded-3">
@@ -50,42 +56,10 @@
                             <td>{{ $d->citizenid_driver ?: '-' }}</td>
 
                             <td class="text-center">
-                                <div class="action-buttons">
-                                    {{-- ดูข้อมูล --}}
-                                    <a href="{{ route('drivers.show', $d) }}"
-                                        class="btn action-button action-view"
-                                        title="ดูข้อมูล"
-                                        aria-label="ดูข้อมูลพนักงานขับรถ {{ $d->fname_driver }} {{ $d->lname_driver }}">
-                                        <i class="bi bi-eye" aria-hidden="true"></i>
-                                    </a>
-
-                                    {{-- แก้ไขข้อมูล --}}
-                                    <a href="{{ route('drivers.edit', $d) }}"
-                                        class="btn btn-outline-primary action-button"
-                                        title="แก้ไขข้อมูล"
-                                        aria-label="แก้ไขข้อมูลพนักงานขับรถ {{ $d->fname_driver }} {{ $d->lname_driver }}">
-                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                    </a>
-
-                                    {{-- ลบข้อมูล --}}
-                                    <form method="POST"
-                                        action="{{ route('drivers.destroy', $d) }}"
-                                        class="delete-form"
-                                        data-confirm="ข้อมูล {{ $d->fname_driver }} {{ $d->lname_driver }} จะถูกลบออกจากระบบ"
-                                        data-confirm-title="ยืนยันการลบข้อมูล"
-                                        data-confirm-variant="danger"
-                                        data-confirm-ok="ลบข้อมูล">
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button class="btn btn-outline-danger action-button"
-                                            type="submit"
-                                            title="ลบข้อมูล"
-                                            aria-label="ลบข้อมูลพนักงานขับรถ {{ $d->fname_driver }} {{ $d->lname_driver }}">
-                                            <i class="bi bi-trash" aria-hidden="true"></i>
-                                        </button>
-                                    </form>
-                                </div>
+                                <x-row-actions :show="route('drivers.show', $d)"
+                                               :edit="$canEdit ? route('drivers.edit', $d) : null"
+                                               :delete="$canEdit ? (route('drivers.destroy', $d)) : null"
+                                               :label="$d->fname_driver . ' ' . $d->lname_driver" />
                             </td>
                         </tr>
                     @empty

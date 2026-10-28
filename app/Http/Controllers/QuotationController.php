@@ -8,6 +8,7 @@ use App\Models\Quotation;
 use App\Models\QuotationDetail;
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\Setting;
 
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -20,41 +21,33 @@ class QuotationController extends Controller
     /** สถานะที่ใช้กรองได้ในหน้ารายการ */
     public const FILTERABLE_STATUSES = ['draft', 'approved', 'rejected'];
 
-        public function index(Request $request)
+    public function index(Request $request)
     {
-        $perPage = $this->perPage($request);
-        $search  = $this->searchTerm($request);
-        [$dateFrom, $dateTo] = $this->dateRange($request);
+        $perPage =$this->perPage($request);$search  = $this->searchTerm($request);
+        [$dateFrom,$dateTo] = $this->dateRange($request);
 
-        // พิมพ์ "ร่าง" / "อนุมัติ" / "ยกเลิก" ก็ค้นตามสถานะได้
         $statuses = $this->statusesMatching($search, Quotation::STATUS_LABELS);
-
-        // dropdown เลือกสถานะ + ช่วงยอดสุทธิ
-        $status = $this->statusFilter($request, self::FILTERABLE_STATUSES);
-        $ranges = $this->numberRanges($request, [
+        $status =$this->statusFilter($request, self::FILTERABLE_STATUSES);$ranges = $this->numberRanges($request, [
             'total' => ['label' => 'ยอดสุทธิ', 'unit' => 'บาท', 'step' => '0.01'],
         ]);
 
         $quotations = Quotation::with('customer')
-            // ช่องค้นหาช่องเดียว: เลขที่เอกสาร ชื่อลูกค้า และสถานะ
-            // ครอบด้วย closure เพื่อให้ orWhere ไม่หลุดไปชนกับเงื่อนไขช่วงวันที่
-            ->when($search !== '', function ($query) use ($search, $statuses) {
-                $query->where(function ($sub) use ($search, $statuses) {
+            ->when($search !== '', function ($query) use ($search,$statuses) {
+                $query->where(function ($sub) use ($search,$statuses) {
                     $sub->where('code_quot', 'like', "%{$search}%")
                         ->orWhereHas('customer', function ($c) use ($search) {
                             $c->where('name_customer', 'like', "%{$search}%");
                         });
                     if ($statuses) {
-                        $sub->orWhereIn('status', $statuses);
+                        $sub->orWhereIn('status',$statuses);
                     }
                 });
             })
-            ->when($status, fn ($query) => $query->where('status', $status))
-            ->tap(fn ($query) => $this->applyNumberRange($query, 'total_amount', $ranges['total']))
-            ->tap(fn ($query) => $this->applyDateRange($query, 'date_quot', $dateFrom, $dateTo))
+            ->when($status, fn ($query) => $query->where('status',$status))
+            ->tap(fn ($query) =>$this->applyNumberRange($query, 'total_amount',$ranges['total']))
+            ->tap(fn ($query) => $this->applyDateRange($query, 'date_quot', $dateFrom,$dateTo))
             ->latest('id_quot')
             ->paginate($perPage)
-            // พา search / ช่วงวันที่ / per_page ติดไปกับลิงก์เปลี่ยนหน้าด้วย
             ->withQueryString();
 
         return view('quotations.index', compact('quotations', 'perPage', 'search', 'dateFrom', 'dateTo', 'status', 'ranges'));
@@ -70,26 +63,15 @@ class QuotationController extends Controller
 
     public function store(Request $request)
     {
-        $this->validateQuotation($request);
+        $this->validateQuotation($request);$money = $this->calculateTotals($request->items);
 
-        $money = $this->calculateTotals($request->items);
-
-        // ใช้ transaction เพื่อให้หัวเอกสารกับรายการสินค้าเกิดพร้อมกัน
-        // ถ้ารายการใดรายการหนึ่งพัง จะไม่เหลือใบเสนอราคาที่ไม่มีรายการค้างในระบบ
-        $quotation = DB::transaction(function () use ($request, $money) {
-
-            $quotation = Quotation::create([
+        $quotation = DB::transaction(function () use ($request, $money) {$quotation = Quotation::create([
                 'id_customer'       => $request->id_customer,
                 'date_quot'         => now(),
                 'end_quot'          => now()->addDays(self::VALID_DAYS),
                 'status'            => 'draft',
-
-                // บันทึกผู้จัดทำ ณ ตอนสร้าง
-                // เก็บลงคอลัมน์แทนการอ่าน auth() ตอนพิมพ์ PDF
-                // เพราะเอกสารต้องแสดงคนที่ทำจริงในวันนั้น ไม่ใช่คนที่กำลังเปิดดู
                 'issued_by_user_id' => auth()->id(),
                 'issued_at'         => now(),
-
                 'subtotal'          => $money['subtotal'],
                 'discount'          => $money['discount'],
                 'vat_rate'          => $money['vat_rate'],
@@ -97,7 +79,7 @@ class QuotationController extends Controller
                 'total_amount'      => $money['total_amount'],
             ]);
 
-            $this->syncDetails($quotation, $request->items);
+            $this->syncDetails($quotation,$request->items);
 
             return $quotation;
         });
@@ -115,9 +97,6 @@ class QuotationController extends Controller
 
     public function edit(Quotation $quotation)
     {
-        // แก้ไขได้เฉพาะใบร่างเท่านั้น
-        // ใบที่อนุมัติแล้วถือว่าส่งถึงลูกค้าแล้ว การแก้ย้อนหลังทำให้
-        // เอกสารในมือลูกค้ากับในระบบไม่ตรงกัน
         if ($quotation->status !== 'draft') {
             return redirect()
                 ->route('quotations.show', $quotation)
@@ -133,23 +112,17 @@ class QuotationController extends Controller
         ]);
     }
 
-    public function update(Request $request, Quotation $quotation)
+    public function update(Request $request, Quotation$quotation)
     {
-        // ต้องเช็คซ้ำที่นี่ด้วย เพราะผู้ใช้อาจเปิดหน้าแก้ไขค้างไว้
-        // แล้วมีคนอื่นกดอนุมัติระหว่างนั้น
         if ($quotation->status !== 'draft') {
             return redirect()
                 ->route('quotations.show', $quotation)
                 ->with('error', 'ใบเสนอราคานี้ไม่อยู่ในสถานะร่าง ไม่สามารถแก้ไขได้');
         }
 
-        $this->validateQuotation($request);
+        $this->validateQuotation($request);$money = $this->calculateTotals($request->items);
 
-        $money = $this->calculateTotals($request->items);
-
-        DB::transaction(function () use ($request, $quotation, $money) {
-
-            $quotation->update([
+        DB::transaction(function () use ($request,$quotation, $money) {$quotation->update([
                 'id_customer'  => $request->id_customer,
                 'subtotal'     => $money['subtotal'],
                 'discount'     => $money['discount'],
@@ -158,9 +131,7 @@ class QuotationController extends Controller
                 'total_amount' => $money['total_amount'],
             ]);
 
-            $quotation->details()->delete();
-
-            $this->syncDetails($quotation, $request->items);
+            $quotation->details()->delete();$this->syncDetails($quotation,$request->items);
         });
 
         return redirect()
@@ -172,15 +143,12 @@ class QuotationController extends Controller
     {
         $quotation = Quotation::findOrFail($id);
 
-        // กันลบใบที่ออกใบสั่งขายไปแล้ว
-        // ถ้าลบได้ ใบสั่งขายกับแคมป์จะเหลือชี้ไปหาเอกสารที่ไม่มีอยู่
         if ($quotation->hasSalesOrder()) {
             return back()->with('error', 'ใบเสนอราคานี้ออกใบสั่งขายไปแล้ว ไม่สามารถลบได้');
         }
 
         DB::transaction(function () use ($quotation) {
-            $quotation->details()->delete();
-            $quotation->delete();
+            $quotation->details()->delete();$quotation->delete();
         });
 
         return redirect()->route('quotations.index')
@@ -199,10 +167,8 @@ class QuotationController extends Controller
             return back()->with('error', 'ไม่มีรายการสินค้า ไม่สามารถอนุมัติได้');
         }
 
-        $q->status              = 'approved';
-        $q->approved_by_user_id = auth()->id();   // บันทึกผู้อนุมัติ
-        $q->approved_at         = now();
-        $q->save();
+        $q->status              = 'approved';$q->approved_by_user_id = auth()->id();
+        $q->approved_at         = now();$q->save();
 
         return back()->with('ok', 'อนุมัติใบเสนอราคาเรียบร้อย');
     }
@@ -219,18 +185,17 @@ class QuotationController extends Controller
             return back()->with('error', 'ไม่สามารถยกเลิกได้');
         }
 
-        $q->status = 'rejected';
-        $q->save();
+        $q->status = 'rejected';$q->save();
 
         return back()->with('ok', 'ยกเลิกใบเสนอราคาแล้ว');
     }
 
     public function downloadPDF(Quotation $quotation)
     {
-        // ต้อง load issuer กับ approver ด้วย ไม่งั้นลายเซ็นจะไม่ขึ้นใน PDF
-        $quotation->load('customer', 'details.product', 'issuer', 'approver');
+        // โหลดข้อมูลพนักงานผู้ออก/อนุมัติ + ข้อมูลบริษัทตั้งต้น
+        $quotation->load('customer', 'details.product', 'issuer', 'approver');$settings = Setting::pluck('value', 'key');
 
-        $pdf = Pdf::loadView('quotations.pdf', compact('quotation'))
+        $pdf = Pdf::loadView('quotations.pdf', compact('quotation', 'settings'))
             ->setPaper('A4', 'portrait');
 
         return $pdf->stream('quotation.pdf');
@@ -256,44 +221,37 @@ class QuotationController extends Controller
         ]);
     }
 
-    /**
-     * คำนวณยอดเงินทั้งหมด คืนเป็น array พร้อมแยก VAT
-     *
-     * เก็บ vat_rate ลงเอกสารด้วย เพื่อให้เอกสารเก่าพิมพ์ซ้ำได้ถูกต้อง
-     * แม้อัตรา VAT จะเปลี่ยนในอนาคต
-     */
     private function calculateTotals(array $items): array
     {
         $subtotal = round(collect($items)->sum(
-            fn (array $item) => (float) $item['quantity'] * (float) $item['price']
+            fn (array $item) => (float) $item['quantity'] * (float)$item['price']
         ), 2);
 
-        // บริษัทไม่มีส่วนลดสินค้าแล้ว — คอลัมน์ discount ยังอยู่ในตาราง แต่บันทึกเป็น 0 เสมอ
         $discount      = 0;
-        $afterDiscount = $subtotal;
-
-        $vatRate   = Quotation::DEFAULT_VAT_RATE;
-        $vatAmount = round($afterDiscount * ($vatRate / 100), 2);
+        $afterDiscount =$subtotal;
+        $vatRate       = Quotation::DEFAULT_VAT_RATE;
+        
+        // แก้ไขไวยากรณ์การคำนวณ VAT
+        $vatAmount     = round($afterDiscount * ($vatRate / 100), 2);
 
         return [
-            'subtotal'      => $subtotal,
-            'discount'      => $discount,
-            'vat_rate'      => $vatRate,
-            'vat_amount'    => $vatAmount,
-            'total_amount'  => round($afterDiscount + $vatAmount, 2),
+            'subtotal'     => $subtotal,
+            'discount'     => $discount,
+            'vat_rate'     => $vatRate,
+            'vat_amount'   => $vatAmount,
+            'total_amount' => round($afterDiscount +$vatAmount, 2),
         ];
     }
 
-    /** สร้างรายการสินค้าของใบเสนอราคา */
-    private function syncDetails(Quotation $quotation, array $items): void
+    private function syncDetails(Quotation $quotation, array$items): void
     {
-        foreach ($items as $item) {
+        foreach ($items as$item) {
             QuotationDetail::create([
                 'id_quot'        => $quotation->id_quot,
                 'id_product'     => $item['id_product'],
                 'quantity'       => $item['quantity'],
                 'price_per_unit' => $item['price'],
-                'total_price'    => $item['quantity'] * $item['price'],
+                'total_price'    => round((float) $item['quantity'] * (float) $item['price'], 2),
             ]);
         }
     }

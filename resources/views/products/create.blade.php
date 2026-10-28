@@ -61,7 +61,7 @@
             <div class="mb-3">
                 <label class="form-label">ราคาต่อหน่วย (บาท / คิว)</label>
                 <input type="number" name="unit_price" value="{{ old('unit_price') }}"
-                    class="form-control @error('unit_price') is-invalid @enderror" placeholder="เช่น 390" min="0" step="1" required
+                    class="form-control @error('unit_price') is-invalid @enderror" placeholder="เช่น 390" min="0" step="0.01" required
                     data-required-msg="กรุณาใส่ราคาต่อหน่วย">
                 @error('unit_price')
                     <div class="invalid-feedback">{{ $message }}</div>

@@ -7,6 +7,10 @@
 @endsection
 
 @section('content')
+    @php
+        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
+        $canEdit = auth()->user()->canEdit('truck_brands');
+    @endphp
     <div class="container py-4">
 
         <x-search-bar :action="route('truck_brands.index')"
@@ -14,10 +18,12 @@
                       :search="$search" :per-page="$perPage" />
 
         <div class="d-flex justify-content-end mb-3">
+            @if ($canEdit)
             <a href="{{ route('truck_brands.create') }}" class="btn btn-dark text-nowrap">
                 <i class="bi bi-plus-lg me-1"></i>
                 เพิ่มยี่ห้อรถบรรทุก
             </a>
+            @endif
         </div>
 
         <div class="table-responsive shadow-sm rounded-3">
@@ -26,7 +32,7 @@
                     <tr>
                         <th>ยี่ห้อ</th>
                         <th class="text-center">จำนวนรุ่น</th>
-                        <th class="text-center" style="width:140px;">จัดการ</th>
+                        <th class="text-center" style="width:80px;">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -37,34 +43,10 @@
                             <td class="text-center">{{ $brand->models_count }}</td>
 
                             <td class="text-center">
-                                <div class="action-buttons">
-                                    {{-- แก้ไขข้อมูล --}}
-                                    <a href="{{ route('truck_brands.edit', $brand) }}"
-                                        class="btn btn-outline-primary action-button"
-                                        title="แก้ไขข้อมูล"
-                                        aria-label="แก้ไขยี่ห้อ {{ $brand->name_brand }}">
-                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                    </a>
-
-                                    {{-- ลบข้อมูล --}}
-                                    <form method="POST"
-                                        action="{{ route('truck_brands.destroy', $brand) }}"
-                                        class="delete-form"
-                                        data-confirm="ยี่ห้อ {{ $brand->name_brand }} จะถูกลบออกจากระบบ"
-                                        data-confirm-title="ยืนยันการลบยี่ห้อรถบรรทุก"
-                                        data-confirm-variant="danger"
-                                        data-confirm-ok="ลบข้อมูล">
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button class="btn btn-outline-danger action-button"
-                                            type="submit"
-                                            title="ลบข้อมูล"
-                                            aria-label="ลบยี่ห้อ {{ $brand->name_brand }}">
-                                            <i class="bi bi-trash" aria-hidden="true"></i>
-                                        </button>
-                                    </form>
-                                </div>
+                                <x-row-actions :edit="$canEdit ? route('truck_brands.edit', $brand) : null"
+                                               :delete="$canEdit ? (route('truck_brands.destroy', $brand)) : null"
+                                               :label="$brand->name_brand" :delete-confirm="'ยี่ห้อ ' . $brand->name_brand . ' จะถูกลบออกจากระบบ'"
+                                               delete-title="ยืนยันการลบยี่ห้อรถบรรทุก" />
                             </td>
                         </tr>
                     @empty

@@ -12,19 +12,18 @@
     {{-- ส่วนหัวเอกสาร (แบบเดียวกับใบเสนอราคา) --}}
     <div class="text-center mb-4">
         <h2>ใบส่งของ (Delivery Note)</h2>
-        <p>บริษัท Two Family Engineering Co., Ltd.</p>
-        <p>
-            โทร: 02-123-4567 |
-            ที่อยู่: 189 หมู่ที่ 14 ตำบลสูงเนิน อำเภอสูงเนิน
-            จ.นครราชสีมา 30170
-        </p>
+        @include('partials.company-line')
     </div>
+
+    @include('partials.cancelled-banner', ['doc' => $deliveryNote, 'label' => 'ใบส่งของ'])
 
     {{-- แถบสถานะการทำงาน --}}
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body d-flex flex-wrap gap-2 justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                @if ($deliveryNote->invoice)
+                @if ($deliveryNote->isCancelled())
+                    <span class="badge bg-dark fs-6">ยกเลิกแล้ว</span>
+                @elseif ($deliveryNote->invoice)
                     <span class="text-success">
                         <i class="bi bi-check-circle-fill me-1"></i> ออกใบแจ้งหนี้แล้ว
                     </span>
@@ -36,40 +35,31 @@
                     <span class="text-primary">
                         <i class="bi bi-arrow-right-circle me-1"></i> พร้อมออกใบแจ้งหนี้
                     </span>
-                    <form method="POST" action="{{ route('invoices.createFromDeliveryNote', $deliveryNote) }}"
-                          class="d-inline-flex align-items-start gap-2"
-                          data-confirm="ระบบจะสร้างใบแจ้งหนี้จากใบส่งของ {{ $deliveryNote->code_delivery }}"
-                          data-confirm-title="ยืนยันการออกใบแจ้งหนี้"
-                          data-confirm-variant="success"
-                          data-confirm-ok="ออกใบแจ้งหนี้">
-                        @csrf
-                        {{-- วันที่ออกใบแจ้งหนี้: ค่าเริ่มต้นวันนี้, ย้อนได้ถึงวันส่งของ, ห้ามเลือกวันในอนาคต --}}
-                        <div>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text">วันที่ออก</span>
-                                <input type="date" name="invoice_date"
-                                       class="form-control @error('invoice_date') is-invalid @enderror"
-                                       value="{{ old('invoice_date', now()->format('Y-m-d')) }}"
-                                       min="{{ $deliveryNote->delivery_date?->format('Y-m-d') }}"
-                                       max="{{ now()->format('Y-m-d') }}"
-                                       required data-required-msg="กรุณาเลือกวันที่ออกใบแจ้งหนี้">
-                            </div>
-                            @error('invoice_date')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <button class="btn btn-sm btn-primary" type="submit">
-                            ออกใบแจ้งหนี้จากใบส่งของนี้
-                        </button>
-                    </form>
+                    @if (auth()->user()->canEdit('invoices'))
+                        {{-- ใบแจ้งหนี้ 1 ใบรวมใบส่งของได้หลายใบ → ไปหน้าเลือก โดยติ๊กใบนี้ไว้ให้ --}}
+                        <a href="{{ route('invoices.create', ['delivery_note' => $deliveryNote->id_delivery_note]) }}"
+                           class="btn btn-sm btn-primary">
+                            <i class="bi bi-receipt me-1"></i>ออกใบแจ้งหนี้
+                        </a>
+                        <span class="small text-muted">รวมกับใบส่งของอื่นของแคมป์เดียวกันได้</span>
+                    @endif
                 @endif
             </div>
 
             <div class="d-flex gap-2 flex-wrap">
-                <a href="{{ route('delivery-notes.pdf', $deliveryNote) }}"
+                <a href="{{ route('delivery_notes.pdf', $deliveryNote) }}"
                    class="btn btn-sm btn-outline-secondary" target="_blank">
                     <i class="bi bi-printer me-1"></i> พิมพ์
                 </a>
+
+                @if (auth()->user()->canEdit('delivery_notes') && ! $deliveryNote->isCancelled())
+                    @include('partials.cancel-button', [
+                        'action'  => route('delivery_notes.destroy', $deliveryNote),
+                        'label'   => 'ยกเลิกใบส่งของ',
+                        'message' => "ยกเลิกใบส่งของ {$deliveryNote->code_delivery} — ยอดคงเหลือตามสัญญาของแคมป์จะกลับมา",
+                        'blocker' => $deliveryNote->cancelBlocker(),
+                    ])
+                @endif
             </div>
         </div>
     </div>
@@ -83,7 +73,11 @@
                     <dl class="row mb-0 small">
                         <dt class="col-5 text-muted fw-normal">สถานะ</dt>
                         <dd class="col-7">
-                            <span class="badge bg-success">ส่งของแล้ว</span>
+                            @if ($deliveryNote->isCancelled())
+                                <span class="badge bg-dark">ยกเลิกแล้ว</span>
+                            @else
+                                <span class="badge bg-success">ส่งของแล้ว</span>
+                            @endif
                         </dd>
 
                         <dt class="col-5 text-muted fw-normal">ลูกค้า</dt>
@@ -188,7 +182,7 @@
     </div>
 
     <div class="mt-3">
-        <a href="{{ route('delivery-notes.index') }}" class="btn btn-outline-secondary">ย้อนกลับ</a>
+        <a href="{{ route('delivery_notes.index') }}" class="btn btn-outline-secondary">ย้อนกลับ</a>
     </div>
 </div>
 @endsection

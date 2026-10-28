@@ -37,6 +37,31 @@
             background-color: #eef5ff !important;
         }
 
+        /* แถบปุ่มบันทึกติดขอบล่าง กดได้ตลอดไม่ต้องเลื่อนลงสุดฟอร์ม */
+        .form-actions {
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+            background: rgba(255, 255, 255, .96);
+            border-top: 1px solid #dee2e6;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, .04);
+            margin: 1.5rem -.75rem 0;
+            padding: .75rem;
+        }
+
+        .step-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            background: #212529;
+            color: #fff;
+            font-size: .8rem;
+            margin-right: .4rem;
+        }
+
         @media (max-width: 991.98px) {
             .map-panel {
                 position: static;
@@ -49,6 +74,12 @@
     </style>
 
     <div class="container py-3">
+        {{-- ปุ่มกลับ แบบเดียวกับหน้าดูแคมป์ --}}
+        <a href="{{ $isEdit ? route('camps.show', $camp) : route('camps.index') }}"
+           class="btn btn-sm btn-light mb-3">
+            <i class="bi bi-arrow-left me-1"></i>{{ $isEdit ? 'กลับหน้าแคมป์' : 'กลับหน้ารายการ' }}
+        </a>
+
         @if (session('error'))
             <div class="alert alert-danger">
                 {{ session('error') }}
@@ -96,12 +127,32 @@
                 </div>
             @endif
 
+            {{-- เปิดแคมป์ใหม่ (ยังไม่ได้เลือกใบสั่งขาย): แนะนำให้เปิดจากใบสั่งขาย ระบบจะเติมลูกค้าและผูกสัญญาให้ --}}
+            @if (! $isEdit && empty($salesOrder) && ($openableOrders ?? collect())->isNotEmpty())
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body p-3 d-flex flex-wrap align-items-center gap-2">
+                        <i class="bi bi-lightning-charge text-warning fs-5"></i>
+                        <span class="fw-semibold">เปิดแคมป์จากใบสั่งขาย</span>
+                        <span class="text-muted small">— ระบบเติมลูกค้าและผูกรายการตามสัญญาให้</span>
+                        <select class="form-select form-select-sm w-auto ms-lg-auto" id="pick_sales_order">
+                            <option value="">— เลือกใบสั่งขายที่ยืนยันแล้ว ({{ $openableOrders->count() }}) —</option>
+                            @foreach ($openableOrders as $so)
+                                <option value="{{ route('camps.create', ['sales_order' => $so->id_so]) }}">
+                                    {{ $so->code_so }} · {{ $so->customer->name_customer ?? '-' }}
+                                    ({{ number_format($so->total_amount, 2) }} บาท)
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+            @endif
+
             <div class="row g-4">
-                <div class="col-lg-6">
+                <div class="col-lg-6 d-flex flex-column gap-4">
                     <div class="card border-0 shadow-sm">
                         <div class="card-body p-4">
                             <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">
-                                ข้อมูลแคมป์
+                                <span class="step-badge">1</span>ข้อมูลแคมป์
                             </h6>
 
                             <div class="mb-3">
@@ -202,6 +253,8 @@
                                 @enderror
                             </div>
 
+                            {{-- แคมป์ใหม่เริ่มที่ "เตรียมงาน" เสมอ — เปลี่ยนสถานะจากแถบ "ทำงานต่อ" ในหน้าแคมป์ --}}
+                            @if ($isEdit)
                             <div class="mb-3">
                                 <label for="status_camp" class="form-label">
                                     สถานะ
@@ -210,7 +263,7 @@
                                 @php
                                     $selectedStatus = old(
                                         'status_camp',
-                                        $camp->status_camp ?? 'active'
+                                        $camp->status_camp ?? 'preparing'
                                     );
                                 @endphp
 
@@ -236,9 +289,21 @@
                                     </div>
                                 @enderror
                             </div>
+                            @else
+                                <input type="hidden" name="status_camp" value="preparing">
+                                <div class="small text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    สถานะเริ่มต้น <span class="badge bg-info">เตรียมงาน</span>
+                                    — เปลี่ยนเป็น "กำลังดำเนินงาน" ให้เองเมื่อออกใบส่งของใบแรก
+                                </div>
+                            @endif
+                        </div>
+                    </div>
 
-                            <h6 class="text-muted fw-semibold border-bottom pb-2 mt-4 mb-3">
-                                ข้อมูลที่อยู่
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">
+                                <span class="step-badge">2</span>ที่อยู่หน้างาน
                             </h6>
 
                             <div class="mb-3">
@@ -408,8 +473,13 @@
                                 role="status"
                             ></div>
 
-                            <h6 class="text-muted fw-semibold border-bottom pb-2 mt-4 mb-3">
-                                ข้อมูลติดต่อ
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">
+                                <span class="step-badge">3</span>ผู้ติดต่อหน้างาน
                             </h6>
 
                             <div class="row g-3">
@@ -484,7 +554,7 @@
                     <div class="card border-0 shadow-sm map-panel">
                         <div class="card-body p-4">
                             <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">
-                                เลือกตำแหน่งบนแผนที่
+                                <i class="bi bi-geo-alt me-1"></i>ตำแหน่งหน้างานบนแผนที่
                             </h6>
 
                             <div class="mb-3">
@@ -555,16 +625,17 @@
                 </div>
             </div>
 
-            <div class="d-flex justify-content-end gap-2 mt-4">
-                <a
-                    href="{{ route('camps.index') }}"
-                    class="btn btn-outline-secondary"
-                >
+            <div class="form-actions d-flex justify-content-end align-items-center gap-2">
+                <span class="small text-muted me-auto d-none d-md-inline">
+                    {{ $isEdit ? 'แก้ไขแคมป์ ' . $camp->code_camp : 'เลขที่แคมป์จะออกให้อัตโนมัติเมื่อบันทึก' }}
+                </span>
+                <a href="{{ $isEdit ? route('camps.show', $camp) : route('camps.index') }}"
+                   class="btn btn-outline-secondary">
                     ยกเลิก
                 </a>
 
                 <button type="submit" class="btn btn-dark">
-                    {{ $isEdit ? 'บันทึกการแก้ไข' : 'เพิ่มแคมป์' }}
+                    <i class="bi bi-check-lg me-1"></i>{{ $isEdit ? 'บันทึกการแก้ไข' : 'บันทึกแคมป์' }}
                 </button>
             </div>
         </form>
@@ -575,6 +646,13 @@
             @include('camps._trucks')
         @endif
     </div>
+
+    <script>
+        // เลือกใบสั่งขาย → เปิดหน้าสร้างแคมป์ใหม่ที่เติมข้อมูลจากใบสั่งขายนั้น
+        document.getElementById('pick_sales_order')?.addEventListener('change', (e) => {
+            if (e.target.value) window.location = e.target.value;
+        });
+    </script>
 
     <script>
         (() => {

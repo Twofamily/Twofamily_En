@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Camp;
+use App\Models\CampTruck;
 use App\Models\FuelRecord;
 use App\Models\Truck;
 use Illuminate\Http\RedirectResponse;
@@ -80,12 +81,16 @@ class FuelRecordController extends Controller
 
         $dieselPrice = $this->getDieselPrice();
 
+        [$jobCamps, $truckCampMap] = $this->campChoices();
+
         return view(
             'fuel_records.create',
             compact(
                 'trucks',
                 'camps',
-                'dieselPrice'
+                'dieselPrice',
+                'jobCamps',
+                'truckCampMap'
             )
         );
     }
@@ -126,6 +131,9 @@ class FuelRecordController extends Controller
                 'trucks_id_truck' =>
                     $data['trucks_id_truck'],
 
+                'id_camp' =>
+                    $data['id_camp'] ?? null,
+
                 'current_weight' =>
                     $calculated['maximum_load_weight'],
 
@@ -164,6 +172,7 @@ class FuelRecordController extends Controller
         $fuel_record->load([
             'truck.brand',
             'truck.model',
+            'camp',
             'segments',
         ]);
 
@@ -208,13 +217,17 @@ class FuelRecordController extends Controller
         $dieselPrice =
             $fuel_record->cost_fuel;
 
+        [$jobCamps, $truckCampMap] = $this->campChoices($fuel_record);
+
         return view(
             'fuel_records.create',
             compact(
                 'fuel_record',
                 'trucks',
                 'camps',
-                'dieselPrice'
+                'dieselPrice',
+                'jobCamps',
+                'truckCampMap'
             )
         );
     }
@@ -259,6 +272,9 @@ class FuelRecordController extends Controller
 
                 'trucks_id_truck' =>
                     $data['trucks_id_truck'],
+
+                'id_camp' =>
+                    $data['id_camp'] ?? null,
 
                 'current_weight' =>
                     $calculated['maximum_load_weight'],
@@ -307,6 +323,41 @@ class FuelRecordController extends Controller
             );
     }
 
+    /**
+     * ตัวเลือกแคมป์ในฟอร์ม + แคมป์ที่รถแต่ละคันประจำอยู่ตอนนี้
+     *
+     * - แคมป์ที่เปิดอยู่ทั้งหมด (ไม่ต้องมีพิกัด ต่างจาก $camps ที่ใช้กับแผนที่)
+     * - ตอนแก้ไข ถ้าแคมป์เดิมถูกปิดไปแล้ว ยังต้องโชว์ให้เลือกค้างไว้ได้
+     * - $truckCampMap ใช้เลือกแคมป์ให้อัตโนมัติเมื่อเลือกรถ (ผู้ใช้เปลี่ยนเองได้)
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: array<string,int>}
+     */
+    private function campChoices(?FuelRecord $fuelRecord = null): array
+    {
+        $jobCamps = Camp::query()
+            ->where(function ($query) use ($fuelRecord) {
+                // แคมป์ที่ยังไม่ปิด (เตรียมงาน / ดำเนินงาน / รอเก็บเงิน — รถอาจยังวิ่งเก็บงาน)
+                $query->where('status_camp', '!=', 'closed');
+
+                if ($fuelRecord?->id_camp) {
+                    $query->orWhere('id_camp', $fuelRecord->id_camp);
+                }
+            })
+            ->with('customer')
+            ->orderBy('name_camp')
+            ->get();
+
+        $truckCampMap = CampTruck::query()
+            ->whereNull('released_date')
+            ->whereIn('id_camp', $jobCamps->pluck('id_camp'))
+            ->orderBy('assigned_date')
+            ->pluck('id_camp', 'id_truck')   // ถ้ามีหลายแถว แถวล่าสุดทับ
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return [$jobCamps, $truckCampMap];
+    }
+
     private function validateFuelRecord(
         Request $request,
 
@@ -346,6 +397,13 @@ class FuelRecordController extends Controller
             'trucks_id_truck' => [
                 'required',
                 $truckRule,
+            ],
+
+            // ไม่บังคับ: บางรอบไม่ได้วิ่งให้แคมป์ (ส่งสินค้าตรง)
+            'id_camp' => [
+                'nullable',
+                'integer',
+                Rule::exists('camps', 'id_camp')->whereNull('deleted_at'),
             ],
 
             'cost_fuel' => [
@@ -389,6 +447,9 @@ class FuelRecordController extends Controller
 
             'trucks_id_truck.exists' =>
                 'รถคันนี้ไม่พร้อมใช้งาน หรือไม่พบข้อมูลรถ',
+
+            'id_camp.exists' =>
+                'ไม่พบแคมป์ที่เลือก',
 
             'cost_fuel.required' =>
                 'กรุณาตรวจสอบราคาน้ำมัน',

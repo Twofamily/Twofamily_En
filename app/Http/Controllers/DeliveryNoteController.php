@@ -15,6 +15,7 @@ class DeliveryNoteController extends Controller
     public const INVOICE_STATUSES = [
         'pending'  => 'รอออกใบแจ้งหนี้',
         'invoiced' => 'ออกใบแจ้งหนี้แล้ว',
+        'cancelled' => 'ยกเลิกแล้ว',
     ];
 
         public function index(Request $request)
@@ -29,7 +30,9 @@ class DeliveryNoteController extends Controller
         // dropdown สถานะ (ออกใบแจ้งหนี้แล้ว / ยังไม่ออก)
         $status = $this->statusFilter($request, array_keys(self::INVOICE_STATUSES));
 
+        // หน้ารายการแสดงใบที่ยกเลิกแล้วด้วย (เลขที่ไม่หาย) เลือกกรอง "ยกเลิกแล้ว" ได้
         $deliveryNotes = DeliveryNote::with(['customer', 'camp', 'invoice', 'quotation'])
+            ->cancelledFilter($status)
             // ช่องค้นหาช่องเดียว: เลขที่ใบส่งของ ลูกค้า แคมป์ ใบเสนอราคา ใบแจ้งหนี้ และสถานะ
             ->when($search !== '', function ($query) use ($search, $statuses) {
                 $query->where(function ($sub) use ($search, $statuses) {
@@ -64,7 +67,7 @@ class DeliveryNoteController extends Controller
         ]);
     }
 
-    /** เลือกแคมป์ก่อน แล้วค่อยกรอกรายการ */
+    /** เลือกแคมป์ก่อน แล้วค่อยกรอกรายการ (เฉพาะแคมป์ที่เตรียมงาน / กำลังดำเนินงาน) */
     public function create(Request $request)
     {
         $camps = Camp::with(['customer', 'quotation'])
@@ -118,6 +121,25 @@ class DeliveryNoteController extends Controller
 
         $camp = Camp::findOrFail($data['id_camp']);
 
+        if (! $camp->isWorking()) {
+            return back()->withInput()->with('error',
+                'แคมป์ ' . $camp->code_camp . ' อยู่ในสถานะ "' . $camp->status_label . '" ออกใบส่งของเพิ่มไม่ได้');
+        }
+
+        /*
+         | ส่งเกินจำนวนตามสัญญา → เตือนก่อน ถ้าผู้ใช้ติ๊กยืนยันแล้วจึงบันทึกได้
+         | (หน้างานจริงมีส่งเกินได้ เช่น ลูกค้าขอเพิ่มหน้างาน แต่ต้องตั้งใจ ไม่ใช่พิมพ์ผิด)
+         */
+        if (! $request->boolean('confirm_over')) {
+            $over = $this->overContract($camp, $data['items']);
+
+            if ($over) {
+                return back()->withInput()
+                    ->withErrors($over)
+                    ->with('over_contract', true);
+            }
+        }
+
         $deliveryNote = DB::transaction(function () use ($camp, $data) {
 
             // เก็บ id_customer / id_quotation เป็นค่าจริง ไม่ไล่ตามสายโซ่ตอนพิมพ์
@@ -140,16 +162,19 @@ class DeliveryNoteController extends Controller
                 ]);
             }
 
+            // ใบส่งของใบแรก → แคมป์ที่ยังเตรียมงานอยู่ ถือว่าเริ่มงานแล้ว
+            $camp->markStartedIfPreparing();
+
             return $note;
         });
 
-        return redirect()->route('delivery-notes.show', $deliveryNote)
+        return redirect()->route('delivery_notes.show', $deliveryNote)
             ->with('ok', 'สร้างใบส่งของเรียบร้อย');
     }
 
     public function show(DeliveryNote $deliveryNote)
     {
-        $deliveryNote->load(['customer', 'camp', 'quotation', 'details.product', 'invoice']);
+        $deliveryNote->load(['customer', 'camp', 'quotation', 'details.product', 'invoice', 'cancelledBy']);
 
         return view('delivery_notes.show', compact('deliveryNote'));
     }
@@ -163,18 +188,48 @@ class DeliveryNoteController extends Controller
             ->stream('delivery-note-' . $deliveryNote->id_delivery_note . '.pdf');
     }
 
-    public function destroy(DeliveryNote $deliveryNote)
+    /**
+     * ยกเลิกใบส่งของ (ไม่ลบ) — เอกสารและรายการยังอยู่ แต่ไม่นับเป็นยอดส่งของ / รายได้อีก
+     * ยอดคงเหลือตามสัญญาของแคมป์จะกลับมาเท่าเดิม
+     */
+    public function destroy(Request $request, DeliveryNote $deliveryNote)
     {
-        if ($deliveryNote->invoice) {
-            return back()->with('error', 'ใบส่งของนี้ออกใบแจ้งหนี้แล้ว ไม่สามารถลบได้');
+        $data = $request->validate(
+            ['cancel_reason' => ['required', 'string', 'min:3', 'max:255']],
+            ['cancel_reason.required' => 'กรุณาระบุเหตุผลที่ยกเลิก', 'cancel_reason.min' => 'เหตุผลสั้นเกินไป'],
+        );
+
+        if ($reason = $deliveryNote->cancelBlocker()) {
+            return back()->with('error', 'ยกเลิกใบส่งของไม่ได้: ' . $reason);
         }
 
-        DB::transaction(function () use ($deliveryNote) {
-            $deliveryNote->details()->delete();
-            $deliveryNote->delete();
-        });
+        $deliveryNote->cancel($data['cancel_reason']);
 
-        return redirect()->route('delivery-notes.index')->with('ok', 'ลบใบส่งของแล้ว');
+        return redirect()->route('delivery_notes.show', $deliveryNote)
+            ->with('ok', 'ยกเลิกใบส่งของ ' . $deliveryNote->code_delivery . ' แล้ว');
+    }
+
+    /**
+     * รายการที่จำนวนเกินคงเหลือตามสัญญา → ข้อความ error แยกตามแถว (items.N.quantity)
+     * สินค้าเดียวกันหลายแถว รวมจำนวนก่อนเทียบ
+     */
+    private function overContract(Camp $camp, array $items): array
+    {
+        $remaining = $this->buildSuggestedItems($camp)->keyBy('id_product');
+        $used = [];
+        $errors = [];
+
+        foreach ($items as $i => $item) {
+            $id = (int) $item['id_product'];
+            $used[$id] = ($used[$id] ?? 0) + (float) $item['quantity'];
+            $left = (float) ($remaining[$id]['remaining'] ?? 0);
+
+            if ($used[$id] > $left + 0.005) {
+                $errors["items.$i.quantity"] = 'เกินจำนวนคงเหลือตามสัญญา (เหลือ ' . number_format($left, 2) . ')';
+            }
+        }
+
+        return $errors;
     }
 
     /**

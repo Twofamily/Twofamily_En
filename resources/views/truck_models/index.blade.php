@@ -32,7 +32,7 @@
                         <th class="text-center">ล้อ</th>
                         <th class="text-end">คิว</th>
                         <th class="text-end">กม./ลิตร</th>
-                        <th class="text-center" style="width:140px;">จัดการ</th>
+                        <th class="text-center" style="width:80px;">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -46,34 +46,12 @@
                             <td class="text-end">{{ $m->fuel_rate ?? '-' }}</td>
 
                             <td class="text-center">
-                                <div class="action-buttons">
-                                    {{-- แก้ไขข้อมูล --}}
-                                    <a href="{{ route('truck_models.edit', $m) }}"
-                                        class="btn btn-outline-primary action-button"
-                                        title="แก้ไขข้อมูล"
-                                        aria-label="แก้ไขรุ่น {{ $m->name_model }}">
-                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                    </a>
-
-                                    {{-- ลบข้อมูล --}}
-                                    <form method="POST"
-                                        action="{{ route('truck_models.destroy', $m) }}"
-                                        class="delete-form"
-                                        data-confirm="รุ่น {{ $m->name_model }} จะถูกลบออกจากระบบ"
-                                        data-confirm-title="ยืนยันการลบรุ่นรถบรรทุก"
-                                        data-confirm-variant="danger"
-                                        data-confirm-ok="ลบข้อมูล">
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button class="btn btn-outline-danger action-button"
-                                            type="submit"
-                                            title="ลบข้อมูล"
-                                            aria-label="ลบรุ่น {{ $m->name_model }}">
-                                            <i class="bi bi-trash" aria-hidden="true"></i>
-                                        </button>
-                                    </form>
-                                </div>
+                                <x-row-actions :delete="route('truck_models.destroy', $m)"
+                                               :label="$m->name_model" :delete-confirm="'รุ่น ' . $m->name_model . ' จะถูกลบออกจากระบบ'"
+                                               delete-title="ยืนยันการลบรุ่นรถบรรทุก">
+                                    @include('truck_models._view-item', ['m' => $m, 'canEdit' => true])
+                                    <x-row-actions.link :href="route('truck_models.edit', $m)" icon="bi-pencil-square">แก้ไข</x-row-actions.link>
+                                </x-row-actions>
                             </td>
                         </tr>
                     @empty
@@ -90,6 +68,7 @@
 
         <div class="mt-3">
             @include('partials.pagination-footer', ['paginator' => $models])
+            @include('truck_models._detail-modal')
         </div>
     </div>
 @endsection

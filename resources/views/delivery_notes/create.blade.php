@@ -14,7 +14,7 @@
     @endif
 
     {{-- ขั้นที่ 1 เลือกแคมป์ --}}
-    <form method="GET" action="{{ route('delivery-notes.create') }}" class="mb-4">
+    <form method="GET" action="{{ route('delivery_notes.create') }}" class="mb-4">
         <label for="camp_picker" class="form-label">เลือกแคมป์</label>
 
         <div class="d-flex gap-2">
@@ -29,7 +29,7 @@
             </select>
         </div>
 
-        <div class="form-text">แสดงเฉพาะแคมป์ที่เปิดใช้งานอยู่</div>
+        <div class="form-text">แสดงเฉพาะแคมป์ที่อยู่ในสถานะเตรียมงาน หรือกำลังดำเนินงาน</div>
     </form>
 
     @if ($camp)
@@ -45,7 +45,7 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ route('delivery-notes.store') }}"
+        <form method="POST" action="{{ route('delivery_notes.store') }}"
             data-confirm="ต้องการบันทึกใบส่งของนี้หรือไม่ ตรวจสอบจำนวนและรายการให้ถูกต้องก่อนยืนยัน" data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
             <input type="hidden" name="id_camp" value="{{ $camp->id_camp }}">
@@ -121,9 +121,27 @@
                     <div class="text-danger small mb-2">{{ $message }}</div>
                 @enderror
 
+                {{-- ส่งเกินจำนวนตามสัญญา: ต้องติ๊กยืนยันก่อนถึงบันทึกได้ --}}
+                @if (session('over_contract') || old('confirm_over'))
+                    <div class="alert alert-warning py-2">
+                        <div class="fw-semibold mb-1">
+                            <i class="bi bi-exclamation-triangle me-1"></i>จำนวนที่ส่งเกินคงเหลือตามสัญญา
+                        </div>
+                        <div class="small mb-2">
+                            ตรวจรายการที่มีกรอบสีแดง ถ้าตั้งใจส่งเกินจริง (เช่น ลูกค้าขอเพิ่มหน้างาน)
+                            ควรเปิดใบสั่งขายเพิ่มให้ครอบคลุมด้วย
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="confirm_over" value="1"
+                                   id="confirm_over" @checked(old('confirm_over'))>
+                            <label class="form-check-label" for="confirm_over">ยืนยันส่งเกินจำนวนตามสัญญา</label>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="d-flex gap-2 mt-3">
                     <button type="submit" class="btn btn-dark">บันทึกใบส่งของ</button>
-                    <a href="{{ route('delivery-notes.index') }}" class="btn btn-outline-secondary">ยกเลิก</a>
+                    <a href="{{ route('delivery_notes.index') }}" class="btn btn-outline-secondary">ยกเลิก</a>
                 </div>
             @endif
         </form>

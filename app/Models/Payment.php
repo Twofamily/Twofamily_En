@@ -91,19 +91,19 @@ class Payment extends Model
 
     public function invoice()
     {
-        return $this->belongsTo(Invoice::class, 'id_invoice', 'id_invoice');
+        return $this->belongsTo(Invoice::class, 'id_invoice', 'id_invoice')->withTrashed();
     }
 
     /** ใบเสร็จ (advance / direct) ที่รายการนี้เป็นหลักฐาน */
     public function receipt()
     {
-        return $this->belongsTo(Receipt::class, 'id_receipt', 'id_receipt');
+        return $this->belongsTo(Receipt::class, 'id_receipt', 'id_receipt')->withTrashed();
     }
 
     /** ใบเสร็จรับเงินล่วงหน้าที่ถูกหักมาใช้ในรายการนี้ */
     public function advanceReceipt()
     {
-        return $this->belongsTo(Receipt::class, 'id_advance_receipt', 'id_receipt');
+        return $this->belongsTo(Receipt::class, 'id_advance_receipt', 'id_receipt')->withTrashed();
     }
 
     public function recordedBy()

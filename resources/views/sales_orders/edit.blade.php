@@ -32,7 +32,7 @@
         ])->values()->all());
     @endphp
 
-    <form method="POST" action="{{ route('sales-orders.update', $salesOrder) }}" autocomplete="off"
+    <form method="POST" action="{{ route('sales_orders.update', $salesOrder) }}" autocomplete="off"
             data-confirm="ต้องการบันทึกการแก้ไขใบสั่งขายนี้หรือไม่" data-confirm-title="ยืนยันการแก้ไขข้อมูล" data-confirm-ok="บันทึกการแก้ไข" data-confirm-variant="primary">
         @csrf
         @method('PUT')
@@ -89,7 +89,7 @@
         ])
 
         <div class="d-flex justify-content-end gap-2">
-            <a href="{{ route('sales-orders.show', $salesOrder) }}" class="btn btn-outline-secondary">ยกเลิก</a>
+            <a href="{{ route('sales_orders.show', $salesOrder) }}" class="btn btn-outline-secondary">ยกเลิก</a>
             <button class="btn btn-dark">บันทึกการแก้ไข</button>
         </div>
     </form>

@@ -19,12 +19,7 @@
     {{-- ส่วนหัวเอกสาร (แบบเดียวกับใบเสนอราคา) --}}
     <div class="text-center mb-4">
         <h2>ใบสั่งขาย (Sales Order)</h2>
-        <p>บริษัท Two Family Engineering Co., Ltd.</p>
-        <p>
-            โทร: 02-123-4567 |
-            ที่อยู่: 189 หมู่ที่ 14 ตำบลสูงเนิน อำเภอสูงเนิน
-            จ.นครราชสีมา 30170
-        </p>
+        @include('partials.company-line')
     </div>
 
     {{-- แถบสถานะการทำงาน --}}
@@ -51,7 +46,7 @@
                     {{-- ลูกค้าสั่งเพิ่มในงานเดิม → เพิ่มใบสั่งขายนี้เข้าแคมป์ที่เปิดอยู่ --}}
                     @if ($campOptions->isNotEmpty())
                         <span class="text-muted small">หรือ</span>
-                        <form method="POST" action="{{ route('sales-orders.attachCamp', $salesOrder) }}"
+                        <form method="POST" action="{{ route('sales_orders.attachCamp', $salesOrder) }}"
                               class="d-flex gap-2 align-items-center"
                               data-confirm="ใบสั่งขาย {{ $salesOrder->code_so }} จะถูกเพิ่มเข้าแคมป์ที่เลือก ยอดตามสัญญาของแคมป์จะเพิ่มขึ้นตามใบสั่งขายนี้"
                               data-confirm-title="เพิ่มเข้าแคมป์เดิม"
@@ -86,18 +81,18 @@
             </div>
 
             <div class="d-flex gap-2 flex-wrap">
-                <a href="{{ route('sales-orders.pdf', $salesOrder->id_so) }}"
+                <a href="{{ route('sales_orders.pdf', $salesOrder->id_so) }}"
                    class="btn btn-sm btn-outline-secondary" target="_blank">
                     <i class="bi bi-printer me-1"></i> พิมพ์
                 </a>
 
                 @if ($salesOrder->canEdit())
-                    <a href="{{ route('sales-orders.edit', $salesOrder->id_so) }}"
+                    <a href="{{ route('sales_orders.edit', $salesOrder->id_so) }}"
                        class="btn btn-sm btn-outline-dark">แก้ไข</a>
                 @endif
 
                 @if ($salesOrder->canConfirm())
-                    <form method="POST" action="{{ route('sales-orders.confirm', $salesOrder) }}"
+                    <form method="POST" action="{{ route('sales_orders.confirm', $salesOrder) }}"
                           style="display:inline;"
                           data-confirm="ใบสั่งขาย {{ $salesOrder->code_so }} จะถูกยืนยัน หลังจากนี้จะแก้ไขรายการไม่ได้ และสามารถเปิดแคมป์ใหม่ หรือเพิ่มเข้าแคมป์เดิมได้"
                           data-confirm-title="ยืนยันใบสั่งขาย"
@@ -111,7 +106,7 @@
                 @endif
 
                 @if ($salesOrder->status === 'confirmed' && ! $salesOrder->camp)
-                    <form method="POST" action="{{ route('sales-orders.revert', $salesOrder) }}"
+                    <form method="POST" action="{{ route('sales_orders.revert', $salesOrder) }}"
                           style="display:inline;"
                           data-confirm="ใบสั่งขาย {{ $salesOrder->code_so }} จะย้อนกลับเป็นร่าง เพื่อให้แก้ไขรายการได้อีกครั้ง"
                           data-confirm-title="ย้อนกลับเป็นร่าง"
@@ -125,7 +120,7 @@
                 @endif
 
                 @if ($salesOrder->status === 'in_progress')
-                    <form method="POST" action="{{ route('sales-orders.close', $salesOrder) }}"
+                    <form method="POST" action="{{ route('sales_orders.close', $salesOrder) }}"
                           style="display:inline;"
                           data-confirm="ใบสั่งขาย {{ $salesOrder->code_so }} จะถูกปิดงาน"
                           data-confirm-title="ยืนยันการปิดงาน"
@@ -139,7 +134,7 @@
                 @endif
 
                 @if ($salesOrder->canCancel())
-                    <form method="POST" action="{{ route('sales-orders.cancel', $salesOrder) }}"
+                    <form method="POST" action="{{ route('sales_orders.cancel', $salesOrder) }}"
                           style="display:inline;"
                           data-confirm="ใบสั่งขาย {{ $salesOrder->code_so }} จะถูกยกเลิก"
                           data-confirm-title="ยืนยันการยกเลิก"
@@ -278,7 +273,7 @@
     </div>
 
     <div class="mt-3">
-        <a href="{{ route('sales-orders.index') }}" class="btn btn-outline-secondary">ย้อนกลับ</a>
+        <a href="{{ route('sales_orders.index') }}" class="btn btn-outline-secondary">ย้อนกลับ</a>
     </div>
 </div>
 @endsection

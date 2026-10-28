@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Cancellable;
 use App\Models\Concerns\HasDocumentCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -17,7 +18,10 @@ use Illuminate\Support\Collection;
  */
 class Receipt extends Model
 {
-    use HasDocumentCode;
+    use HasDocumentCode, Cancellable;
+
+    /** ยกเลิกเอกสาร = ใส่ cancelled_at (SoftDeletes) ไม่ลบแถวทิ้ง */
+    public const DELETED_AT = 'cancelled_at';
 
     protected $primaryKey = 'id_receipt';
 
@@ -55,6 +59,7 @@ class Receipt extends Model
             'vat_amount'       => 'decimal:2',
             'advance_deducted' => 'decimal:2',
             'total'            => 'decimal:2',
+            'cancelled_at'     => 'datetime',
         ];
     }
 
@@ -66,7 +71,7 @@ class Receipt extends Model
 
     public function invoice()
     {
-        return $this->belongsTo(Invoice::class, 'id_invoice', 'id_invoice');
+        return $this->belongsTo(Invoice::class, 'id_invoice', 'id_invoice')->withTrashed();
     }
 
     public function customer()
@@ -212,12 +217,29 @@ class Receipt extends Model
         return $this->proofPayments()->first()?->method;
     }
 
-    /* ==================== กฎการลบ ==================== */
+    /* ==================== กฎการยกเลิก ==================== */
 
-    /** ใบเสร็จล่วงหน้าที่ถูกหักไปแล้ว ห้ามลบ (ต้องลบรายการหักในใบแจ้งหนี้ก่อน) */
-    public function canDelete(): bool
+    /**
+     * ใบเสร็จล่วงหน้าที่ถูกหักไปใช้แล้ว ห้ามยกเลิก (ต้องลบรายการหักในใบแจ้งหนี้ก่อน)
+     * คืนข้อความเหตุผลถ้ายกเลิกไม่ได้ / null ถ้ายกเลิกได้
+     */
+    public function cancelBlocker(): ?string
     {
-        return ! ($this->isAdvance() && $this->advanceUsed() > 0);
+        if ($this->isCancelled()) {
+            return 'ใบเสร็จนี้ถูกยกเลิกไปแล้ว';
+        }
+        if ($this->isAdvance() && $this->advanceUsed() > 0) {
+            return 'เงินล่วงหน้าถูกหักไปใช้ในใบแจ้งหนี้แล้ว '
+                . number_format($this->advanceUsed(), 2)
+                . ' บาท ต้องลบรายการหักในใบแจ้งหนี้ก่อน';
+        }
+
+        return null;
+    }
+
+    public function canCancel(): bool
+    {
+        return $this->cancelBlocker() === null;
     }
 
     /* ==================== คำนวณ VAT ==================== */

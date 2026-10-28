@@ -19,29 +19,15 @@
 
     controller ส่ง $search (จาก $this->searchTerm) และ $perPage (จาก $this->perPage)
 --}}
-@props([
-    'action',
-    'placeholder' => 'พิมพ์คำที่ต้องการค้นหา',
-    'search'      => '',
-    'perPage'     => \App\Http\Controllers\Controller::DEFAULT_PER_PAGE,
-    'dates'       => false,
-    'dateFrom'    => null,
-    'dateTo'      => null,
-    'dateLabel'   => 'วันที่',
-    'statuses'    => [],
-    'status'      => null,
-    'statusName'  => 'status',
-    'statusLabel' => 'สถานะ',
-    'ranges'      => [],
-])
+@props(['action', 'placeholder' => 'พิมพ์คำที่ต้องการค้นหา', 'search' => '', 'perPage' => \App\Http\Controllers\Controller::DEFAULT_PER_PAGE, 'dates' => false, 'dateFrom' => null, 'dateTo' => null, 'dateLabel' => 'วันที่', 'statuses' => [], 'status' => null, 'statusName' => 'status', 'statusLabel' => 'สถานะ', 'ranges' => []])
 
 @php
     // รองรับทั้ง ['draft' => 'ร่าง'] และ ['paid' => ['label' => 'ชำระครบแล้ว', ...]]
-    $statusOptions = collect($statuses)->map(fn ($l) => is_array($l) ? ($l['label'] ?? '') : $l);
+    $statusOptions = collect($statuses)->map(fn($l) => is_array($l) ? $l['label'] ?? '' : $l);
 
-    // มีค่าค้นหา/ตัวกรองใดก็ได้ใน URL (นอกจากเลขหน้าและจำนวนต่อหน้า) → แสดงปุ่มล้าง
-    $hasFilter = collect(request()->except(['page', 'per_page']))
-        ->filter(fn ($v) => $v !== null && $v !== '')
+    // มีค่าค้นหา/ตัวกรองใดก็ได้ใน URL (นอกจากเลขหน้า จำนวนต่อหน้า และแท็บ) → แสดงปุ่มล้าง
+    $hasFilter = collect(request()->except(['page', 'per_page', 'tab']))
+        ->filter(fn($v) => $v !== null && $v !== '')
         ->isNotEmpty();
 @endphp
 
@@ -50,18 +36,18 @@
 
         {{-- ช่องค้นหาช่องเดียว + ปุ่มค้นหา --}}
         <div class="col-12 {{ $dates ? 'col-xl-5' : ($statusOptions->isNotEmpty() ? 'col-lg-6' : 'col-lg-7') }}">
-            @if ($dates || $statusOptions->isNotEmpty())
-                <label class="form-label small text-muted mb-1">ค้นหา</label>
-            @endif
+            <label class="form-label small text-muted mb-1">ค้นหา</label>
+
             <div class="input-group">
                 <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                <input type="search" name="search" class="form-control"
-                       placeholder="{{ $placeholder }}" value="{{ $search }}">
+                <input type="search" name="search" class="form-control" placeholder="{{ $placeholder }}"
+                    value="{{ $search }}">
                 <button type="submit" class="btn btn-search">
                     <i class="bi bi-search me-1"></i>ค้นหา
                 </button>
                 @if ($hasFilter)
-                    <a href="{{ $action }}" class="btn btn-outline-secondary" title="ล้างการค้นหาและตัวกรองทั้งหมด">
+                    <a href="{{ $action }}" class="btn btn-outline-secondary"
+                        title="ล้างการค้นหาและตัวกรองทั้งหมด">
                         <i class="bi bi-x-lg"></i>
                     </a>
                 @endif
@@ -73,12 +59,12 @@
             <div class="col-6 col-md-3 col-xl-2">
                 <label class="form-label small text-muted mb-1">{{ $dateLabel }} ตั้งแต่</label>
                 <input type="date" name="date_from" class="form-control" value="{{ $dateFrom }}"
-                       onchange="this.form.submit()">
+                    onchange="this.form.submit()">
             </div>
             <div class="col-6 col-md-3 col-xl-2">
                 <label class="form-label small text-muted mb-1">ถึง</label>
                 <input type="date" name="date_to" class="form-control" value="{{ $dateTo }}"
-                       onchange="this.form.submit()">
+                    onchange="this.form.submit()">
             </div>
         @endif
 
@@ -104,41 +90,45 @@
     </div>
 
     {{-- ช่วงตัวเลข (ต่ำสุด–สูงสุด) --}}
-    @if (! empty($ranges))
+    @if (!empty($ranges))
         <div class="row g-2 align-items-end mt-1 range-filters">
             @foreach ($ranges as $key => $r)
                 <div class="col-12 col-sm-6 col-lg-4 col-xxl-3">
                     <label class="form-label small text-muted mb-1">
-                        {{ $r['label'] }}@if ($r['unit']) <span class="fw-normal">({{ $r['unit'] }})</span>@endif
+                        {{ $r['label'] }}@if ($r['unit'])
+                            <span class="fw-normal">({{ $r['unit'] }})</span>
+                        @endif
                     </label>
-                    @if (! empty($r['options']))
+                    @if (!empty($r['options']))
                         {{-- แบบ dropdown: เลือกต่ำสุดแล้ว ช่องสูงสุดเหลือเฉพาะค่าที่ ≥ ต่ำสุด --}}
                         <div class="input-group" data-range-select>
                             <select name="{{ $key }}_min" class="form-select" data-range-min
-                                    aria-label="{{ $r['label'] }} ต่ำสุด">
+                                aria-label="{{ $r['label'] }} ต่ำสุด">
                                 <option value="">ต่ำสุด</option>
                                 @foreach ($r['options'] as $opt)
-                                    <option value="{{ $opt }}" @selected((string) $r['min'] === (string) $opt)>{{ $opt }}</option>
+                                    <option value="{{ $opt }}" @selected((string) $r['min'] === (string) $opt)>
+                                        {{ $opt }}</option>
                                 @endforeach
                             </select>
                             <span class="input-group-text">–</span>
                             <select name="{{ $key }}_max" class="form-select" data-range-max
-                                    aria-label="{{ $r['label'] }} สูงสุด">
+                                aria-label="{{ $r['label'] }} สูงสุด">
                                 <option value="">สูงสุด</option>
                                 @foreach ($r['options'] as $opt)
-                                    <option value="{{ $opt }}" @selected((string) $r['max'] === (string) $opt)>{{ $opt }}</option>
+                                    <option value="{{ $opt }}" @selected((string) $r['max'] === (string) $opt)>
+                                        {{ $opt }}</option>
                                 @endforeach
                             </select>
                         </div>
                     @else
                         <div class="input-group">
                             <input type="number" name="{{ $key }}_min" class="form-control"
-                                   value="{{ $r['min'] }}" step="{{ $r['step'] }}" min="0"
-                                   placeholder="ต่ำสุด" aria-label="{{ $r['label'] }} ต่ำสุด">
+                                value="{{ $r['min'] }}" step="{{ $r['step'] }}" min="0"
+                                placeholder="ต่ำสุด" aria-label="{{ $r['label'] }} ต่ำสุด">
                             <span class="input-group-text">–</span>
                             <input type="number" name="{{ $key }}_max" class="form-control"
-                                   value="{{ $r['max'] }}" step="{{ $r['step'] }}" min="0"
-                                   placeholder="สูงสุด" aria-label="{{ $r['label'] }} สูงสุด">
+                                value="{{ $r['max'] }}" step="{{ $r['step'] }}" min="0"
+                                placeholder="สูงสุด" aria-label="{{ $r['label'] }} สูงสุด">
                         </div>
                     @endif
                 </div>
@@ -158,8 +148,8 @@
 {{-- dropdown ต่ำสุด–สูงสุด: ซ่อนตัวเลือกที่ทำให้ช่วงกลับด้าน --}}
 @once
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('[data-range-select]').forEach(function (group) {
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-range-select]').forEach(function(group) {
                 var minSel = group.querySelector('[data-range-min]');
                 var maxSel = group.querySelector('[data-range-max]');
 
@@ -167,7 +157,7 @@
                     var min = minSel.value === '' ? -Infinity : parseFloat(minSel.value);
 
                     // สูงสุด: เลือกได้เฉพาะค่าที่ ≥ ต่ำสุด
-                    Array.prototype.forEach.call(maxSel.options, function (o) {
+                    Array.prototype.forEach.call(maxSel.options, function(o) {
                         if (o.value === '') return;
                         var off = parseFloat(o.value) < min;
                         o.disabled = off;
@@ -175,9 +165,10 @@
                     });
                 }
 
-                minSel.addEventListener('change', function () {
+                minSel.addEventListener('change', function() {
                     // ค่าสูงสุดเดิมน้อยกว่าต่ำสุดที่เพิ่งเลือก → ล้างทิ้ง ให้เลือกใหม่
-                    if (maxSel.value !== '' && parseFloat(maxSel.value) < parseFloat(minSel.value)) {
+                    if (maxSel.value !== '' && parseFloat(maxSel.value) < parseFloat(minSel
+                        .value)) {
                         maxSel.value = '';
                     }
                     sync();

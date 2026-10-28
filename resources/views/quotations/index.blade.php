@@ -7,6 +7,10 @@
 @endsection
 
 @section('content')
+    @php
+        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
+        $canEdit = auth()->user()->canEdit('quotations');
+    @endphp
     <div class="container py-3">
 
         <x-search-bar :action="route('quotations.index')"
@@ -18,10 +22,12 @@
 
         {{-- ==================== ปุ่มสร้าง ==================== --}}
         <div class="d-flex justify-content-end align-items-center mb-3">
+            @if ($canEdit)
             <a href="{{ route('quotations.create') }}" class="btn btn-dark text-nowrap">
                 <i class="bi bi-plus-lg me-1"></i>
                 สร้างใบเสนอราคา
             </a>
+            @endif
         </div>
 
         {{-- ==================== ตาราง ==================== --}}
@@ -68,76 +74,30 @@
                             </td>
 
                             <td class="text-center">
-                                <div class="action-buttons">
-                                    {{-- ดูข้อมูล --}}
-                                    <a href="{{ route('quotations.show', $q) }}"
-                                        class="btn action-button action-view"
-                                        title="ดูข้อมูล"
-                                        aria-label="ดูใบเสนอราคา {{ $q->code_quot }}">
-                                        <i class="bi bi-eye" aria-hidden="true"></i>
-                                    </a>
-
+                                <x-row-actions :show="route('quotations.show', $q)"
+                                               :delete="$canEdit ? (route('quotations.destroy', $q)) : null"
+                                               :label="$q->code_quot"
+                                               :delete-confirm="'ใบเสนอราคา ' . $q->code_quot . ' จะถูกลบออกจากระบบ'">
                                     {{-- อนุมัติ (เฉพาะสถานะร่าง) --}}
-                                    @if ($q->status === 'draft')
-                                        <form method="POST"
-                                            action="{{ route('quotations.approve', $q) }}"
-                                            class="delete-form"
-                                            data-confirm="ใบเสนอราคา {{ $q->code_quot }} จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้"
-                                            data-confirm-title="ยืนยันการอนุมัติ"
-                                            data-confirm-variant="success"
-                                            data-confirm-ok="อนุมัติ">
-                                            @csrf
-                                            @method('PATCH')
-
-                                            <button class="btn btn-outline-success action-button"
-                                                type="submit"
-                                                title="อนุมัติ"
-                                                aria-label="อนุมัติใบเสนอราคา {{ $q->code_quot }}">
-                                                <i class="bi bi-check-lg" aria-hidden="true"></i>
-                                            </button>
-                                        </form>
+                                    @if ($canEdit && $q->status === 'draft')
+                                        <x-row-actions.form :action="route('quotations.approve', $q)" method="PATCH"
+                                                            icon="bi-check-lg" variant="success"
+                                                            :confirm="'ใบเสนอราคา ' . $q->code_quot . ' จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้'"
+                                                            confirm-title="ยืนยันการอนุมัติ" confirm-ok="อนุมัติ">
+                                            อนุมัติ
+                                        </x-row-actions.form>
                                     @endif
 
                                     {{-- ยกเลิก (สถานะร่างหรืออนุมัติแล้ว) --}}
-                                    @if (in_array($q->status, ['draft', 'approved']))
-                                        <form method="POST"
-                                            action="{{ route('quotations.cancel', $q) }}"
-                                            class="delete-form"
-                                            data-confirm="ใบเสนอราคา {{ $q->code_quot }} จะถูกยกเลิก"
-                                            data-confirm-title="ยืนยันการยกเลิก"
-                                            data-confirm-variant="warning"
-                                            data-confirm-ok="ยกเลิกใบเสนอราคา">
-                                            @csrf
-                                            @method('PATCH')
-
-                                            <button class="btn btn-outline-warning action-button"
-                                                type="submit"
-                                                title="ยกเลิกใบเสนอราคา"
-                                                aria-label="ยกเลิกใบเสนอราคา {{ $q->code_quot }}">
-                                                <i class="bi bi-slash-circle" aria-hidden="true"></i>
-                                            </button>
-                                        </form>
+                                    @if ($canEdit && in_array($q->status, ['draft', 'approved']))
+                                        <x-row-actions.form :action="route('quotations.cancel', $q)" method="PATCH"
+                                                            icon="bi-slash-circle" variant="warning"
+                                                            :confirm="'ใบเสนอราคา ' . $q->code_quot . ' จะถูกยกเลิก'"
+                                                            confirm-title="ยืนยันการยกเลิก" confirm-ok="ยกเลิกใบเสนอราคา">
+                                            ยกเลิกใบเสนอราคา
+                                        </x-row-actions.form>
                                     @endif
-
-                                    {{-- ลบข้อมูล --}}
-                                    <form method="POST"
-                                        action="{{ route('quotations.destroy', $q) }}"
-                                        class="delete-form"
-                                        data-confirm="ใบเสนอราคา {{ $q->code_quot }} จะถูกลบออกจากระบบ"
-                                        data-confirm-title="ยืนยันการลบข้อมูล"
-                                        data-confirm-variant="danger"
-                                        data-confirm-ok="ลบข้อมูล">
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button class="btn btn-outline-danger action-button"
-                                            type="submit"
-                                            title="ลบข้อมูล"
-                                            aria-label="ลบใบเสนอราคา {{ $q->code_quot }}">
-                                            <i class="bi bi-trash" aria-hidden="true"></i>
-                                        </button>
-                                    </form>
-                                </div>
+                                </x-row-actions>
                             </td>
                         </tr>
                     @empty

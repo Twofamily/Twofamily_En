@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="utf-8">
+    <title>ใบเสนอราคา {{ $quotation->code_quot}}</title>
 
     <style>
         @font-face {
@@ -11,7 +12,6 @@
             src: url("{{ public_path('fonts/Sarabun-Regular.ttf') }}") format('truetype');
         }
 
-        {{-- dompdf ทำตัวหนาเองไม่ได้ ต้องมีไฟล์ Bold แยก ถ้าไม่มีไฟล์จะใช้ตัวปกติแทน --}}
         @if (file_exists(public_path('fonts/Sarabun-Bold.ttf')))
         @font-face {
             font-family: 'sarabun';
@@ -157,6 +157,27 @@
             min-height: 70px;
         }
 
+        /* ---------- ส่วนลงชื่อท้ายเอกสาร ---------- */
+        .signature-table {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .signature-cell {
+            text-align: center;
+            vertical-align: top;
+            padding: 0 10px;
+        }
+
+        .signature-line {
+            margin-top: 35px;
+            border-bottom: 1px dashed #333;
+            display: inline-block;
+            min-width: 170px;
+            padding-bottom: 2px;
+            font-weight: bold;
+        }
+
         /* ---------- ท้ายหน้า ---------- */
         .footer {
             position: fixed;
@@ -176,7 +197,7 @@
     <div class="footer">
         <table width="100%">
             <tr>
-                <td>{{ setting('company_name') }}</td>
+                <td>{{ $settings['company.name'] ?? $settings['company_name'] ?? 'บริษัท ทูแฟมิลี่ เอ็นจิเนียริ่ง จำกัด' }}</td>
                 <td class="text-right">ใบเสนอราคาเลขที่ {{ $quotation->code_quot }}</td>
             </tr>
         </table>
@@ -189,11 +210,15 @@
                 @if (file_exists(public_path('images/logo.png')))
                     <img src="{{ public_path('images/logo.png') }}" style="height: 60px; margin-bottom: 4px;"><br>
                 @endif
-                <div class="company-name">{{ setting('company_name') }}</div>
+                
+                {{-- เปลี่ยนมาดึงจาก $settings array แทนการใช้ helper setting() --}}
+                <div class="company-name">
+                    {{ $settings['company.name'] ?? $settings['company_name'] ?? 'บริษัท ทูแฟมิลี่ เอ็นจิเนียริ่ง จำกัด' }}
+                </div>
                 <div class="small">
-                    {{ setting('company_address') }}<br>
-                    โทร {{ setting('company_phone') }}<br>
-                    เลขประจำตัวผู้เสียภาษี {{ setting('tax_id') ?? '-' }}
+                    {{ $settings['company.address'] ?? $settings['company_address'] ?? '-' }}<br>
+                    โทร {{ $settings['company.phone'] ?? $settings['company_phone'] ?? '-' }}<br>
+                    เลขประจำตัวผู้เสียภาษี {{ $settings['company.tax_id'] ?? $settings['tax_id'] ?? '-' }}
                 </div>
             </td>
 
@@ -213,7 +238,6 @@
                         <td class="text-right">{{ \Carbon\Carbon::parse($quotation->date_quot)->format('d/m/Y') }}</td>
                     </tr>
                     <tr>
-                        {{-- ใช้ end_quot ที่บันทึกไว้ในเอกสาร ไม่คำนวณสดตอนพิมพ์ --}}
                         <td class="muted" style="padding-bottom: 6px;">ยืนราคาถึง</td>
                         <td class="text-right" style="padding-bottom: 6px;">
                             {{ $quotation->end_quot
@@ -239,7 +263,14 @@
         </tr>
         <tr>
             <td class="label">ที่อยู่</td>
-            <td>{{ customer_address($quotation->customer) }}</td>
+            <td>
+                {{-- ป้องกัน Error หากไม่มี helper customer_address --}}
+                @if(function_exists('customer_address'))
+                    {{ customer_address($quotation->customer) }}
+                @else
+                    {{ $quotation->customer->address_customer ?? '-' }}
+                @endif
+            </td>
         </tr>
         <tr>
             <td class="label">โทร</td>
@@ -270,12 +301,10 @@
                     <td class="text-center">{{ $d->quantity }}</td>
                     <td class="text-center">คิว</td>
                     <td class="text-right">{{ number_format($d->price_per_unit, 2) }}</td>
-                    {{-- อ่านจาก total_price ที่บันทึกไว้ ไม่คูณใหม่ตอนพิมพ์ --}}
                     <td class="text-right">{{ number_format($d->total_price, 2) }}</td>
                 </tr>
             @endforeach
 
-            {{-- เติมแถวว่างให้ตารางเต็มหน้า --}}
             @for ($i; $i <= 8; $i++)
                 <tr class="{{ $i % 2 === 0 ? 'row-alt' : '' }}">
                     <td>&nbsp;</td>
@@ -289,35 +318,24 @@
         </tbody>
     </table>
 
-    {{--
-        ===== ส่วนท้าย: สรุปยอด + ลายเซ็น =====
-        ห้ามตัดหน้าตรงกลาง ถ้าที่ไม่พอ ทั้งก้อนจะย้ายไปหน้าถัดไปพร้อมกัน
-        ลายเซ็นจะไม่หลุดไปอยู่หน้าเดียวโดด ๆ
-    --}}
+    {{-- ===== ส่วนท้าย: สรุปยอด + พิมพ์ชื่อลงชื่อ ===== --}}
     <div style="page-break-inside: avoid;">
 
-    {{-- ===== หมายเหตุ (ซ้าย) / สรุปยอด (ขวา) ===== --}}
     <table width="100%" class="small" style="margin-top: 10px;">
         <tr>
             <td width="55%" style="vertical-align: top; padding-right: 12px;">
                 <div class="note">
                     <b>หมายเหตุ / เงื่อนไข</b><br>
-                    {!! nl2br(e(setting('quotation_note'))) !!}
+                    {!! nl2br(e($settings['quotation_note'] ?? '')) !!}
                 </div>
             </td>
 
             <td width="45%" style="vertical-align: top;">
-                {{--
-                    ยอดเงินทุกบรรทัดอ่านจากคอลัมน์ที่บันทึกไว้ตอนออกเอกสาร
-                    ไม่คำนวณสดตอนพิมพ์ เพื่อให้เอกสารเก่าพิมพ์ซ้ำได้เหมือนเดิม
-                    แม้ราคาสินค้าหรืออัตรา VAT จะเปลี่ยนไปแล้ว
-                --}}
                 <table class="summary">
                     <tr>
                         <td>รวมเป็นเงิน</td>
                         <td class="text-right">{{ number_format($quotation->subtotal, 2) }}</td>
                     </tr>
-                    {{-- บริษัทไม่มีส่วนลดแล้ว — แสดงเฉพาะใบเก่าที่เคยบันทึกส่วนลดไว้ --}}
                     @if ((float) $quotation->discount > 0)
                         <tr>
                             <td>หักส่วนลด</td>
@@ -325,7 +343,7 @@
                         </tr>
                         <tr>
                             <td>ยอดหลังหักส่วนลด</td>
-                            <td class="text-right">{{ number_format($quotation->after_discount, 2) }}</td>
+                            <td class="text-right">{{ number_format($quotation->after_discount ?? ($quotation->subtotal - $quotation->discount), 2) }}</td>
                         </tr>
                     @endif
                     <tr>
@@ -347,24 +365,44 @@
         </div>
     @endif
 
-    @include('pdf.partials.signatures', ['slots' => [
-        [
-            'party' => 'customer',
-            'label' => 'ผู้รับใบเสนอราคา',
-        ],
-        [
-            'party' => 'company',
-            'label' => 'ผู้จัดทำ',
-            'user'  => $quotation->issuer,
-            'date'  => $quotation->issued_at,
-        ],
-        [
-            'party' => 'company',
-            'label' => 'ผู้อนุมัติ',
-            'user'  => $quotation->approver,
-            'date'  => $quotation->approved_at,
-        ],
-    ]])
+    {{-- ===== ลายเซ็นปรับเป็น พิมพ์ชื่อพนักงานไว้ตรงกลางเส้น (แบบใบเสร็จมาตรฐาน) ===== --}}
+    <table class="signature-table small">
+        <tr>
+            <!-- ช่องซ้าย: ลูกค้า -->
+            <td width="33%" class="signature-cell">
+                <div>ในนาม <strong>ลูกค้า</strong></div>
+                <div class="signature-line" style="font-weight: normal; color: #777;">
+                    &nbsp;
+                </div>
+                <div class="muted" style="margin-top: 4px;">ผู้รับใบเสนอราคา</div>
+                <div class="muted" style="font-size: 10.5px; margin-top: 2px;">วันที่ ...../...../..........</div>
+            </td>
+
+            <!-- ช่องกลาง: ผู้จัดทำ (พิมพ์ชื่อพนักงานจากระบบ) -->
+            <td width="33%" class="signature-cell">
+                <div>ในนาม <strong>ผู้จัดทำ</strong></div>
+                <div class="signature-line">
+                    {{ $quotation->issuer->name ?? '.....................................' }}
+                </div>
+                <div class="muted" style="margin-top: 4px;">ผู้จัดทำเอกสาร</div>
+                <div class="muted" style="font-size: 10.5px; margin-top: 2px;">
+                    วันที่ {{ $quotation->issued_at ? \Carbon\Carbon::parse($quotation->issued_at)->format('d/m/Y') : '-' }}
+                </div>
+            </td>
+
+            <!-- ช่องขวา: ผู้อนุมัติ (พิมพ์ชื่อพนักงานจากระบบ) -->
+            <td width="34%" class="signature-cell">
+                <div>ในนาม <strong>{{ $settings['company.name'] ?? $settings['company_name'] ?? 'บริษัท' }}</strong></div>
+                <div class="signature-line">
+                    {{ $quotation->approver->name ?? '.....................................' }}
+                </div>
+                <div class="muted" style="margin-top: 4px;">ผู้อนุมัติ</div>
+                <div class="muted" style="font-size: 10.5px; margin-top: 2px;">
+                    วันที่ {{ $quotation->approved_at ? \Carbon\Carbon::parse($quotation->approved_at)->format('d/m/Y') : '-' }}
+                </div>
+            </td>
+        </tr>
+    </table>
 
     </div>{{-- /keep-together --}}
 

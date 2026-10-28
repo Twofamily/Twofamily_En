@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Two Family Co., Ltd.</title>
+    <title>{{ \App\Models\Setting::get('company.name_th') ?: config('app.name') }}</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -383,8 +383,8 @@
 
                 $isDocPage =
                     request()->routeIs('quotations.*') ||
-                    request()->routeIs('sales-orders.*') ||
-                    request()->routeIs('delivery-notes.*') ||
+                    request()->routeIs('sales_orders.*') ||
+                    request()->routeIs('delivery_notes.*') ||
                     request()->routeIs('invoices.*') ||
                     request()->routeIs('receipts.*') ||
                     request()->routeIs('tax-invoices.*');
@@ -399,8 +399,8 @@
                 $showTruckMenu = $canSee('truck_brands') || $canSee('truck_models') || $canSee('trucks');
                 $showDocMenu =
                     $canSee('quotations') ||
-                    $canSee('sales-orders') ||
-                    $canSee('delivery-notes') ||
+                    $canSee('sales_orders') ||
+                    $canSee('delivery_notes') ||
                     $canSee('invoices') ||
                     $canSee('receipts');
                 $showUserMenu =
@@ -427,30 +427,19 @@
                     </li>
                 @endif
 
-                {{-- สินค้า --}}
+                {{-- สินค้า (สินค้าทั้งหมด + ประเภทสินค้า เป็นแท็บในหน้าเดียวกัน) --}}
                 @if ($showProductMenu)
+                    @php
+                        // ดูสินค้าไม่ได้แต่ดูประเภทได้ → พาไปหน้าประเภทแทน กันเจอหน้า 403
+                        $productMenuUrl = $canSee('products')
+                            ? route('products.index')
+                            : route('product_types.index');
+                    @endphp
                     <li class="nav-item">
-                        <a class="nav-link {{ $isProductPage ? 'active' : '' }}" data-bs-toggle="collapse"
-                            data-submenu-toggle href="#productMenu" role="button" title="สินค้า"
-                            aria-expanded="{{ $isProductPage ? 'true' : 'false' }}" aria-controls="productMenu">
+                        <a href="{{ $productMenuUrl }}"
+                            class="nav-link {{ $isProductPage ? 'active' : '' }}" title="สินค้า">
                             <span><i class="bi bi-box-seam me-2"></i><span class="menu-text">สินค้า</span></span>
-                            <i class="bi bi-caret-down-fill arrow"></i>
                         </a>
-
-                        <div class="collapse submenu {{ $isProductPage ? 'show' : '' }}" id="productMenu">
-                            @if ($canSee('product_types'))
-                                <a href="{{ route('product_types.index') }}"
-                                    class="sub-link {{ request()->routeIs('product_types.*') ? 'active' : '' }}">
-                                    <i class="bi bi-tags me-2"></i>ประเภทสินค้า
-                                </a>
-                            @endif
-                            @if ($canSee('products'))
-                                <a href="{{ route('products.index') }}"
-                                    class="sub-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
-                                    <i class="bi bi-boxes me-2"></i>สินค้าทั้งหมด
-                                </a>
-                            @endif
-                        </div>
                     </li>
                 @endif
 
@@ -465,36 +454,19 @@
                     </li>
                 @endif
 
-                {{-- จัดการรถบรรทุก --}}
+                {{-- รถบรรทุก (รถ + รุ่น + ยี่ห้อ เป็นแท็บในหน้าเดียวกัน) --}}
                 @if ($showTruckMenu)
+                    @php
+                        // พาไปแท็บแรกที่ผู้ใช้มีสิทธิ์ดู กันเจอหน้า 403
+                        $truckMenuUrl = $canSee('trucks')
+                            ? route('trucks.index')
+                            : ($canSee('truck_models') ? route('truck_models.index') : route('truck_brands.index'));
+                    @endphp
                     <li class="nav-item">
-                        <a class="nav-link {{ $isTruckPage ? 'active' : '' }}" data-bs-toggle="collapse"
-                            data-submenu-toggle href="#truckMenu" role="button" title="จัดการรถบรรทุก"
-                            aria-expanded="{{ $isTruckPage ? 'true' : 'false' }}" aria-controls="truckMenu">
-                            <span><i class="bi bi-truck me-2"></i><span class="menu-text">จัดการรถบรรทุก</span></span>
-                            <i class="bi bi-caret-down-fill arrow"></i>
+                        <a href="{{ $truckMenuUrl }}"
+                            class="nav-link {{ $isTruckPage ? 'active' : '' }}" title="รถบรรทุก">
+                            <span><i class="bi bi-truck me-2"></i><span class="menu-text">รถบรรทุก</span></span>
                         </a>
-
-                        <div class="collapse submenu {{ $isTruckPage ? 'show' : '' }}" id="truckMenu">
-                            @if ($canSee('truck_brands'))
-                                <a href="{{ route('truck_brands.index') }}"
-                                    class="sub-link {{ request()->routeIs('truck_brands.*') ? 'active' : '' }}">
-                                    <i class="bi bi-award me-2"></i>ยี่ห้อรถบรรทุก
-                                </a>
-                            @endif
-                            @if ($canSee('truck_models'))
-                                <a href="{{ route('truck_models.index') }}"
-                                    class="sub-link {{ request()->routeIs('truck_models.*') ? 'active' : '' }}">
-                                    <i class="bi bi-card-list me-2"></i>รุ่นรถบรรทุก
-                                </a>
-                            @endif
-                            @if ($canSee('trucks'))
-                                <a href="{{ route('trucks.index') }}"
-                                    class="sub-link {{ request()->routeIs('trucks.*') ? 'active' : '' }}">
-                                    <i class="bi bi-truck-front me-2"></i>รถบรรทุกในบริษัท
-                                </a>
-                            @endif
-                        </div>
                     </li>
                 @endif
 
@@ -515,15 +487,15 @@
                                     <i class="bi bi-file-earmark-ruled me-2"></i>ใบเสนอราคา
                                 </a>
                             @endif
-                            @if ($canSee('sales-orders'))
-                                <a href="{{ route('sales-orders.index') }}"
-                                    class="sub-link {{ request()->routeIs('sales-orders.*') ? 'active' : '' }}">
+                            @if ($canSee('sales_orders'))
+                                <a href="{{ route('sales_orders.index') }}"
+                                    class="sub-link {{ request()->routeIs('sales_orders.*') ? 'active' : '' }}">
                                     <i class="bi bi-cart-check me-2"></i>ใบสั่งขาย
                                 </a>
                             @endif
-                            @if ($canSee('delivery-notes'))
-                                <a href="{{ route('delivery-notes.index') }}"
-                                    class="sub-link {{ request()->routeIs('delivery-notes.*') ? 'active' : '' }}">
+                            @if ($canSee('delivery_notes'))
+                                <a href="{{ route('delivery_notes.index') }}"
+                                    class="sub-link {{ request()->routeIs('delivery_notes.*') ? 'active' : '' }}">
                                     <i class="bi bi-truck me-2"></i>ใบส่งของ
                                 </a>
                             @endif

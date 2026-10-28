@@ -1,6 +1,6 @@
 {{--
-    ตัวกรองช่วงเวลาของกราฟ — วางไว้ใต้กราฟ
-    ข้อมูลมาจาก $revenue['filter'] (App\Http\Controllers\Dashboard\RevenueReport)
+    ตัวกรองช่วงเวลาของแดชบอร์ด — วางไว้บนสุด คุมทุกตัวเลขที่เป็น "ตามช่วง"
+    ข้อมูลมาจาก $revenue['filter'] (App\Http\Controllers\RevenueReport)
 --}}
 
 @php
@@ -8,8 +8,7 @@
 @endphp
 
 {{-- ===== ตัวกรองช่วงเวลา ===== --}}
-{{-- #charts ทำให้หลังกดกรองแล้วหน้าเลื่อนกลับมาที่กราฟ แทนที่จะเด้งขึ้นบนสุด --}}
-<form method="GET" action="{{ route('dashboard') }}#charts" class="p-3 p-md-4 section-card mt-3" id="revenueFilter">
+<form method="GET" action="{{ route('dashboard') }}" class="p-3 p-md-4 section-card" id="revenueFilter">
     <div class="d-flex flex-wrap align-items-center gap-3">
 
         <div class="d-flex flex-wrap gap-2" role="group" aria-label="ช่วงเวลา">

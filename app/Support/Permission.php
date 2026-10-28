@@ -57,8 +57,8 @@ class Permission
             ],
             'เอกสาร' => [
                 'quotations'     => 'ใบเสนอราคา',
-                'sales-orders'   => 'ใบสั่งขาย',
-                'delivery-notes' => 'ใบส่งของ',
+                'sales_orders'   => 'ใบสั่งขาย',
+                'delivery_notes' => 'ใบส่งของ',
                 'invoices'       => 'ใบแจ้งหนี้ และหลักฐานการชำระ',
                 'receipts'       => 'ใบเสร็จ',
             ],

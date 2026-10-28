@@ -7,17 +7,26 @@
 @endsection
 
 @section('content')
+    @php
+        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
+        $canEdit = auth()->user()->canEdit('product_types');
+    @endphp
     <div class="container py-3">
 
-        <x-search-bar :action="route('product_types.index')"
-                      placeholder="ค้นหาชื่อประเภทสินค้า"
-                      :search="$search" :per-page="$perPage" />
+        <!-- เพิ่มส่วนข้อความหัวข้อตรงนี้ -->
+        <div class="mb-2">
+            <label class="form-label fw-bold">ค้นหา</label>
+        </div>
+
+        <x-search-bar :action="route('product_types.index')" placeholder="ค้นหาชื่อประเภทสินค้า" :search="$search" :per-page="$perPage" />
 
         <div class="d-flex justify-content-end align-items-center mb-3">
+            @if ($canEdit)
             <a href="{{ route('product_types.create') }}" class="btn btn-dark text-nowrap">
                 <i class="bi bi-plus-lg me-1"></i>
                 เพิ่มประเภทสินค้า
             </a>
+            @endif
         </div>
 
         {{-- ตารางแสดงข้อมูล --}}
@@ -26,7 +35,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>ชื่อประเภทสินค้า</th>
-                        <th class="text-center" style="width:140px;">จัดการ</th>
+                        <th class="text-center" style="width:80px;">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -35,34 +44,9 @@
                             <td>{{ $t->name_product_type }}</td>
 
                             <td class="text-center">
-                                <div class="action-buttons">
-                                    {{-- แก้ไขข้อมูล --}}
-                                    <a href="{{ route('product_types.edit', $t) }}"
-                                        class="btn btn-outline-primary action-button"
-                                        title="แก้ไขข้อมูล"
-                                        aria-label="แก้ไขประเภทสินค้า {{ $t->name_product_type }}">
-                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                    </a>
-
-                                    {{-- ลบข้อมูล --}}
-                                    <form method="POST"
-                                        action="{{ route('product_types.destroy', $t) }}"
-                                        class="delete-form"
-                                        data-confirm="ข้อมูล {{ $t->name_product_type }} จะถูกลบออกจากระบบ"
-                                        data-confirm-title="ยืนยันการลบข้อมูล"
-                                        data-confirm-variant="danger"
-                                        data-confirm-ok="ลบข้อมูล">
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button class="btn btn-outline-danger action-button"
-                                            type="submit"
-                                            title="ลบข้อมูล"
-                                            aria-label="ลบประเภทสินค้า {{ $t->name_product_type }}">
-                                            <i class="bi bi-trash" aria-hidden="true"></i>
-                                        </button>
-                                    </form>
-                                </div>
+                                <x-row-actions :edit="$canEdit ? route('product_types.edit', $t) : null"
+                                               :delete="$canEdit ? (route('product_types.destroy', $t)) : null"
+                                               :label="$t->name_product_type" />
                             </td>
                         </tr>
                     @empty

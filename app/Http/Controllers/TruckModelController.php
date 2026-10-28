@@ -9,7 +9,21 @@ use Illuminate\Validation\Rule;
 
 class TruckModelController extends Controller
 {
+    /**
+     * รุ่นรถเป็นแท็บหนึ่งในหน้ารถบรรทุกแล้ว → ส่งไปแท็บนั้น (พกตัวกรองไปด้วย)
+     * ยกเว้นคนที่ไม่มีสิทธิ์ดูหน้ารถบรรทุก → ใช้หน้าเดิม
+     */
     public function index(Request $request)
+    {
+        if ($request->user()?->canViewModule('trucks')) {
+            return redirect()->route('trucks.index', ['tab' => 'models'] + $request->query());
+        }
+
+        return view('truck_models.index', $this->listData($request));
+    }
+
+    /** ข้อมูลตารางรุ่นรถ — ใช้ทั้งแท็บในหน้ารถบรรทุก และหน้าเดิม */
+    public function listData(Request $request): array
     {
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
@@ -30,7 +44,8 @@ class TruckModelController extends Controller
         ]);
 
         // ช่องค้นหาช่องเดียว: ชื่อรุ่น ยี่ห้อ ประเภท เชื้อเพลิง ปีรุ่น
-        $models = TruckModel::with('brand')
+        // trucks: ใช้แสดงรายชื่อรถในหน้าต่าง "ดู" ของแต่ละรุ่น
+        $models = TruckModel::with(['brand', 'trucks:id_truck,truck_model_id,status_truck'])
             ->withCount('trucks')
             ->when($status, fn ($query) => $query->where('is_active', $status === 'active'))
             ->tap(fn ($query) => $this->applyNumberRange($query, 'model_year', $ranges['year']))
@@ -49,11 +64,16 @@ class TruckModelController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('truck_models.index', compact('models', 'search', 'perPage', 'status', 'statusLabels', 'ranges'));
+        return compact('models', 'search', 'perPage', 'status', 'statusLabels', 'ranges');
     }
 
-    public function create()
+    /** ฟอร์มเพิ่มรุ่นย้ายไปเป็น modal ในแท็บรุ่นรถแล้ว */
+    public function create(Request $request)
     {
+        if ($request->user()?->canViewModule('trucks')) {
+            return redirect()->route('trucks.index', ['tab' => 'models', 'open' => 'model']);
+        }
+
         $model  = new TruckModel();
         $brands = TruckBrand::orderBy('name_brand')->get();
 
@@ -67,7 +87,7 @@ class TruckModelController extends Controller
         TruckModel::create($data);
 
         return redirect()
-            ->route('truck_models.index')
+            ->route('trucks.index', ['tab' => 'models'])
             ->with('ok', 'เพิ่มรุ่นรถเรียบร้อย');
     }
 
@@ -86,7 +106,7 @@ class TruckModelController extends Controller
         $truck_model->update($data);
 
         return redirect()
-            ->route('truck_models.index')
+            ->route('trucks.index', ['tab' => 'models'])
             ->with('ok', 'แก้ไขรุ่นรถเรียบร้อย');
     }
 

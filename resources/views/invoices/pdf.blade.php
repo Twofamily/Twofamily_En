@@ -209,6 +209,7 @@
 </head>
 
 <body>
+    @include('partials.pdf-cancelled', ['doc' => $invoice])
 
     <div class="footer">
         <table width="100%">
@@ -238,7 +239,7 @@
                 <table class="doc-box small">
                     <tr>
                         <td colspan="2" class="doc-title">
-                            ใบแจ้งหนี้ / ใบกำกับภาษี<br><span>INVOICE / TAX INVOICE</span>
+                            ใบแจ้งหนี้ / ใบวางบิล / ใบกำกับภาษี<br><span>INVOICE / BILLING NOTE / TAX INVOICE</span>
                         </td>
                     </tr>
                     <tr>
@@ -271,7 +272,7 @@
             <td width="50%"><b>{{ $invoice->customer->name_customer ?? '-' }}</b></td>
             <td class="label divider" width="16%">ใบส่งของ</td>
             <td width="22%">
-                {{ $invoice->deliveryNote?->code_dn ?? '-' }}
+                {{ $invoice->deliveryNotes->pluck('code_dn')->implode(', ') ?: '-' }}
             </td>
         </tr>
         <tr>

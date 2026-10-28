@@ -12,9 +12,13 @@
 @endphp
 
 @section('content')
+    @php
+        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
+        $canEdit = auth()->user()->canEdit('sales_orders');
+    @endphp
     <div class="container py-3">
 
-        <x-search-bar :action="route('sales-orders.index')"
+        <x-search-bar :action="route('sales_orders.index')"
                       placeholder="ค้นหาเลขที่ / เลข PO / ลูกค้า / ใบเสนอราคา / แคมป์ / สถานะ"
                       :search="$search" :per-page="$perPage"
                       :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่สั่ง"
@@ -23,10 +27,12 @@
 
         {{-- ==================== ปุ่มสร้าง ==================== --}}
         <div class="d-flex justify-content-end align-items-center mb-3">
-            <a href="{{ route('sales-orders.create') }}" class="btn btn-dark text-nowrap">
+            @if ($canEdit)
+            <a href="{{ route('sales_orders.create') }}" class="btn btn-dark text-nowrap">
                 <i class="bi bi-plus-lg me-1"></i>
                 สร้างใบสั่งขาย
             </a>
+            @endif
         </div>
 
         {{-- ==================== ตาราง ==================== --}}
@@ -42,7 +48,7 @@
                         <th class="text-end">ยอดสุทธิ</th>
                         <th class="text-center">สถานะ</th>
                         <th>แคมป์</th>
-                        <th class="text-center" style="width:100px;">จัดการ</th>
+                        <th class="text-center" style="width:80px;">จัดการ</th>
                     </tr>
                 </thead>
 
@@ -89,15 +95,7 @@
                             </td>
 
                             <td class="text-center">
-                                <div class="action-buttons">
-                                    {{-- ดูข้อมูล --}}
-                                    <a href="{{ route('sales-orders.show', $so) }}"
-                                        class="btn action-button action-view"
-                                        title="ดูข้อมูล"
-                                        aria-label="ดูใบสั่งขาย {{ $so->code_so }}">
-                                        <i class="bi bi-eye" aria-hidden="true"></i>
-                                    </a>
-                                </div>
+                                <x-row-actions :show="route('sales_orders.show', $so)" :label="$so->code_so" />
                             </td>
                         </tr>
                     @empty
@@ -108,7 +106,7 @@
                                 @if ($hasFilter)
                                     ไม่พบใบสั่งขายที่ตรงกับเงื่อนไขที่ค้นหา
                                     <div class="mt-2">
-                                        <a href="{{ route('sales-orders.index') }}"
+                                        <a href="{{ route('sales_orders.index') }}"
                                             class="btn btn-sm btn-outline-secondary">
                                             ล้างเงื่อนไขการค้นหา
                                         </a>

@@ -8,7 +8,21 @@ use Illuminate\Validation\Rule;
 
 class TruckBrandController extends Controller
 {
+    /**
+     * ยี่ห้อเป็นแท็บหนึ่งในหน้ารถบรรทุกแล้ว → ส่งไปแท็บนั้น (พกคำค้นหาไปด้วย)
+     * ยกเว้นคนที่ไม่มีสิทธิ์ดูหน้ารถบรรทุก → ใช้หน้าเดิม
+     */
     public function index(Request $request)
+    {
+        if ($request->user()?->canViewModule('trucks')) {
+            return redirect()->route('trucks.index', ['tab' => 'brands'] + $request->query());
+        }
+
+        return view('truck_brands.index', $this->listData($request));
+    }
+
+    /** ข้อมูลตารางยี่ห้อ — ใช้ทั้งแท็บในหน้ารถบรรทุก และหน้าเดิม */
+    public function listData(Request $request): array
     {
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
@@ -19,11 +33,16 @@ class TruckBrandController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('truck_brands.index', compact('brands', 'search', 'perPage'));
+        return compact('brands', 'search', 'perPage');
     }
 
-    public function create()
+    /** ฟอร์มเพิ่มยี่ห้อย้ายไปเป็น modal ในแท็บยี่ห้อแล้ว */
+    public function create(Request $request)
     {
+        if ($request->user()?->canViewModule('trucks')) {
+            return redirect()->route('trucks.index', ['tab' => 'brands', 'open' => 'brand']);
+        }
+
         $brand = new TruckBrand();
 
         return view('truck_brands.create', compact('brand'));
@@ -36,7 +55,7 @@ class TruckBrandController extends Controller
         TruckBrand::create($data);
 
         return redirect()
-            ->route('truck_brands.index')
+            ->route('trucks.index', ['tab' => 'brands'])
             ->with('ok', 'เพิ่มยี่ห้อเรียบร้อย');
     }
 
@@ -54,7 +73,7 @@ class TruckBrandController extends Controller
         $truckBrand->update($data);
 
         return redirect()
-            ->route('truck_brands.index')
+            ->route('trucks.index', ['tab' => 'brands'])
             ->with('ok', 'แก้ไขยี่ห้อเรียบร้อย');
     }
 

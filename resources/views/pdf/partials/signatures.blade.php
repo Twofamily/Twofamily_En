@@ -43,9 +43,11 @@
                     : 'ในนาม ' . $company;
 
                 // dompdf อ่าน URL ไม่ได้ ต้องใช้ path ในเครื่องเท่านั้น
-                // เช็ค GD และ file_exists ก่อน เพื่อให้ PDF ยังออกได้แม้ GD มีปัญหาหรือไฟล์รูปหาย
+                // PNG ต้องใช้ PHP GD / JPG ไม่ต้อง → ถ้าเว็บเซิร์ฟเวอร์ไม่มี GD ยังแสดงลายเซ็น JPG ได้
+                // เช็ค file_exists ก่อน เพื่อให้ PDF ยังออกได้แม้ไฟล์รูปหาย
                 $signature = null;
-                if ($user && $user->signature_path && extension_loaded('gd')) {
+                $isJpeg    = $user && preg_match('/\.jpe?g$/i', (string) $user->signature_path);
+                if ($user && $user->signature_path && (extension_loaded('gd') || $isJpeg)) {
                     $full = public_path($user->signature_path);
                     if (file_exists($full)) {
                         $signature = $full;

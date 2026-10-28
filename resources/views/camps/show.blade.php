@@ -41,7 +41,7 @@
                     </div>
 
                     <div class="text-end">
-                        <span class="badge bg-{{ $camp->status_camp === 'active' ? 'success' : 'secondary' }} fs-6 mb-2">
+                        <span class="badge bg-{{ $camp->status_color }} fs-6 mb-2">
                             {{ $camp->status_label }}
                         </span>
                         <br>
@@ -63,7 +63,7 @@
                         <div>
                             @forelse ($camp->salesOrders as $so)
                                 <div>
-                                    <a href="{{ route('sales-orders.show', $so) }}" class="text-decoration-none">
+                                    <a href="{{ route('sales_orders.show', $so) }}" class="text-decoration-none">
                                         {{ $so->code_so }}
                                     </a>
                                     <span class="text-muted">· {{ number_format($so->total_amount, 2) }} บาท</span>
@@ -145,6 +145,80 @@
             </div>
         </div>
 
+        {{-- ==================== ทำงานต่อจากแคมป์ ====================
+             แคมป์ = แฟ้มงาน: เริ่มเอกสารทุกใบจากตรงนี้ได้ ไม่ต้องไปหาตามเมนู
+             ปุ่มขึ้นตามสถานะแคมป์ + สิทธิ์ของผู้ใช้ --}}
+        @php
+            $user        = auth()->user();
+            $next        = \App\Models\Camp::NEXT_STEP[$camp->status_camp] ?? null;
+            $canEditCamp = $user->canEdit('camps');
+            $closing     = $next && $next[0] === 'closed';
+        @endphp
+
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body d-flex flex-wrap gap-2 align-items-center">
+                <span class="text-muted small me-1">ทำงานต่อ:</span>
+
+                @if ($camp->isWorking() && $user->canEdit('delivery_notes'))
+                    <a href="{{ route('delivery_notes.create', ['camp' => $camp->id_camp]) }}" class="btn btn-sm btn-dark">
+                        <i class="bi bi-truck me-1"></i>ออกใบส่งของ
+                    </a>
+                @endif
+
+                @if ($pendingNotes->isNotEmpty() && $camp->isOpen() && $user->canEdit('invoices'))
+                    <a href="{{ route('invoices.create', ['group' => 'camp-' . $camp->id_camp]) }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-receipt me-1"></i>ออกใบแจ้งหนี้
+                        <span class="badge bg-light text-dark ms-1">รอออก {{ $pendingNotes->count() }} ใบ</span>
+                    </a>
+                @endif
+
+                @if ($camp->isOpen() && $user->canEdit('receipts'))
+                    <a href="{{ route('receipts.create', ['type' => 'advance', 'camp' => $camp->id_camp]) }}"
+                       class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-cash-coin me-1"></i>รับเงินล่วงหน้า
+                    </a>
+                @endif
+
+                @if ($camp->isOpen() && $user->canEdit('sales_orders'))
+                    <a href="{{ route('sales_orders.create') }}" class="btn btn-sm btn-outline-secondary"
+                       title="สร้างใบสั่งขาย ยืนยันแล้วกด &quot;เพิ่มเข้าแคมป์เดิม&quot; ในหน้าใบสั่งขาย">
+                        <i class="bi bi-plus-lg me-1"></i>ใบสั่งขายเพิ่ม
+                    </a>
+                @endif
+
+                {{-- เปลี่ยนสถานะทีละขั้น --}}
+                @if ($next && $canEditCamp)
+                    <form method="POST" action="{{ route('camps.status', $camp) }}" class="ms-auto"
+                          data-confirm="{{ $closing
+                              ? 'ปิดแคมป์ ' . $camp->code_camp . ' หลังปิดจะออกเอกสารเพิ่มไม่ได้ (เปิดกลับได้ภายหลัง)'
+                              : 'เปลี่ยนสถานะแคมป์เป็น "' . \App\Models\Camp::STATUS_LABELS[$next[0]] . '"' }}"
+                          data-confirm-title="ยืนยันการเปลี่ยนสถานะแคมป์"
+                          data-confirm-variant="{{ $closing ? 'danger' : 'primary' }}"
+                          data-confirm-ok="{{ $next[1] }}">
+                        @csrf
+                        @method('PATCH')
+                        <input type="hidden" name="status_camp" value="{{ $next[0] }}">
+                        <button type="submit" class="btn btn-sm {{ $closing ? 'btn-outline-danger' : 'btn-outline-success' }}"
+                                @disabled($closing && $closeBlockers)>
+                            <i class="bi {{ $next[2] }} me-1"></i>{{ $next[1] }}
+                        </button>
+                    </form>
+                @endif
+            </div>
+
+            {{-- ยังปิดแคมป์ไม่ได้ → บอกว่าติดอะไร --}}
+            @if ($closing && $closeBlockers)
+                <div class="card-footer bg-white small">
+                    <div class="text-muted mb-1"><i class="bi bi-info-circle me-1"></i>ก่อนปิดแคมป์ต้องจัดการ:</div>
+                    <ul class="mb-0 ps-3">
+                        @foreach ($closeBlockers as $reason)
+                            <li>{{ $reason }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+        </div>
+
         {{-- ==================== สรุปการเงินของแคมป์ ==================== --}}
         @php
             $tiles = [
@@ -160,13 +234,6 @@
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <span class="fw-semibold">สรุปการเงินของแคมป์</span>
-
-                @if (in_array(auth()->user()->role, ['admin', 'staff']) && $camp->status_camp === 'active')
-                    <a href="{{ route('receipts.create', ['type' => 'advance', 'camp' => $camp->id_camp]) }}"
-                       class="btn btn-sm btn-outline-warning">
-                        <i class="bi bi-cash-coin me-1"></i>รับเงินล่วงหน้า
-                    </a>
-                @endif
             </div>
 
             <div class="card-body">
@@ -305,13 +372,14 @@
                                 </td>
                                 <td class="text-center">
                                     @if ($note->invoice)
-                                        <span class="badge bg-success">ออกแล้ว</span>
+                                        <a href="{{ route('invoices.show', $note->invoice) }}"
+                                           class="badge bg-success text-decoration-none">{{ $note->invoice->code_inv }}</a>
                                     @else
                                         <span class="badge bg-secondary">รอออก</span>
                                     @endif
                                 </td>
                                 <td class="text-center">
-                                    <a href="{{ route('delivery-notes.show', $note) }}"
+                                    <a href="{{ route('delivery_notes.show', $note) }}"
                                         class="btn btn-sm btn-outline-primary">ดู</a>
                                 </td>
                             </tr>

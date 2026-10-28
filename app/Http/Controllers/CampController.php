@@ -69,7 +69,7 @@ class CampController extends Controller
 
             if (! $salesOrder || ! $salesOrder->canOpenCamp()) {
                 return redirect()
-                    ->route('sales-orders.index')
+                    ->route('sales_orders.index')
                     ->with('error', 'ใบสั่งขายนี้เปิดแคมป์ไม่ได้ (ต้องยืนยันแล้ว และยังไม่อยู่ในแคมป์ไหน)');
             }
         }
@@ -77,7 +77,7 @@ class CampController extends Controller
         $camp = new Camp([
             'id_customer' => $salesOrder?->id_customer,
             'id_quot'     => $salesOrder?->id_quot,
-            'status_camp' => 'active',
+            'status_camp' => 'preparing',
         ]);
 
         return view('camps.create', [
@@ -86,6 +86,12 @@ class CampController extends Controller
             'customers'  => Customer::orderBy('name_customer')->get(),
             'quotations' => $this->quotationOptions(),
             'isEdit'     => false,
+            // ใบสั่งขายที่ยืนยันแล้วและยังไม่อยู่ในแคมป์ไหน — ให้เลือกเปิดแคมป์จากใบสั่งขายได้เลย
+            'openableOrders' => $salesOrder ? collect() : SalesOrder::with('customer')
+                ->where('status', 'confirmed')
+                ->whereNull('id_camp')
+                ->orderByDesc('id_so')
+                ->get(),
         ]);
     }
 
@@ -113,6 +119,7 @@ class CampController extends Controller
         }
 
         $data['code_camp'] = Camp::generateCode();
+        $data['status_camp'] = 'preparing';   // แคมป์ใหม่เริ่มที่เตรียมงานเสมอ
 
         // สร้างแคมป์ + ผูกใบสั่งขาย สำเร็จพร้อมกัน หรือไม่สำเร็จทั้งคู่
         $camp = DB::transaction(function () use ($data, $salesOrder) {
@@ -156,22 +163,62 @@ class CampController extends Controller
             return back()->withInput()->with('error', $error);
         }
 
+        // เปลี่ยนเป็นปิดแคมป์ผ่านหน้าแก้ไข → ต้องผ่านเงื่อนไขเดียวกับปุ่มปิดแคมป์
+        if ($data['status_camp'] === 'closed' && $camp->status_camp !== 'closed'
+            && ($blockers = $camp->closeBlockers())) {
+            return back()->withInput()->withErrors(['status_camp' => 'ยังปิดแคมป์ไม่ได้: ' . implode(' · ', $blockers)]);
+        }
+
         $camp->update($data);
 
         return redirect()->route('camps.show', $camp)->with('ok', 'แก้ไขแคมป์เรียบร้อย');
     }
 
+    /**
+     * ลบได้เฉพาะแคมป์ที่ยังไม่มีเอกสาร / บันทึกน้ำมัน / รถประจำ (เช่น เปิดผิด)
+     * ใบสั่งขายที่ผูกไว้จะกลับเป็น "ยืนยันแล้ว" ให้เปิดแคมป์ใหม่ได้
+     */
     public function destroy(Camp $camp)
     {
-        $count = $camp->trucks()->wherePivotNull('released_date')->count();
-
-        if ($count > 0) {
-            return back()->with('error', "ลบไม่ได้ มีรถประจำแคมป์นี้อยู่ {$count} คัน");
+        if ($reason = $camp->deleteBlocker()) {
+            return back()->with('error', "ลบแคมป์ {$camp->code_camp} ไม่ได้: {$reason}");
         }
 
-        $camp->delete();
+        DB::transaction(function () use ($camp) {
+            SalesOrder::where('id_camp', $camp->id_camp)
+                ->where('status', 'in_progress')
+                ->update(['id_camp' => null, 'status' => 'confirmed']);
+            SalesOrder::where('id_camp', $camp->id_camp)->update(['id_camp' => null]);
+
+            $camp->delete();
+        });
 
         return redirect()->route('camps.index')->with('ok', 'ลบแคมป์แล้ว');
+    }
+
+    /**
+     * เปลี่ยนสถานะแคมป์ทีละขั้นจากหน้าแคมป์
+     * preparing → active → completed → closed  (ปิดแล้วเปิดกลับเป็น active ได้)
+     */
+    public function changeStatus(Request $request, Camp $camp)
+    {
+        $data = $request->validate([
+            'status_camp' => ['required', Rule::in(array_keys(Camp::STATUS_LABELS))],
+        ]);
+
+        $to = $data['status_camp'];
+
+        if ($to === $camp->status_camp) {
+            return back()->with('info', 'สถานะไม่มีการเปลี่ยนแปลง');
+        }
+
+        if ($to === 'closed' && ($blockers = $camp->closeBlockers())) {
+            return back()->withErrors(['status_camp' => 'ยังปิดแคมป์ไม่ได้: ' . implode(' · ', $blockers)]);
+        }
+
+        $camp->update(['status_camp' => $to]);
+
+        return back()->with('ok', 'เปลี่ยนสถานะแคมป์ ' . $camp->code_camp . ' เป็น "' . $camp->status_label . '" แล้ว');
     }
 
     public function show(Camp $camp)
@@ -197,7 +244,15 @@ class CampController extends Controller
         $progress = $this->buildProgress($camp);
         $summary  = $camp->financialSummary();
 
-        return view('camps.show', compact('camp', 'deliveryNotes', 'progress', 'receipts', 'summary'));
+        // ใบส่งของที่ยังไม่ได้เรียกเก็บ → ปุ่ม "ออกใบแจ้งหนี้" บนหน้าแคมป์
+        $pendingNotes = $deliveryNotes->whereNull('id_invoice');
+
+        // เงื่อนไขปิดแคมป์ (คำนวณเฉพาะตอนที่ขั้นถัดไปคือปิดแคมป์)
+        $closeBlockers = $camp->status_camp === 'completed' ? $camp->closeBlockers() : [];
+
+        return view('camps.show', compact(
+            'camp', 'deliveryNotes', 'progress', 'receipts', 'summary', 'pendingNotes', 'closeBlockers'
+        ));
     }
 
     /** รถที่พร้อมใช้งาน และยังไม่ได้ประจำแคมป์ไหนอยู่ (รถ 1 คัน ทำงานได้ทีละแคมป์) */
@@ -417,7 +472,7 @@ class CampController extends Controller
             'longitude'      => ['nullable', 'numeric', 'between:-180,180'],
             'contact_name'   => ['nullable', 'string', 'max:255'],
             'contact_phone'  => ['nullable', 'digits:10'],
-            'status_camp'    => ['required', 'in:active,closed'],
+            'status_camp'    => ['required', Rule::in(array_keys(Camp::STATUS_LABELS))],
             'note'           => ['nullable', 'string', 'max:1000'],
         ], [
             'id_customer.required' => 'กรุณาเลือกลูกค้า',

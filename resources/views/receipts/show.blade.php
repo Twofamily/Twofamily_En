@@ -20,11 +20,9 @@
 
     $canManage = in_array(auth()->user()->role, ['admin', 'staff']);
 
-    $deleteMessage = match (true) {
-        $receipt->isInvoiceType() => "ใบเสร็จ {$receipt->code_rc} จะถูกลบออกจากระบบ และรายการชำระของใบแจ้งหนี้ "
-                                    . ($inv->code_inv ?? '') . ' จะกลับมาแก้ไขได้อีกครั้ง',
-        default                   => "ใบเสร็จ {$receipt->code_rc} และหลักฐานการชำระที่แนบไว้จะถูกลบออกจากระบบ",
-    };
+    $cancelMessage = $receipt->isInvoiceType()
+        ? "ยกเลิกใบเสร็จ {$receipt->code_rc} — ใบแจ้งหนี้ " . ($inv->code_inv ?? '') . ' จะกลับมาแก้ไขรายการชำระ / ออกใบเสร็จใหม่ได้'
+        : "ยกเลิกใบเสร็จ {$receipt->code_rc} — หลักฐานการชำระยังเก็บไว้ แต่ไม่นับเป็นเงินรับ";
 @endphp
 
 @section('content')
@@ -33,13 +31,10 @@
     {{-- ส่วนหัวเอกสาร (แบบเดียวกับใบเสนอราคา) --}}
     <div class="text-center mb-4">
         <h2>ใบเสร็จรับเงิน (Receipt)</h2>
-        <p>บริษัท Two Family Engineering Co., Ltd.</p>
-        <p>
-            โทร: 02-123-4567 |
-            ที่อยู่: 189 หมู่ที่ 14 ตำบลสูงเนิน อำเภอสูงเนิน
-            จ.นครราชสีมา 30170
-        </p>
+        @include('partials.company-line')
     </div>
+
+    @include('partials.cancelled-banner', ['doc' => $receipt, 'label' => 'ใบเสร็จ'])
 
     {{-- แถบสถานะการทำงาน --}}
     <div class="card border-0 shadow-sm mb-3">
@@ -58,7 +53,9 @@
                     </a>
                 @endif
 
-                @if ($receipt->isAdvance())
+                @if ($receipt->isCancelled())
+                    <span class="badge bg-dark fs-6">ยกเลิกแล้ว</span>
+                @elseif ($receipt->isAdvance())
                     <span class="{{ $receipt->advanceRemaining() > 0 ? 'text-warning' : 'text-success' }}">
                         <i class="bi bi-piggy-bank me-1"></i>
                         หักไปแล้ว {{ number_format($receipt->advanceUsed(), 2) }}
@@ -73,16 +70,13 @@
                     <i class="bi bi-printer me-1"></i> พิมพ์
                 </a>
 
-                @if ($canManage && $receipt->canDelete())
-                    <form method="POST" action="{{ route('receipts.destroy', $receipt->id_receipt) }}"
-                          style="display:inline;"
-                          data-confirm="{{ $deleteMessage }}"
-                          data-confirm-title="ยืนยันการลบข้อมูล"
-                          data-confirm-variant="danger"
-                          data-confirm-ok="ลบข้อมูล">
-                        @csrf @method('DELETE')
-                        <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
-                    </form>
+                @if ($canManage && ! $receipt->isCancelled())
+                    @include('partials.cancel-button', [
+                        'action'  => route('receipts.destroy', $receipt->id_receipt),
+                        'label'   => 'ยกเลิกใบเสร็จ',
+                        'message' => $cancelMessage,
+                        'blocker' => $receipt->cancelBlocker(),
+                    ])
                 @endif
             </div>
         </div>
@@ -126,13 +120,13 @@
 
                             <dt class="col-5 text-muted fw-normal">ใบส่งของ</dt>
                             <dd class="col-7">
-                                @if ($inv->deliveryNote)
-                                    <a href="{{ route('delivery-notes.show', $inv->deliveryNote) }}" class="text-decoration-none">
-                                        {{ $inv->deliveryNote->code_delivery }}
+                                @forelse ($inv->deliveryNotes as $dn)
+                                    <a href="{{ route('delivery_notes.show', $dn) }}" class="text-decoration-none d-block">
+                                        {{ $dn->code_delivery }}
                                     </a>
-                                @else
+                                @empty
                                     <span class="text-muted">-</span>
-                                @endif
+                                @endforelse
                             </dd>
                         @endif
 

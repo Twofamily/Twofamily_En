@@ -26,17 +26,16 @@ return [
         // เอกสาร
         'quotations'     => 'ใบเสนอราคา',
         'sales_orders'   => 'ใบสั่งขาย',
-        'salesorders'    => 'ใบสั่งขาย',
+        'receipts'       => 'ใบเสร็จ',
         'camps'          => 'แคมป์งาน',
         'delivery_notes' => 'ใบส่งของ',
         'invoices'       => 'ใบแจ้งหนี้',
-        'billing_notes'  => 'ใบวางบิล',
-        'receipts'       => 'ใบเสร็จ',
 
         // ข้อมูลหลัก
         'customers'      => 'ลูกค้า',
         'product_types'  => 'ประเภทสินค้า',
         'products'       => 'สินค้า',
+        'fuel_records'   => 'ต้นทุนค่าน้ำมัน',
         'truck_brands'   => 'ยี่ห้อรถ',
         'truck_models'   => 'รุ่นรถ',
         'trucks'         => 'รถบรรทุก',

@@ -11,7 +11,6 @@ use App\Http\Controllers\{
     InvoiceController,
     FuelRecordController,
     ProductTypeController,
-    TransportJobController,
     QuotationController,
     SalesOrderController,
     TruckBrandController,
@@ -115,15 +114,17 @@ Route::middleware([
         ->middleware('role:admin,staff')
         ->name('camps.trucks.release');
 
+    // เปลี่ยนสถานะแคมป์ทีละขั้น (เตรียมงาน → ดำเนินงาน → ส่งครบ → ปิดแคมป์)
+    Route::patch('camps/{camp}/status', [CampController::class, 'changeStatus'])
+        ->middleware('role:admin,staff')
+        ->name('camps.status');
+
     Route::patch('camps/{camp}/trucks/{assignment}/driver', [CampController::class, 'changeDriver'])
         ->middleware('role:admin,staff')
         ->name('camps.trucks.driver');
 
 
     /* ==================== Operations ==================== */
-
-    // Route::resource('transport-jobs', TransportJobController::class)
-    //     ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
     Route::resource('fuel_records', FuelRecordController::class)
     ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
@@ -133,14 +134,6 @@ Route::middleware([
 
     Route::resource('quotations', QuotationController::class)
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
-
-        // ต้องมาก่อน resource ไม่งั้น {deliveryNote} จะกิน "pdf"
-    Route::get('delivery-notes/{deliveryNote}/pdf', [DeliveryNoteController::class, 'pdf'])
-        ->name('delivery-notes.pdf');
-
-    Route::resource('delivery-notes', DeliveryNoteController::class)
-        ->only(['index', 'create', 'store', 'show', 'destroy'])
-        ->middlewareFor(['create', 'store', 'destroy'], 'role:admin,staff');
 
     Route::get('/quotation/{quotation}/pdf', [QuotationController::class, 'downloadPDF'])
         ->name('quotation.pdf');
@@ -153,47 +146,68 @@ Route::middleware([
         ->middleware('role:admin,staff')
         ->name('quotations.cancel');
 
-        /* ==================== ใบสั่งขาย ==================== */
+    /* ==================== ใบส่งของ ==================== */
+
+    // ต้องมาก่อน resource ไม่งั้น {deliveryNote} จะกิน "pdf"
+    // ใบที่ยกเลิกแล้วยังเปิดดู / พิมพ์ได้ (withTrashed) — destroy = ยกเลิกใบส่งของ ไม่ได้ลบ
+    Route::get('delivery_notes/{deliveryNote}/pdf', [DeliveryNoteController::class, 'pdf'])
+        ->name('delivery_notes.pdf')
+        ->withTrashed();
+
+    Route::resource('delivery_notes', DeliveryNoteController::class)
+        ->parameters(['delivery_notes' => 'deliveryNote'])
+        ->only(['index', 'create', 'store', 'show', 'destroy'])
+        ->middlewareFor(['create', 'store', 'destroy'], 'role:admin,staff')
+        ->withTrashed(['show']);
+
+    /* ==================== ใบสั่งขาย ==================== */
 
     // ต้องมาก่อน resource ไม่งั้น {salesOrder} จะกินคำว่า "pdf"
-    Route::get('sales-orders/{salesOrder}/pdf', [SalesOrderController::class, 'pdf'])
-        ->name('sales-orders.pdf');
+    Route::get('sales_orders/{salesOrder}/pdf', [SalesOrderController::class, 'pdf'])
+        ->name('sales_orders.pdf');
 
-    Route::resource('sales-orders', SalesOrderController::class)
-        ->parameters(['sales-orders' => 'salesOrder'])
+    Route::resource('sales_orders', SalesOrderController::class)
+        ->parameters(['sales_orders' => 'salesOrder'])
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
 
-    Route::patch('sales-orders/{salesOrder}/confirm', [SalesOrderController::class, 'confirm'])
+    Route::patch('sales_orders/{salesOrder}/confirm', [SalesOrderController::class, 'confirm'])
         ->middleware('role:admin,staff')
-        ->name('sales-orders.confirm');
+        ->name('sales_orders.confirm');
 
-    Route::patch('sales-orders/{salesOrder}/revert', [SalesOrderController::class, 'revertToDraft'])
+    Route::patch('sales_orders/{salesOrder}/revert', [SalesOrderController::class, 'revertToDraft'])
         ->middleware('role:admin,staff')
-        ->name('sales-orders.revert');
+        ->name('sales_orders.revert');
 
-    Route::patch('sales-orders/{salesOrder}/cancel', [SalesOrderController::class, 'cancel'])
+    Route::patch('sales_orders/{salesOrder}/cancel', [SalesOrderController::class, 'cancel'])
         ->middleware('role:admin,staff')
-        ->name('sales-orders.cancel');
+        ->name('sales_orders.cancel');
 
-    Route::patch('sales-orders/{salesOrder}/close', [SalesOrderController::class, 'close'])
+    Route::patch('sales_orders/{salesOrder}/close', [SalesOrderController::class, 'close'])
         ->middleware('role:admin,staff')
-        ->name('sales-orders.close');
+        ->name('sales_orders.close');
 
     // เพิ่มใบสั่งขายเข้าแคมป์เดิม (ลูกค้าสั่งเพิ่มในงานเดิม)
     // ถ้าเปิดแคมป์ใหม่ ใช้ camps.create?sales_order=...
-    Route::post('sales-orders/{salesOrder}/attach-camp', [SalesOrderController::class, 'attachCamp'])
+    Route::post('sales_orders/{salesOrder}/attach-camp', [SalesOrderController::class, 'attachCamp'])
         ->middleware('role:admin,staff')
-        ->name('sales-orders.attachCamp');
+        ->name('sales_orders.attachCamp');
 
     /* ==================== ใบแจ้งหนี้ ==================== */
 
+    // ใบแจ้งหนี้ / ใบวางบิล — 1 ใบรวมใบส่งของได้หลายใบ (create = หน้าเลือกใบส่งของ)
     Route::resource('invoices', InvoiceController::class)
-        ->only(['index', 'show', 'destroy'])
-        ->middlewareFor(['destroy'], 'role:admin,staff');
+        ->only(['index', 'create', 'store', 'show', 'destroy'])
+        ->middlewareFor(['create', 'store', 'destroy'], 'role:admin,staff');
+
+    // บันทึกวันที่ลูกค้าเซ็นรับบิล
+    Route::patch('/invoices/{id}/bill-received', [InvoiceController::class, 'billReceived'])
+        ->middleware('role:admin,staff')
+        ->name('invoices.billReceived');
 
     Route::get('/invoice/{id}/pdf', [InvoiceController::class, 'pdf'])
         ->name('invoice.pdf');
 
+    // ลิงก์เดิมจากหน้าใบส่งของ → ส่งต่อไปหน้าเลือกใบส่งของ (ติ๊กใบนั้นไว้ให้)
     Route::post('/invoices/create/{deliveryNote}', [InvoiceController::class, 'createFromDeliveryNote'])
         ->middleware('role:admin,staff')
         ->name('invoices.createFromDeliveryNote');
@@ -295,4 +309,8 @@ Route::middleware([
 
     Route::patch('users/{user}/reset-password', [UserController::class, 'resetPassword'])
         ->name('users.resetPassword');
+
+    // ลายเซ็นอิเล็กทรอนิกส์ + ตำแหน่ง ที่พิมพ์ในกรอบลายเซ็นของ PDF
+    Route::post('users/{user}/signature', [UserController::class, 'updateSignature'])
+        ->name('users.signature');
 });

@@ -38,7 +38,7 @@
                         <th>ชื่อ-นามสกุล</th>
                         <th>สิทธิ์การใช้งาน</th>
                         <th>สถานะ</th>
-                        <th class="text-center" style="width:190px">จัดการ</th>
+                        <th class="text-center" style="width:80px;">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -69,60 +69,26 @@
                             </td>
 
                             <td class="text-center">
-                                <div class="action-buttons">
-                                    {{-- แก้ไขข้อมูล --}}
-                                    <a href="{{ route('users.edit', $u) }}"
-                                        class="btn btn-outline-primary action-button"
-                                        title="แก้ไขข้อมูล"
-                                        aria-label="แก้ไขผู้ใช้งาน {{ $u->name }}">
-                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                    </a>
-
-                                    {{-- ปุ่มระงับและลบ ไม่แสดงในแถวของตนเอง --}}
+                                {{-- ระงับและลบ ไม่แสดงในแถวของตนเอง --}}
+                                <x-row-actions :edit="route('users.edit', $u)"
+                                               :delete="$u->id !== auth()->id() ? route('users.destroy', $u) : null"
+                                               :label="$u->name"
+                                               delete-label="ลบบัญชี"
+                                               :delete-confirm="'บัญชี ' . $u->name . ' (' . $u->email . ') จะถูกลบออกจากระบบ'"
+                                               delete-title="ยืนยันการลบผู้ใช้งาน" delete-ok="ลบบัญชี">
                                     @if ($u->id !== auth()->id())
-                                        {{-- ระงับ / เปิดใช้งาน --}}
-                                        <form method="POST"
-                                            action="{{ route('users.toggleStatus', $u) }}"
-                                            class="delete-form"
-                                            data-confirm="{{ $u->is_active
-                                                ? $u->name . ' จะไม่สามารถเข้าสู่ระบบได้ทันที จนกว่าจะเปิดใช้งานอีกครั้ง'
-                                                : $u->name . ' จะสามารถเข้าสู่ระบบได้ทันที' }}"
-                                            data-confirm-title="{{ $u->is_active ? 'ยืนยันการระงับบัญชี' : 'ยืนยันการเปิดใช้งานบัญชี' }}"
-                                            data-confirm-variant="{{ $u->is_active ? 'warning' : 'success' }}"
-                                            data-confirm-ok="{{ $u->is_active ? 'ระงับบัญชี' : 'เปิดใช้งาน' }}">
-                                            @csrf
-                                            @method('PATCH')
-
-                                            <button
-                                                class="btn btn-outline-{{ $u->is_active ? 'warning' : 'success' }} action-button"
-                                                type="submit"
-                                                title="{{ $u->is_active ? 'ระงับบัญชี' : 'เปิดใช้งานบัญชี' }}"
-                                                aria-label="{{ $u->is_active ? 'ระงับบัญชี' : 'เปิดใช้งานบัญชี' }} {{ $u->name }}">
-                                                <i class="bi bi-person-{{ $u->is_active ? 'x' : 'check' }}"
-                                                    aria-hidden="true"></i>
-                                            </button>
-                                        </form>
-
-                                        {{-- ลบบัญชี --}}
-                                        <form method="POST"
-                                            action="{{ route('users.destroy', $u) }}"
-                                            class="delete-form"
-                                            data-confirm="บัญชี {{ $u->name }} ({{ $u->email }}) จะถูกลบออกจากระบบ"
-                                            data-confirm-title="ยืนยันการลบผู้ใช้งาน"
-                                            data-confirm-variant="danger"
-                                            data-confirm-ok="ลบบัญชี">
-                                            @csrf
-                                            @method('DELETE')
-
-                                            <button class="btn btn-outline-danger action-button"
-                                                type="submit"
-                                                title="ลบบัญชี"
-                                                aria-label="ลบบัญชี {{ $u->name }}">
-                                                <i class="bi bi-trash" aria-hidden="true"></i>
-                                            </button>
-                                        </form>
+                                        <x-row-actions.form :action="route('users.toggleStatus', $u)" method="PATCH"
+                                                            :icon="$u->is_active ? 'bi-person-x' : 'bi-person-check'"
+                                                            :variant="$u->is_active ? 'warning' : 'success'"
+                                                            :confirm="$u->is_active
+                                                                ? $u->name . ' จะไม่สามารถเข้าสู่ระบบได้ทันที จนกว่าจะเปิดใช้งานอีกครั้ง'
+                                                                : $u->name . ' จะสามารถเข้าสู่ระบบได้ทันที'"
+                                                            :confirm-title="$u->is_active ? 'ยืนยันการระงับบัญชี' : 'ยืนยันการเปิดใช้งานบัญชี'"
+                                                            :confirm-ok="$u->is_active ? 'ระงับบัญชี' : 'เปิดใช้งาน'">
+                                            {{ $u->is_active ? 'ระงับบัญชี' : 'เปิดใช้งานบัญชี' }}
+                                        </x-row-actions.form>
                                     @endif
-                                </div>
+                                </x-row-actions>
                             </td>
                         </tr>
                     @empty

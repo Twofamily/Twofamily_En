@@ -35,7 +35,7 @@ class ReceiptController extends Controller
         'invoice.customer',
         'invoice.details.product',
         'invoice.quotation',
-        'invoice.deliveryNote',
+        'invoice.deliveryNotes',
         'invoice.payments.recordedBy',
         'invoice.payments.advanceReceipt',
     ];
@@ -101,8 +101,9 @@ class ReceiptController extends Controller
         // (ต้องสร้างก่อนดึงรายชื่อลูกค้า ไม่งั้นครั้งแรกจะไม่อยู่ใน dropdown)
         $walkIn = $type === Receipt::TYPE_DIRECT ? Customer::walkIn() : null;
 
+        // รับเงินล่วงหน้าได้ทุกแคมป์ที่ยังไม่ปิด (ลูกค้ามักจ่ายมัดจำตั้งแต่ตอนเตรียมงาน)
         $camps = Camp::with('customer')
-            ->active()
+            ->open()
             ->latest('id_camp')
             ->get();
 
@@ -171,7 +172,7 @@ class ReceiptController extends Controller
         /* ---------- ตรวจแคมป์ ---------- */
         $camp = ! empty($data['id_camp']) ? Camp::find($data['id_camp']) : null;
 
-        if ($type === Receipt::TYPE_ADVANCE && $camp?->status_camp !== 'active') {
+        if ($type === Receipt::TYPE_ADVANCE && ! $camp?->isOpen()) {
             return back()->withInput()->with('error', 'รับเงินล่วงหน้าได้เฉพาะแคมป์ที่ยังเปิดอยู่');
         }
 
@@ -297,7 +298,7 @@ class ReceiptController extends Controller
 
     public function show($id)
     {
-        $receipt = Receipt::with(self::DISPLAY_RELATIONS)->findOrFail($id);
+        $receipt = Receipt::with([...self::DISPLAY_RELATIONS, 'cancelledBy'])->withTrashed()->findOrFail($id);
 
         return view('receipts.show', compact('receipt'));
     }
@@ -310,14 +311,16 @@ class ReceiptController extends Controller
 
         // พิมพ์ "ล่วงหน้า" / "ขายสด" ก็ค้นตามประเภทได้
         $types = $this->statusesMatching($search, Receipt::TYPES);
-        $type  = $this->statusFilter($request, array_keys(Receipt::TYPES), 'type');
+        // "ยกเลิกแล้ว" อยู่ใน dropdown เดียวกับประเภท
+        $type  = $this->statusFilter($request, [...array_keys(Receipt::TYPES), 'cancelled'], 'type');
 
         // ช่วงยอดรับชำระ (ต่ำสุด–สูงสุด)
         $ranges = $this->numberRanges($request, [
             'total' => ['label' => 'ยอดรับชำระ', 'unit' => 'บาท', 'step' => '0.01'],
         ]);
 
-        $query = Receipt::with(['customer', 'invoice', 'camp'])
+        $query = Receipt::with(['customer', 'invoice', 'camp', 'cancelledBy', 'appliedAdvances'])
+            ->cancelledFilter($type === 'cancelled' ? 'cancelled' : null)
             // ช่องค้นหาช่องเดียว: เลขที่ใบเสร็จ ใบแจ้งหนี้ แคมป์ ชื่อลูกค้า และประเภท
             ->when($search !== '', function ($query) use ($search, $types) {
                 $query->where(function ($sub) use ($search, $types) {
@@ -331,12 +334,13 @@ class ReceiptController extends Controller
                     }
                 });
             })
-            ->ofType($type)
+            ->ofType($type === 'cancelled' ? null : $type)
             ->tap(fn ($query) => $this->applyNumberRange($query, 'total', $ranges['total']))
             ->tap(fn ($query) => $this->applyDateRange($query, 'date_receipt', $dateFrom, $dateTo));
 
         // ยอดรวมรับชำระตามเงื่อนไข (ทุกหน้า ไม่ใช่เฉพาะหน้าที่แสดง)
-        $sumTotal = (clone $query)->sum('total');
+        // ใบที่ยกเลิกแล้วไม่นับเป็นยอดรับชำระ
+        $sumTotal = (clone $query)->whereNull('receipts.cancelled_at')->sum('total');
 
         $receipts = $query
             ->orderByDesc('id_receipt')
@@ -350,7 +354,7 @@ class ReceiptController extends Controller
 
     public function pdf($id)
     {
-        $receipt = Receipt::with(self::DISPLAY_RELATIONS)->findOrFail($id);
+        $receipt = Receipt::with(self::DISPLAY_RELATIONS)->withTrashed()->findOrFail($id);
 
         $settings = Setting::pluck('value', 'key');
 
@@ -359,31 +363,29 @@ class ReceiptController extends Controller
         return $pdf->stream(($receipt->code_rc ?: 'RC-' . $receipt->id_receipt) . '.pdf');
     }
 
-    public function destroy($id)
+    /**
+     * ยกเลิกใบเสร็จ (ไม่ลบ) — เลขที่ หลักฐานการชำระ และไฟล์สลิปยังอยู่ทั้งหมด
+     *   invoice : ใบแจ้งหนี้กลับมาแก้ไขรายการชำระ / ออกใบเสร็จใหม่ได้
+     *   advance : เงินล่วงหน้าก้อนนี้ไม่ถูกนับในยอดคงเหลือของแคมป์อีก (ต้องยังไม่ถูกหักไปใช้)
+     *   direct  : ไม่นับเป็นเงินรับ
+     */
+    public function destroy(Request $request, $id)
     {
-        $receipt = Receipt::with(['payments', 'appliedAdvances'])->findOrFail($id);
+        $data = $request->validate(
+            ['cancel_reason' => ['required', 'string', 'min:3', 'max:255']],
+            ['cancel_reason.required' => 'กรุณาระบุเหตุผลที่ยกเลิก', 'cancel_reason.min' => 'เหตุผลสั้นเกินไป'],
+        );
 
-        // เงินล่วงหน้าถูกหักไปใช้ในใบแจ้งหนี้แล้ว → ลบไม่ได้ ยอดในใบแจ้งหนี้จะเพี้ยน
-        if (! $receipt->canDelete()) {
-            return back()->with('error', 'ใบเสร็จรับเงินล่วงหน้านี้ถูกหักไปใช้ในใบแจ้งหนี้แล้ว '
-                . number_format($receipt->advanceUsed(), 2)
-                . ' บาท ต้องลบรายการหักในใบแจ้งหนี้ก่อน');
+        $receipt = Receipt::with(['appliedAdvances'])->findOrFail($id);
+
+        if ($reason = $receipt->cancelBlocker()) {
+            return back()->with('error', 'ยกเลิกใบเสร็จไม่ได้: ' . $reason);
         }
 
-        // หลักฐานของใบเสร็จ advance / direct ลบไปพร้อมกัน (แบบ invoice หลักฐานอยู่กับใบแจ้งหนี้ ไม่ลบ)
-        $slipPaths = $receipt->payments->pluck('slip_path')->filter()->all();
+        $receipt->cancel($data['cancel_reason']);
 
-        DB::transaction(function () use ($receipt) {
-            $receipt->payments()->delete();
-            $receipt->items()->delete();
-            $receipt->delete();
-        });
-
-        foreach ($slipPaths as $path) {
-            Storage::disk('local')->delete($path);
-        }
-
-        return redirect()->route('receipts.index')
-            ->with('success', 'ลบใบเสร็จเรียบร้อย');
+        return redirect()->route('receipts.show', $receipt->id_receipt)
+            ->with('success', 'ยกเลิกใบเสร็จ ' . $receipt->code_rc . ' แล้ว'
+                . ($receipt->isInvoiceType() ? ' ใบแจ้งหนี้กลับมาแก้ไขรายการชำระ / ออกใบเสร็จใหม่ได้' : ''));
     }
 }

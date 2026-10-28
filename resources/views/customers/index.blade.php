@@ -53,38 +53,14 @@
                             <td>{{ $c->province ?: '-' }}</td>
 
                             <td class="text-center">
-                                <div class="action-buttons">
-                                    {{-- ดูข้อมูล --}}
-                                    <a href="{{ route('customers.show', $c->id_customer) }}"
-                                        class="btn action-button action-view" title="ดูข้อมูล"
-                                        aria-label="ดูข้อมูลลูกค้า {{ $c->name_customer }}">
-                                        <i class="bi bi-eye" aria-hidden="true"></i>
-                                    </a>
-
-                                    @if (auth()->user()->canEdit())
-                                        {{-- แก้ไขข้อมูล --}}
-                                        <a href="{{ route('customers.edit', $c->id_customer) }}"
-                                            class="btn btn-outline-primary action-button" title="แก้ไขข้อมูล"
-                                            aria-label="แก้ไขข้อมูลลูกค้า {{ $c->name_customer }}">
-                                            <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                        </a>
-
-                                        {{-- ลบข้อมูล --}}
-                                        <form method="POST" action="{{ route('customers.destroy', $c->id_customer) }}"
-                                            class="delete-form"
-                                            data-confirm="ข้อมูล {{ $c->name_customer }} จะถูกลบออกจากระบบ"
-                                            data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
-                                            data-confirm-ok="ลบข้อมูล">
-                                            @csrf
-                                            @method('DELETE')
-
-                                            <button class="btn btn-outline-danger action-button" type="submit"
-                                                title="ลบข้อมูล" aria-label="ลบข้อมูลลูกค้า {{ $c->name_customer }}">
-                                                <i class="bi bi-trash" aria-hidden="true"></i>
-                                            </button>
-                                        </form>
-                                    @endif
-                                </div>
+                                @if (auth()->user()->canEdit())
+                                    <x-row-actions :show="route('customers.show', $c->id_customer)"
+                                                   :edit="route('customers.edit', $c->id_customer)"
+                                                   :delete="route('customers.destroy', $c->id_customer)"
+                                                   :label="$c->name_customer" />
+                                @else
+                                    <x-row-actions :show="route('customers.show', $c->id_customer)" :label="$c->name_customer" />
+                                @endif
                             </td>
                         </tr>
                     @empty

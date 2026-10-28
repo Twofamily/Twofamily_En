@@ -28,6 +28,7 @@ class FuelRecord extends Model
         'distance',
         'cost_fuel',
         'trucks_id_truck',
+        'id_camp',
         'cost_fuel_total',
         'total_fuel_liters',
     ];
@@ -48,6 +49,16 @@ class FuelRecord extends Model
             Truck::class,
             'trucks_id_truck',
             'id_truck'
+        );
+    }
+
+    /** แคมป์ที่รอบนี้วิ่งให้ (ว่าง = ไม่ได้วิ่งให้แคมป์ เช่น ส่งสินค้าตรง) */
+    public function camp(): BelongsTo
+    {
+        return $this->belongsTo(
+            Camp::class,
+            'id_camp',
+            'id_camp'
         );
     }
 

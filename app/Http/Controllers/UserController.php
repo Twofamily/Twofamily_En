@@ -138,6 +138,47 @@ class UserController extends Controller
     }
 
     /* ============================================================
+     |  ลายเซ็นอิเล็กทรอนิกส์ (แสดงในกรอบลายเซ็นของ PDF ทุกเอกสาร)
+     |  เก็บไฟล์ไว้ใน public/signatures เพราะ dompdf อ่านได้เฉพาะไฟล์ในเครื่อง
+     ============================================================ */
+    public function updateSignature(Request $request, User $user)
+    {
+        $data = $request->validateWithBag('updateSignature', [
+            'position'         => ['nullable', 'string', 'max:100'],
+            'signature'        => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:1024'],
+            'remove_signature' => ['nullable', 'boolean'],
+        ], [
+            'signature.image' => 'ไฟล์ลายเซ็นต้องเป็นรูปภาพ',
+            'signature.mimes' => 'ไฟล์ลายเซ็นต้องเป็น PNG หรือ JPG',
+            'signature.max'   => 'ไฟล์ลายเซ็นต้องไม่เกิน 1 MB',
+        ]);
+
+        $update = ['position' => $data['position'] ?? null];
+        $old    = $user->signature_path;
+
+        if ($request->hasFile('signature')) {
+            $file = $request->file('signature');
+            $name = 'user-' . $user->getKey() . '-' . now()->format('YmdHis') . '.' . strtolower($file->getClientOriginalExtension());
+            $file->move(public_path('signatures'), $name);
+            $update['signature_path'] = 'signatures/' . $name;
+        } elseif ($request->boolean('remove_signature')) {
+            $update['signature_path'] = null;
+        }
+
+        $user->update($update);
+
+        // ลบไฟล์เดิมเมื่อเปลี่ยน/ลบลายเซ็น (เฉพาะไฟล์ในโฟลเดอร์ signatures)
+        if ($old && array_key_exists('signature_path', $update) && $old !== $update['signature_path']
+            && str_starts_with($old, 'signatures/') && is_file(public_path($old))) {
+            @unlink(public_path($old));
+        }
+
+        return redirect()
+            ->route('users.edit', $user)
+            ->with('ok', 'บันทึกลายเซ็นของ ' . $user->name . ' เรียบร้อยแล้ว');
+    }
+
+    /* ============================================================
      |  1.2.4 รีเซ็ตรหัสผ่านให้ผู้ใช้
      ============================================================ */
     public function resetPassword(Request $request, User $user)

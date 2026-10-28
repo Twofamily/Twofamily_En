@@ -122,7 +122,7 @@ class SalesOrderController extends Controller
         });
 
         return redirect()
-            ->route('sales-orders.show', $salesOrder)
+            ->route('sales_orders.show', $salesOrder)
             ->with('ok', "สร้างใบสั่งขาย {$salesOrder->code_so} เรียบร้อย");
     }
 
@@ -137,7 +137,7 @@ class SalesOrderController extends Controller
 
         // แคมป์ที่ยังเปิดอยู่ของลูกค้ารายนี้ ให้เลือก "เพิ่มเข้าแคมป์เดิม" ได้ (กรณีสั่งเพิ่ม)
         $campOptions = $salesOrder->canOpenCamp()
-            ? Camp::active()
+            ? Camp::open()
                 ->where('id_customer', $salesOrder->id_customer)
                 ->latest('id_camp')
                 ->get()
@@ -150,7 +150,7 @@ class SalesOrderController extends Controller
     {
         if (! $salesOrder->canEdit()) {
             return redirect()
-                ->route('sales-orders.show', $salesOrder)
+                ->route('sales_orders.show', $salesOrder)
                 ->with('error', 'ใบสั่งขายที่ยืนยันแล้วไม่สามารถแก้ไขได้');
         }
 
@@ -167,7 +167,7 @@ class SalesOrderController extends Controller
     {
         if (! $salesOrder->canEdit()) {
             return redirect()
-                ->route('sales-orders.show', $salesOrder)
+                ->route('sales_orders.show', $salesOrder)
                 ->with('error', 'ใบสั่งขายที่ยืนยันแล้วไม่สามารถแก้ไขได้');
         }
 
@@ -193,7 +193,7 @@ class SalesOrderController extends Controller
         });
 
         return redirect()
-            ->route('sales-orders.show', $salesOrder)
+            ->route('sales_orders.show', $salesOrder)
             ->with('ok', 'แก้ไขใบสั่งขายเรียบร้อย');
     }
 
@@ -213,7 +213,7 @@ class SalesOrderController extends Controller
         });
 
         return redirect()
-            ->route('sales-orders.index')
+            ->route('sales_orders.index')
             ->with('ok', 'ลบใบสั่งขายแล้ว');
     }
 
@@ -258,7 +258,7 @@ class SalesOrderController extends Controller
             return back()->with('error', 'แคมป์ที่เลือกเป็นของลูกค้ารายอื่น');
         }
 
-        if ($camp->status_camp !== 'active') {
+        if (! $camp->isOpen()) {
             return back()->with('error', 'แคมป์ที่เลือกปิดไปแล้ว');
         }
 

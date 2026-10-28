@@ -347,6 +347,38 @@
                         @enderror
                     </div>
 
+                    {{-- แคมป์ที่รอบนี้วิ่งให้ — ใช้คิดต้นทุนรายแคมป์บนแดชบอร์ด --}}
+                    <div class="mb-3">
+                        <label for="camp_select" class="form-label">
+                            แคมป์งาน
+                        </label>
+
+                        <select id="camp_select" name="id_camp"
+                            class="form-select @error('id_camp') is-invalid @enderror"
+                            data-truck-camps='@json($truckCampMap ?? [])'>
+                            <option value="">— ไม่ได้วิ่งให้แคมป์ (เช่น ส่งสินค้าตรง) —</option>
+                            @foreach ($jobCamps ?? [] as $jobCamp)
+                                <option value="{{ $jobCamp->id_camp }}"
+                                    @selected(old('id_camp', $fuel_record->id_camp ?? '') == $jobCamp->id_camp)>
+                                    {{ $jobCamp->code_camp }} · {{ $jobCamp->name_camp }}
+                                    @if ($jobCamp->customer)
+                                        ({{ $jobCamp->customer->name_customer }})
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <div class="form-text" id="camp_hint">
+                            เลือกรถแล้ว ระบบจะเลือกแคมป์ที่รถคันนั้นประจำอยู่ให้ เปลี่ยนเองได้
+                        </div>
+
+                        @error('id_camp')
+                            <div class="invalid-feedback">
+                                {{ $message }}
+                            </div>
+                        @enderror
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="max_load_weight" class="form-label">
@@ -2616,6 +2648,33 @@
 
             updateTotals();
             renderMapLegend();
+        })();
+    </script>
+
+    {{-- เลือกแคมป์ให้อัตโนมัติตามรถที่เลือก — ถ้าผู้ใช้เลือกแคมป์เองแล้วจะไม่ทับ --}}
+    <script>
+        (function () {
+            const truckSelect = document.getElementById('truck_select');
+            const campSelect = document.getElementById('camp_select');
+            if (!truckSelect || !campSelect) return;
+
+            let truckCamps = {};
+            try {
+                truckCamps = JSON.parse(campSelect.dataset.truckCamps || '{}');
+            } catch (e) {}
+
+            // มีค่าอยู่แล้ว (แก้ไข / กรอกผิดแล้วเด้งกลับ) = ถือว่าผู้ใช้เลือกเอง
+            let pickedByUser = campSelect.value !== '';
+            campSelect.addEventListener('change', () => { pickedByUser = true; });
+
+            function syncCamp() {
+                if (pickedByUser) return;
+                const campId = truckCamps[truckSelect.value];
+                campSelect.value = campId ? String(campId) : '';
+            }
+
+            truckSelect.addEventListener('change', syncCamp);
+            syncCamp();
         })();
     </script>
 

@@ -125,6 +125,23 @@
                     </div>
                 </div>
 
+                <div class="col-md-12">
+                    <div class="fuel-detail-label">
+                        แคมป์งาน
+                    </div>
+
+                    <div class="fuel-detail-value">
+                        @if ($fuel_record->camp)
+                            <a href="{{ route('camps.show', $fuel_record->camp->id_camp) }}"
+                               class="text-decoration-none">
+                                {{ $fuel_record->camp->code_camp }} · {{ $fuel_record->camp->name_camp }}
+                            </a>
+                        @else
+                            <span class="text-muted">ไม่ได้วิ่งให้แคมป์</span>
+                        @endif
+                    </div>
+                </div>
+
                 <div class="col-md-6">
                     <div class="fuel-detail-label">
                         จุดเริ่มต้น

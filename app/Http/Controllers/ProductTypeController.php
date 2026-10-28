@@ -7,8 +7,16 @@ use Illuminate\Http\Request;
 
 class ProductTypeController extends Controller
 {
+    /**
+     * ประเภทสินค้าเป็นแท็บหนึ่งในหน้าสินค้าแล้ว → ส่งไปแท็บนั้น (พกคำค้นหาไปด้วย)
+     * ยกเว้นคนที่ดูได้แค่ประเภทสินค้า แต่ไม่มีสิทธิ์ดูหน้าสินค้า → ใช้หน้าเดิม
+     */
     public function index(Request $request)
     {
+        if ($request->user()?->canViewModule('products')) {
+            return redirect()->route('products.index', ['tab' => 'types'] + $request->query());
+        }
+
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
 
@@ -21,8 +29,13 @@ class ProductTypeController extends Controller
         return view('product_types.index', compact('types', 'perPage', 'search'));
     }
 
-    public function create()
+    /** ฟอร์มเพิ่มประเภทย้ายไปเป็น modal ในแท็บประเภทสินค้าแล้ว */
+    public function create(Request $request)
     {
+        if ($request->user()?->canViewModule('products')) {
+            return redirect()->route('products.index', ['tab' => 'types', 'open' => 'type']);
+        }
+
         return view('product_types.create');
     }
 
@@ -31,7 +44,7 @@ class ProductTypeController extends Controller
         ProductType::create($this->validateType($request));
 
         return redirect()
-            ->route('product_types.index')
+            ->route('products.index', ['tab' => 'types'])
             ->with('ok', 'เพิ่มประเภทสินค้าเรียบร้อย');
     }
 
@@ -45,7 +58,7 @@ class ProductTypeController extends Controller
         $product_type->update($this->validateType($request));
 
         return redirect()
-            ->route('product_types.index')
+            ->route('products.index', ['tab' => 'types'])
             ->with('ok', 'แก้ไขข้อมูลเรียบร้อย');
     }
 
@@ -58,7 +71,7 @@ class ProductTypeController extends Controller
         $product_type->delete();
 
         return redirect()
-            ->route('product_types.index')
+            ->route('products.index', ['tab' => 'types'])
             ->with('ok', 'ลบข้อมูลเรียบร้อย');
     }
 

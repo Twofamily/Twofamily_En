@@ -6,6 +6,7 @@
  *   data-confirm-title="หัวข้อ"            (ไม่ใส่ = ยืนยันการทำรายการ)
  *   data-confirm-ok="ข้อความปุ่มยืนยัน"    (ไม่ใส่ = ยืนยัน)
  *   data-confirm-variant="danger|warning|success|primary"
+ *   data-confirm-reason="cancel_reason"   ให้กรอกเหตุผลก่อนยืนยัน แล้วส่งไปในชื่อฟิลด์นี้ (เช่น ยกเลิกเอกสาร)
  *
  * ⚠ ต้องโหลด "หลัง" form-validation.js — ฟอร์มที่กรอกไม่ครบจะไม่เด้ง modal
  */
@@ -18,6 +19,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const titleEl  = document.getElementById('confirmModalTitle');
     const bodyEl   = document.getElementById('confirmModalBody');
     const okBtn    = document.getElementById('confirmModalOk');
+    const reasonWrap = document.getElementById('confirmModalReasonWrap');
+    const reasonEl   = document.getElementById('confirmModalReason');
 
     let pendingForm = null;
     let pendingSubmitter = null;
@@ -52,6 +55,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         okBtn.className = 'btn ' + (variantClass[form.dataset.confirmVariant] || 'btn-dark');
 
+        // ฟอร์มที่ต้องกรอกเหตุผล → แสดงช่องเหตุผล (ล้างค่าเดิมทุกครั้ง)
+        if (reasonWrap) {
+            const needReason = !!form.dataset.confirmReason;
+            reasonWrap.classList.toggle('d-none', !needReason);
+            reasonEl.value = '';
+            reasonEl.classList.remove('is-invalid');
+        }
+
         // ฟอร์มอยู่ใน modal อีกอัน (เช่น เปลี่ยนสถานะรถ) → ปิดอันนั้นก่อน
         // ถ้ากดยกเลิก จะเปิดกลับมาให้ (Bootstrap ซ้อน modal สองชั้นแล้วโฟกัสตีกัน)
         const parentEl = form.closest('.modal');
@@ -69,6 +80,24 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!pendingForm) return;
 
         const form = pendingForm;
+
+        // ต้องกรอกเหตุผล → ตรวจก่อน แล้วใส่เป็น hidden ไปกับฟอร์ม
+        if (reasonWrap && form.dataset.confirmReason) {
+            const reason = reasonEl.value.trim();
+            if (reason.length < 3) {
+                reasonEl.classList.add('is-invalid');
+                reasonEl.focus();
+                return;
+            }
+            let hidden = form.querySelector('input[name="' + form.dataset.confirmReason + '"]');
+            if (!hidden) {
+                hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = form.dataset.confirmReason;
+                form.appendChild(hidden);
+            }
+            hidden.value = reason;
+        }
 
         // form.submit() ไม่ส่งค่าของปุ่มที่กด → เติมเป็น hidden ให้เอง
         if (pendingSubmitter && pendingSubmitter.name) {
@@ -113,7 +142,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // เปิดกล่องแล้วโฟกัสปุ่มยืนยัน กด Enter ได้เลย
     modalEl.addEventListener('shown.bs.modal', function () {
-        okBtn.focus();
+        if (reasonWrap && !reasonWrap.classList.contains('d-none')) {
+            reasonEl.focus();
+        } else {
+            okBtn.focus();
+        }
     });
 
 });

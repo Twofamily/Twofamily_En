@@ -9,18 +9,49 @@ use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
+    /**
+     * หน้าสินค้า มี 2 แท็บ (?tab=)
+     *   products : สินค้าทั้งหมด (ค่าเริ่มต้น)
+     *   types    : ประเภทสินค้า — เห็นเฉพาะคนที่มีสิทธิ์ดูหน้าประเภทสินค้า
+     *
+     * ปุ่มเพิ่มของทั้งสองแท็บเปิดเป็น modal ในหน้านี้ ไม่ย้ายหน้า
+     * query เฉพาะแท็บที่เปิดอยู่ แท็บที่ไม่ได้เปิดนับแค่จำนวนไว้โชว์บนป้าย
+     */
     public function index(Request $request)
     {
+        $canSeeTypes = (bool) $request->user()?->canViewModule('product_types');
+        $tab = $request->query('tab') === 'types' && $canSeeTypes ? 'types' : 'products';
+
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
-        $typeId  = $request->integer('type') ?: null;
+
+        // ใช้ทั้งตัวกรองในแท็บสินค้า และ dropdown ใน modal เพิ่มสินค้า
+        $types = ProductType::orderBy('name_product_type')->get(['id_product_type', 'name_product_type']);
+
+        $counts = [
+            'products' => Product::count(),
+            'types'    => $types->count(),
+        ];
+
+        $shared = compact('tab', 'canSeeTypes', 'counts', 'types', 'search', 'perPage');
+
+        if ($tab === 'types') {
+            $productTypes = ProductType::query()
+                ->withCount('products')
+                ->when($search !== '', fn ($q) => $q->where('name_product_type', 'like', "%{$search}%"))
+                ->latest('id_product_type')
+                ->paginate($perPage)
+                ->withQueryString();
+
+            return view('products.index', $shared + compact('productTypes'));
+        }
+
+        $typeId = $request->integer('type') ?: null;
 
         // กรองช่วงราคาต่อหน่วย (ต่ำสุด–สูงสุด)
         $ranges = $this->numberRanges($request, [
             'price' => ['label' => 'ราคาต่อหน่วย', 'unit' => 'บาท', 'step' => '1'],
         ]);
-
-        $types = ProductType::orderBy('name_product_type')->pluck('name_product_type', 'id_product_type');
 
         // ช่องค้นหาช่องเดียว: ชื่อ / รายละเอียด / ชื่อประเภท / ราคา
         $products = Product::with('type')
@@ -36,14 +67,13 @@ class ProductController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('products.index', compact('products', 'search', 'perPage', 'ranges', 'types', 'typeId'));
+        return view('products.index', $shared + compact('products', 'ranges', 'typeId'));
     }
 
+    /** ฟอร์มเพิ่มสินค้าย้ายไปเป็น modal ในหน้ารายการแล้ว — เปิด URL เดิมก็เด้ง modal ให้ */
     public function create()
     {
-        return view('products.create', [
-            'types' => ProductType::orderBy('name_product_type')->get(),
-        ]);
+        return redirect()->route('products.index', ['open' => 'product']);
     }
 
     public function store(Request $request)
@@ -109,7 +139,7 @@ class ProductController extends Controller
         return $request->validate([
             'name_product'    => ['required', 'string', 'max:45'],
             'detail_product'  => ['nullable', 'string', 'max:255'],
-            'unit_price'      => ['required', 'integer', 'min:0'],
+            'unit_price'      => ['required', 'numeric', 'min:0', 'max:9999999999', 'decimal:0,2'],
             'product_type_id' => ['required', 'exists:product_types,id_product_type'],
             'new_type'        => ['nullable', 'string', 'max:255'],
             'image'           => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
@@ -117,7 +147,8 @@ class ProductController extends Controller
             'name_product.required'    => 'กรุณาใส่ชื่อสินค้า',
             'name_product.max'         => 'ชื่อสินค้ายาวได้ไม่เกิน 45 ตัวอักษร',
             'unit_price.required'      => 'กรุณาใส่ราคาต่อหน่วย',
-            'unit_price.integer'       => 'ราคาต่อหน่วยต้องเป็นตัวเลขจำนวนเต็ม',
+            'unit_price.numeric'       => 'ราคาต่อหน่วยต้องเป็นตัวเลข',
+            'unit_price.decimal'       => 'ราคาต่อหน่วยมีทศนิยมได้ไม่เกิน 2 ตำแหน่ง',
             'unit_price.min'           => 'ราคาต่อหน่วยต้องไม่ติดลบ',
             'product_type_id.required' => 'กรุณาเลือกประเภทสินค้า',
             'product_type_id.exists'   => 'ไม่พบประเภทสินค้าที่เลือก',

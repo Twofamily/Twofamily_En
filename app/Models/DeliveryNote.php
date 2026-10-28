@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Cancellable;
 use App\Models\Concerns\HasDocumentCode;
 use Illuminate\Database\Eloquent\Model;
 
 class DeliveryNote extends Model
 {
-    use HasDocumentCode;
+    use HasDocumentCode, Cancellable;
+
+    /** ยกเลิกเอกสาร = ใส่ cancelled_at (SoftDeletes) ไม่ลบแถวทิ้ง */
+    public const DELETED_AT = 'cancelled_at';
 
     protected $primaryKey = 'id_delivery_note';
 
@@ -16,6 +20,7 @@ class DeliveryNote extends Model
         'id_quotation',
         'id_camp',
         'id_customer',
+        'id_invoice',
         'delivery_date',
         'status',
     ];
@@ -24,6 +29,7 @@ class DeliveryNote extends Model
     {
         return [
             'delivery_date' => 'date',
+            'cancelled_at'  => 'datetime',
         ];
     }
 
@@ -56,8 +62,36 @@ class DeliveryNote extends Model
         return $this->hasMany(DeliveryNoteDetail::class, 'id_delivery_note', 'id_delivery_note');
     }
 
+    /** ใบแจ้งหนี้ที่เรียกเก็บใบส่งของนี้ (ใบแจ้งหนี้ 1 ใบ รวมใบส่งของได้หลายใบ) */
     public function invoice()
     {
-        return $this->hasOne(Invoice::class, 'id_delivery_note', 'id_delivery_note');
+        return $this->belongsTo(Invoice::class, 'id_invoice', 'id_invoice');
+    }
+
+    /** มูลค่าก่อน VAT ของใบส่งของนี้ */
+    public function subtotal(): float
+    {
+        $details = $this->relationLoaded('details') ? $this->details : $this->details()->get();
+
+        return round($details->sum(fn ($d) => (float) $d->total_price), 2);
+    }
+
+    /** ยกเลิกได้เมื่อยังไม่ได้ออกใบแจ้งหนี้ (ถ้าออกแล้ว ต้องยกเลิกใบแจ้งหนี้ก่อน) */
+    public function cancelBlocker(): ?string
+    {
+        if ($this->isCancelled()) {
+            return 'ใบส่งของนี้ถูกยกเลิกไปแล้ว';
+        }
+        if ($this->id_invoice && $this->invoice) {
+            return 'ออกใบแจ้งหนี้ ' . $this->invoice->code_inv . ' แล้ว ต้องยกเลิกใบแจ้งหนี้ก่อน';
+        }
+
+        return null;
+    }
+
+    /** ใบส่งของที่ยังไม่ได้ออกใบแจ้งหนี้ */
+    public function scopePendingInvoice($query)
+    {
+        return $query->whereNull('id_invoice');
     }
 }

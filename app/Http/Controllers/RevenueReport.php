@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * รวมตัวเลขรายได้และต้นทุนสำหรับแดชบอร์ด — อ่านจากฐานข้อมูลอย่างเดียว ไม่มีค่าสมมติ
@@ -19,7 +20,9 @@ use Illuminate\Support\Facades\DB;
  * ฝั่งต้นทุน รวมจาก 2 ทางที่ฐานข้อมูลมีช่องเก็บอยู่แล้ว:
  *   - ค่าน้ำมัน  : fuel_records.cost_fuel_total   → ใช้ตัวแม่เท่านั้น
  *                  (fuel_record_segments.fuel_cost คือตัวย่อยที่ถูกรวมมาแล้ว ถ้าบวกด้วยจะนับซ้ำ)
- *   - ค่าซ่อมรถ  : truck_maintenances.cost
+ *                  รอบที่ระบุแคมป์ (fuel_records.id_camp) → นับเข้าสายแคมป์ตรง ๆ
+ *                  รอบที่ไม่ระบุแคมป์ → ปันส่วนตามสัดส่วนรายได้ (ดู splitCost)
+ *   - ค่าซ่อมรถ  : truck_maintenances.cost       → ปันส่วนตามสัดส่วนรายได้
  *
  * ทั้งสองเส้นไม่รวม VAT จึงเทียบกันได้ตรง
  *
@@ -69,6 +72,18 @@ class RevenueReport
         $choice = (string) $request->query('bucket', 'auto');
         $this->bucketChoice = array_key_exists($choice, self::BUCKET_CHOICES) ? $choice : 'auto';
         $this->bucket = $this->resolveBucket();
+    }
+
+    /** วันเริ่มของช่วงที่เลือก — ให้ส่วนอื่นของแดชบอร์ดใช้ช่วงเดียวกัน */
+    public function from(): CarbonImmutable
+    {
+        return $this->from;
+    }
+
+    /** วันสุดท้ายของช่วงที่เลือก */
+    public function to(): CarbonImmutable
+    {
+        return $this->to;
     }
 
     /** ข้อมูลทั้งหมดที่ view ต้องใช้ */
@@ -172,13 +187,10 @@ class RevenueReport
         $campRevenue = $this->align($keys, $this->deliveredByBucket(withCamp: true));
         $productRevenue = $this->align($keys, $this->deliveredByBucket(withCamp: false));
 
-        $fuel = $this->align($keys, $this->sumByBucket(
-            DB::table('fuel_records')
-                ->whereNull('deleted_at')
-                ->whereBetween('date_record', [$this->from->toDateString(), $this->to->toDateString()]),
-            'date_record',
-            'cost_fuel_total'
-        ));
+        // ค่าน้ำมันที่ระบุแคมป์ = ต้นทุนสายแคมป์ตามจริง / ที่ไม่ระบุ = ต้องปันส่วน
+        $fuelCamp = $this->align($keys, $this->fuelByBucket(withCamp: true));
+        $fuelOther = $this->align($keys, $this->fuelByBucket(withCamp: false));
+        $fuel = array_map(fn ($a, $b) => round($a + $b, 2), $fuelCamp, $fuelOther);
 
         $maintenance = $this->align($keys, $this->sumByBucket(
             DB::table('truck_maintenances')
@@ -187,15 +199,48 @@ class RevenueReport
             'cost'
         ));
 
-        $split = $this->splitCost($productRevenue, $campRevenue, $fuel, $maintenance);
+        $split = $this->splitCost($productRevenue, $campRevenue, $fuelOther, $maintenance);
+
+        // บวกค่าน้ำมันที่ระบุแคมป์แล้วเข้าสายแคมป์ตรง ๆ
+        foreach ($fuelCamp as $i => $amount) {
+            $split['camp']['fuel'][$i] = round($split['camp']['fuel'][$i] + $amount, 2);
+            $split['camp']['cost'][$i] = round($split['camp']['cost'][$i] + $amount, 2);
+        }
+
+        $cost = array_map(fn ($f, $m) => round($f + $m, 2), $fuel, $maintenance);
+        $revenue = array_map(fn ($p, $c) => round($p + $c, 2), $productRevenue, $campRevenue);
 
         return [
             'labels' => $labels,
             'product' => ['revenue' => $productRevenue] + $split['product'],
             'camp' => ['revenue' => $campRevenue] + $split['camp'],
-            'totalRevenue' => array_sum($productRevenue) + array_sum($campRevenue),
-            'totalCost' => array_sum($fuel) + array_sum($maintenance),
+            'revenue' => $revenue,
+            'fuel' => $fuel,
+            'maintenance' => $maintenance,
+            'cost' => $cost,
+            'profit' => array_map(fn ($r, $c) => round($r - $c, 2), $revenue, $cost),
+            'totalRevenue' => round(array_sum($revenue), 2),
+            'totalCost' => round(array_sum($cost), 2),
         ];
+    }
+
+    /** ค่าน้ำมันต่อ bucket แยกตามว่าระบุแคมป์หรือไม่ */
+    private function fuelByBucket(bool $withCamp): array
+    {
+        $query = DB::table('fuel_records')
+            ->whereNull('deleted_at')
+            ->whereBetween('date_record', [$this->from->toDateString(), $this->to->toDateString()]);
+
+        // ยังไม่ได้ migrate คอลัมน์ id_camp = ถือว่าทุกรอบไม่ระบุแคมป์
+        if (! Schema::hasColumn('fuel_records', 'id_camp')) {
+            return $withCamp ? [] : $this->sumByBucket($query, 'date_record', 'cost_fuel_total');
+        }
+
+        $withCamp
+            ? $query->whereNotNull('id_camp')
+            : $query->whereNull('id_camp');
+
+        return $this->sumByBucket($query, 'date_record', 'cost_fuel_total');
     }
 
     /**
@@ -208,6 +253,7 @@ class RevenueReport
     {
         $query = DB::table('delivery_notes as dn')
             ->join('delivery_note_details as dnd', 'dnd.id_delivery_note', '=', 'dn.id_delivery_note')
+            ->whereNull('dn.cancelled_at')   // ใบส่งของที่ยกเลิกไม่นับเป็นรายได้
             ->whereBetween('dn.delivery_date', [$this->from->toDateString(), $this->to->toDateString()]);
 
         $withCamp
@@ -220,9 +266,9 @@ class RevenueReport
     /**
      * ปันส่วนต้นทุนเข้าสองสายตามสัดส่วนรายได้ของแต่ละช่วงเวลา
      *
-     * ค่าน้ำมันกับค่าซ่อมบันทึกไว้ที่ "รถ" ไม่ได้ผูกกับใบส่งของหรือแคมป์
-     * จึงแยกตามจริงไม่ได้ ตัวเลขที่ได้เป็นการประมาณ ไม่ใช่ต้นทุนที่วัดจริง
-     * (จะแยกจริงได้ต้องเพิ่ม id_camp ให้ fuel_records / truck_maintenances — ดู DASHBOARD.md)
+     * ใช้กับต้นทุนที่ไม่รู้ว่าเป็นของสายไหน: ค่าซ่อมรถ และค่าน้ำมันรอบที่ไม่ได้ระบุแคมป์
+     * ตัวเลขส่วนนี้เป็นการประมาณ ไม่ใช่ต้นทุนที่วัดจริง
+     * (ค่าน้ำมันที่ระบุแคมป์แล้ว ไม่ผ่านฟังก์ชันนี้ — series() บวกเข้าสายแคมป์ตรง ๆ)
      *
      * ถ้าช่วงไหนไม่มีรายได้เลยแต่มีต้นทุน จะใช้สัดส่วนรายได้ของทั้งช่วงที่เลือกแทน
      * และถ้าทั้งช่วงก็ไม่มีรายได้ จึงค่อยหารครึ่ง — เพื่อไม่ให้ต้นทุนหายไปจากกราฟ
