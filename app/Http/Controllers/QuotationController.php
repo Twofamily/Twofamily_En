@@ -24,26 +24,40 @@ class QuotationController extends Controller
     {
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
-        $status  = $this->statusFilter($request, self::FILTERABLE_STATUSES);
+        [$dateFrom, $dateTo] = $this->dateRange($request);
+
+        // พิมพ์ "ร่าง" / "อนุมัติ" / "ยกเลิก" ก็ค้นตามสถานะได้
+        $statuses = $this->statusesMatching($search, Quotation::STATUS_LABELS);
+
+        // dropdown เลือกสถานะ + ช่วงยอดสุทธิ
+        $status = $this->statusFilter($request, self::FILTERABLE_STATUSES);
+        $ranges = $this->numberRanges($request, [
+            'total' => ['label' => 'ยอดสุทธิ', 'unit' => 'บาท', 'step' => '0.01'],
+        ]);
 
         $quotations = Quotation::with('customer')
-            // ค้นหาจากเลขที่เอกสาร หรือชื่อลูกค้า
-            // ครอบด้วย closure เพื่อให้ orWhere ไม่หลุดไปชนกับเงื่อนไข status
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($sub) use ($search) {
+            // ช่องค้นหาช่องเดียว: เลขที่เอกสาร ชื่อลูกค้า และสถานะ
+            // ครอบด้วย closure เพื่อให้ orWhere ไม่หลุดไปชนกับเงื่อนไขช่วงวันที่
+            ->when($search !== '', function ($query) use ($search, $statuses) {
+                $query->where(function ($sub) use ($search, $statuses) {
                     $sub->where('code_quot', 'like', "%{$search}%")
                         ->orWhereHas('customer', function ($c) use ($search) {
                             $c->where('name_customer', 'like', "%{$search}%");
                         });
+                    if ($statuses) {
+                        $sub->orWhereIn('status', $statuses);
+                    }
                 });
             })
-            ->when($status !== null, fn ($query) => $query->where('status', $status))
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->tap(fn ($query) => $this->applyNumberRange($query, 'total_amount', $ranges['total']))
+            ->tap(fn ($query) => $this->applyDateRange($query, 'date_quot', $dateFrom, $dateTo))
             ->latest('id_quot')
             ->paginate($perPage)
-            // พา search / status / per_page ติดไปกับลิงก์เปลี่ยนหน้าด้วย
+            // พา search / ช่วงวันที่ / per_page ติดไปกับลิงก์เปลี่ยนหน้าด้วย
             ->withQueryString();
 
-        return view('quotations.index', compact('quotations', 'perPage', 'search', 'status'));
+        return view('quotations.index', compact('quotations', 'perPage', 'search', 'dateFrom', 'dateTo', 'status', 'ranges'));
     }
 
     public function create()
@@ -58,7 +72,7 @@ class QuotationController extends Controller
     {
         $this->validateQuotation($request);
 
-        $money = $this->calculateTotals($request->items, $request->discount);
+        $money = $this->calculateTotals($request->items);
 
         // ใช้ transaction เพื่อให้หัวเอกสารกับรายการสินค้าเกิดพร้อมกัน
         // ถ้ารายการใดรายการหนึ่งพัง จะไม่เหลือใบเสนอราคาที่ไม่มีรายการค้างในระบบ
@@ -131,7 +145,7 @@ class QuotationController extends Controller
 
         $this->validateQuotation($request);
 
-        $money = $this->calculateTotals($request->items, $request->discount);
+        $money = $this->calculateTotals($request->items);
 
         DB::transaction(function () use ($request, $quotation, $money) {
 
@@ -228,11 +242,17 @@ class QuotationController extends Controller
     {
         $request->validate([
             'id_customer'        => ['required', 'exists:customers,id_customer'],
-            'discount'           => ['nullable', 'numeric', 'min:0'],
             'items'              => ['required', 'array', 'min:1'],
             'items.*.id_product' => ['required', 'exists:products,id_product'],
             'items.*.quantity'   => ['required', 'numeric', 'gt:0'],
             'items.*.price'      => ['required', 'numeric', 'min:0'],
+        ], [
+            'id_customer.required'        => 'กรุณาเลือกลูกค้า',
+            'id_customer.exists'          => 'ไม่พบลูกค้าที่เลือก',
+            'items.required'              => 'กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ',
+            'items.*.id_product.required' => 'กรุณาเลือกสินค้าให้ครบทุกรายการ',
+            'items.*.quantity.required'   => 'กรุณาใส่จำนวนให้ครบทุกรายการ',
+            'items.*.quantity.gt'         => 'จำนวนต้องมากกว่า 0',
         ]);
     }
 
@@ -242,15 +262,15 @@ class QuotationController extends Controller
      * เก็บ vat_rate ลงเอกสารด้วย เพื่อให้เอกสารเก่าพิมพ์ซ้ำได้ถูกต้อง
      * แม้อัตรา VAT จะเปลี่ยนในอนาคต
      */
-    private function calculateTotals(array $items, mixed $discount): array
+    private function calculateTotals(array $items): array
     {
         $subtotal = round(collect($items)->sum(
             fn (array $item) => (float) $item['quantity'] * (float) $item['price']
         ), 2);
 
-        // ส่วนลดห้ามเกินยอดรวม
-        $discount      = min((float) $discount, $subtotal);
-        $afterDiscount = round($subtotal - $discount, 2);
+        // บริษัทไม่มีส่วนลดสินค้าแล้ว — คอลัมน์ discount ยังอยู่ในตาราง แต่บันทึกเป็น 0 เสมอ
+        $discount      = 0;
+        $afterDiscount = $subtotal;
 
         $vatRate   = Quotation::DEFAULT_VAT_RATE;
         $vatAmount = round($afterDiscount * ($vatRate / 100), 2);

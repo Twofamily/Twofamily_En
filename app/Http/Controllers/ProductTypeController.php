@@ -7,11 +7,18 @@ use Illuminate\Http\Request;
 
 class ProductTypeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $types = ProductType::latest('id_product_type')->paginate(10);
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
 
-        return view('product_types.index', compact('types'));
+        $types = ProductType::query()
+            ->when($search !== '', fn ($q) => $q->where('name_product_type', 'like', "%{$search}%"))
+            ->latest('id_product_type')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return view('product_types.index', compact('types', 'perPage', 'search'));
     }
 
     public function create()
@@ -59,6 +66,9 @@ class ProductTypeController extends Controller
     {
         return $request->validate([
             'name_product_type' => ['required', 'string', 'max:100'],
+        ], [
+            'name_product_type.required' => 'กรุณาใส่ประเภทสินค้า',
+            'name_product_type.max'      => 'ชื่อประเภทสินค้ายาวได้ไม่เกิน 100 ตัวอักษร',
         ]);
     }
 }

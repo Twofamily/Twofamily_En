@@ -19,7 +19,8 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('truck_models.store') }}" autocomplete="off">
+        <form method="POST" action="{{ route('truck_models.store') }}" autocomplete="off"
+            data-confirm="ต้องการบันทึกรุ่นรถบรรทุกนี้หรือไม่" data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
             @include('truck_models._form', ['model' => $model, 'brands' => $brands])
 

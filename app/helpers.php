@@ -27,3 +27,27 @@ if (!function_exists('customer_address')) {
         return $parts ? implode(' ', $parts) : '-';
     }
 }
+
+if (!function_exists('thai_date')) {
+    /**
+     * แสดงวันที่รูปแบบเดียวกันทั้งระบบ: วัน/เดือน/ปี (เช่น 24/10/2026)
+     * รับได้ทั้ง Carbon, DateTime, string และ null (null/ค่าว่าง → $empty)
+     * $withTime = true → 24/10/2026 14:30
+     */
+    function thai_date($value, bool $withTime = false, string $empty = '-'): string
+    {
+        if ($value === null || $value === '') {
+            return $empty;
+        }
+
+        try {
+            $date = $value instanceof \DateTimeInterface
+                ? \Carbon\Carbon::instance($value)
+                : \Carbon\Carbon::parse($value);
+        } catch (\Throwable $e) {
+            return (string) $value;
+        }
+
+        return $date->format($withTime ? 'd/m/Y H:i' : 'd/m/Y');
+    }
+}

@@ -11,19 +11,23 @@ class DriverController extends Controller
 {
     public function index(Request $request)
     {
-        $q = $request->q;
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
 
-        $drivers = Driver::when($q, fn($query) =>
-            $query->where('fname_driver', 'like', "%{$q}%")
-                ->orWhere('lname_driver', 'like', "%{$q}%")
-                ->orWhere('phone_driver', 'like', "%{$q}%")
-                ->orWhere('citizenid_driver', 'like', "%{$q}%")
-        )
+        // ช่องค้นหาช่องเดียว: ชื่อ นามสกุล ชื่อเต็ม เบอร์โทร เลขบัตรประชาชน
+        $drivers = Driver::query()
+            ->when($search !== '', fn ($query) => $query->where(fn ($sub) =>
+                $sub->where('fname_driver', 'like', "%{$search}%")
+                    ->orWhere('lname_driver', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT(fname_driver, ' ', lname_driver) LIKE ?", ["%{$search}%"])
+                    ->orWhere('phone_driver', 'like', "%{$search}%")
+                    ->orWhere('citizenid_driver', 'like', "%{$search}%")
+            ))
             ->latest('id_driver')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('drivers.index', compact('drivers', 'q'));
+        return view('drivers.index', compact('drivers', 'search', 'perPage'));
     }
 
     public function create()
@@ -48,6 +52,11 @@ class DriverController extends Controller
 
     public function show(Driver $driver)
     {
+        // ประวัติแคมป์ที่คนขับคนนี้เคย/กำลังทำงาน ล่าสุดขึ้นก่อน
+        $driver->load([
+            'camps' => fn ($q) => $q->with('customer')->orderByPivot('assigned_date', 'desc'),
+        ]);
+
         return view('drivers.show', compact('driver'));
     }
 
@@ -116,6 +125,8 @@ class DriverController extends Controller
         ], [
             'fname_driver.unique'     => 'ชื่อและนามสกุลนี้ มีอยู่ในระบบแล้ว กรุณาตรวจสอบอีกครั้ง!',
             'citizenid_driver.unique' => 'เลขบัตรประชาชนนี้ ถูกใช้งานไปแล้ว!',
+            'citizenid_driver.digits' => 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลักเท่านั้น (ห้ามมีตัวอักษร)',
+            'phone_driver.digits'     => 'เบอร์โทรต้องเป็นตัวเลข 10 หลักเท่านั้น',
         ]);
     }
 

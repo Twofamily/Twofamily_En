@@ -31,12 +31,6 @@
                     <span class="text-muted">รวมเป็นเงิน</span>
                     <span id="sumSubtotal">0.00</span>
                 </div>
-                <div class="d-flex justify-content-between align-items-center py-1">
-                    <span class="text-muted">ส่วนลด</span>
-                    <input type="number" step="0.01" min="0" name="discount" id="discount"
-                           value="{{ old('discount', $discountValue ?? 0) }}"
-                           class="form-control form-control-sm text-end" style="width:140px">
-                </div>
                 <div class="d-flex justify-content-between py-1">
                     <span class="text-muted">ภาษีมูลค่าเพิ่ม 7%</span>
                     <span id="sumVat">0.00</span>
@@ -89,7 +83,6 @@
     const body        = document.getElementById('itemsBody');
     const template    = document.getElementById('rowTemplate');
     const addButton   = document.getElementById('addRow');
-    const discountInp = document.getElementById('discount');
 
     let index = 0;
 
@@ -111,15 +104,12 @@
 
         subtotal = Math.round(subtotal * 100) / 100;
 
-        let discount = parseFloat(discountInp.value) || 0;
-        if (discount > subtotal) discount = subtotal;
-
-        const afterDiscount = Math.round((subtotal - discount) * 100) / 100;
-        const vat           = Math.round(afterDiscount * VAT_RATE * 100) / 100;
+        // บริษัทไม่มีส่วนลด: ยอดสุทธิ = รวมเป็นเงิน + VAT
+        const vat = Math.round(subtotal * VAT_RATE * 100) / 100;
 
         document.getElementById('sumSubtotal').textContent = money(subtotal);
         document.getElementById('sumVat').textContent      = money(vat);
-        document.getElementById('sumTotal').textContent    = money(afterDiscount + vat);
+        document.getElementById('sumTotal').textContent    = money(subtotal + vat);
     }
 
     function addRow(data = {}) {
@@ -137,7 +127,6 @@
     }
 
     body.addEventListener('input', recalc);
-    discountInp.addEventListener('input', recalc);
 
     // เลือกสินค้าแล้วเติมราคาให้ ถ้ายังไม่ได้กรอกเอง
     body.addEventListener('change', e => {

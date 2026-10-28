@@ -16,10 +16,27 @@ class Invoice extends Model
         'id_quotation',
         'id_delivery_note',
         'id_customer',
+        'id_camp',
         'discount',
         'total',
-        'status'
+        'status',
+        'invoice_date',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'invoice_date' => 'date',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        // กันพลาด: ถ้าโค้ดส่วนไหนสร้างใบแจ้งหนี้โดยไม่ระบุวันที่ออก ให้ใช้วันนี้
+        static::creating(function (Invoice $invoice) {
+            $invoice->invoice_date ??= now()->toDateString();
+        });
+    }
 
     // สถานะการชำระ => ป้ายภาษาไทย + สี badge
     public const STATUSES = [
@@ -27,6 +44,33 @@ class Invoice extends Model
         'partial' => ['label' => 'ชำระบางส่วน', 'badge' => 'warning'],
         'paid'    => ['label' => 'ชำระครบแล้ว', 'badge' => 'success'],
     ];
+
+    /** อัตราภาษีมูลค่าเพิ่ม (%) */
+    public const VAT_RATE = 7;
+
+    /* ---------- ยอดเงินของใบแจ้งหนี้ (ไม่มีส่วนลด) ---------- */
+    /*
+     | ใบแจ้งหนี้ 1 ใบ = ใบส่งของ 1 ใบ จึงคิดยอดจาก "รายการที่ส่งจริงในใบนี้"
+     | ไม่ดึงยอดรวม/ส่วนลดของใบเสนอราคาทั้งสัญญามาใช้
+     | ยอดสุทธิ = รวมรายการ + VAT 7%
+     */
+
+    public function itemsSubtotal(): float
+    {
+        $details = $this->relationLoaded('details') ? $this->details : $this->details()->get();
+
+        return round($details->sum(fn ($d) => (float) $d->total), 2);
+    }
+
+    public function itemsVat(): float
+    {
+        return round($this->itemsSubtotal() * self::VAT_RATE / 100, 2);
+    }
+
+    public function itemsNetTotal(): float
+    {
+        return round($this->itemsSubtotal() + $this->itemsVat(), 2);
+    }
 
     /* ---------- Relationships ---------- */
 
@@ -43,6 +87,12 @@ class Invoice extends Model
     public function quotation()
     {
         return $this->belongsTo(Quotation::class, 'id_quotation', 'id_quot');
+    }
+
+    /** แคมป์ของใบแจ้งหนี้ (ใช้หักเงินรับล่วงหน้าของแคมป์ และสรุปยอดรายแคมป์) */
+    public function camp()
+    {
+        return $this->belongsTo(Camp::class, 'id_camp', 'id_camp');
     }
 
     public function deliveryNote()
@@ -91,6 +141,23 @@ class Invoice extends Model
         return $sum / 100;
     }
 
+    /** ยอดที่หักจากเงินรับล่วงหน้า */
+    public function advanceAppliedAmount(): float
+    {
+        $sum = $this->relationLoaded('payments')
+            ? $this->payments->filter(fn ($p) => $p->isAdvanceApplication())
+                             ->sum(fn ($p) => $this->toSatang($p->amount))
+            : $this->toSatang($this->payments()->where('method', Payment::METHOD_ADVANCE)->sum('amount'));
+
+        return $sum / 100;
+    }
+
+    /** ยอดที่ลูกค้าจ่ายเป็นเงินจริงในรอบนี้ (ไม่รวมที่หักจากเงินล่วงหน้า) = ยอดบนใบเสร็จ */
+    public function cashPaidAmount(): float
+    {
+        return ($this->toSatang($this->paidAmount()) - $this->toSatang($this->advanceAppliedAmount())) / 100;
+    }
+
     public function remainingAmount(): float
     {
         $remain = $this->toSatang($this->total) - $this->toSatang($this->paidAmount());
@@ -117,11 +184,33 @@ class Invoice extends Model
     }
 
     // เงื่อนไขหลัก: มีหลักฐานอย่างน้อย 1 รายการ + ยอดครบ + ยังไม่เคยออกใบเสร็จ
+    // + ต้องมีเงินจ่ายจริงในรอบนี้ (ถ้าหักเงินล่วงหน้าครบทั้งใบ ใบเสร็จล่วงหน้าคือใบเสร็จของเงินก้อนนั้นแล้ว)
     public function canIssueReceipt(): bool
     {
         return $this->hasPayments()
             && $this->isFullyPaid()
-            && ! $this->hasReceipt();
+            && ! $this->hasReceipt()
+            && $this->cashPaidAmount() > 0;
+    }
+
+    /** ชำระครบด้วยเงินรับล่วงหน้าทั้งหมด ไม่ต้องออกใบเสร็จใหม่ */
+    public function isSettledByAdvance(): bool
+    {
+        return $this->isFullyPaid() && $this->hasPayments() && $this->cashPaidAmount() <= 0;
+    }
+
+    /** เงินล่วงหน้าของแคมป์ที่ยังหักได้ */
+    public function availableAdvance(): float
+    {
+        return $this->camp ? $this->camp->advanceBalance() : 0;
+    }
+
+    /** หักเงินรับล่วงหน้าได้ = ยังไม่ออกใบเสร็จ + ยังมียอดค้าง + แคมป์มีเงินล่วงหน้าเหลือ */
+    public function canApplyAdvance(): bool
+    {
+        return ! $this->hasReceipt()
+            && $this->remainingAmount() > 0
+            && $this->availableAdvance() > 0;
     }
 
     // เพิ่ม/ลบรายการชำระได้เฉพาะตอนที่ยังไม่ออกใบเสร็จ

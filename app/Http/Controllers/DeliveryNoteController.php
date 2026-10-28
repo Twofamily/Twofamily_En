@@ -21,21 +21,35 @@ class DeliveryNoteController extends Controller
     {
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
-        $status  = $this->statusFilter($request, array_keys(self::INVOICE_STATUSES));
+        [$dateFrom, $dateTo] = $this->dateRange($request);
+
+        // ใบส่งของไม่มีคอลัมน์ status → พิมพ์ "รอออก" / "ออกใบแจ้งหนี้แล้ว" แล้วกรองจากการมี/ไม่มีใบแจ้งหนี้
+        $statuses = $this->statusesMatching($search, self::INVOICE_STATUSES);
+
+        // dropdown สถานะ (ออกใบแจ้งหนี้แล้ว / ยังไม่ออก)
+        $status = $this->statusFilter($request, array_keys(self::INVOICE_STATUSES));
 
         $deliveryNotes = DeliveryNote::with(['customer', 'camp', 'invoice', 'quotation'])
-            // ค้นหาจากเลขที่ใบส่งของ ชื่อลูกค้า หรือรหัส/ชื่อแคมป์
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($sub) use ($search) {
+            // ช่องค้นหาช่องเดียว: เลขที่ใบส่งของ ลูกค้า แคมป์ ใบเสนอราคา ใบแจ้งหนี้ และสถานะ
+            ->when($search !== '', function ($query) use ($search, $statuses) {
+                $query->where(function ($sub) use ($search, $statuses) {
                     $sub->where('code_dn', 'like', "%{$search}%")
                         ->orWhereHas('customer', fn ($c) => $c->where('name_customer', 'like', "%{$search}%"))
                         ->orWhereHas('camp', fn ($c) => $c->where('code_camp', 'like', "%{$search}%")
-                                                         ->orWhere('name_camp', 'like', "%{$search}%"));
+                                                         ->orWhere('name_camp', 'like', "%{$search}%"))
+                        ->orWhereHas('quotation', fn ($q) => $q->where('code_quot', 'like', "%{$search}%"))
+                        ->orWhereHas('invoice', fn ($i) => $i->where('code_inv', 'like', "%{$search}%"));
+                    if (in_array('invoiced', $statuses, true)) {
+                        $sub->orWhereHas('invoice');
+                    }
+                    if (in_array('pending', $statuses, true)) {
+                        $sub->orWhereDoesntHave('invoice');
+                    }
                 });
             })
-            // ใบส่งของไม่มีคอลัมน์ status → กรองจากการมี/ไม่มีใบแจ้งหนี้
             ->when($status === 'invoiced', fn ($query) => $query->whereHas('invoice'))
-            ->when($status === 'pending',  fn ($query) => $query->whereDoesntHave('invoice'))
+            ->when($status === 'pending', fn ($query) => $query->whereDoesntHave('invoice'))
+            ->tap(fn ($query) => $this->applyDateRange($query, 'delivery_date', $dateFrom, $dateTo))
             ->latest('id_delivery_note')
             ->paginate($perPage)
             ->withQueryString();
@@ -44,8 +58,9 @@ class DeliveryNoteController extends Controller
             'deliveryNotes' => $deliveryNotes,
             'perPage'       => $perPage,
             'search'        => $search,
+            'dateFrom'      => $dateFrom,
+            'dateTo'        => $dateTo,
             'status'        => $status,
-            'statusOptions' => self::INVOICE_STATUSES,
         ]);
     }
 
@@ -58,7 +73,7 @@ class DeliveryNoteController extends Controller
             ->get();
 
         $camp = $request->camp
-            ? Camp::with(['customer', 'quotation.details.product'])->find($request->camp)
+            ? Camp::with(['customer', 'quotation.details.product', 'salesOrders'])->find($request->camp)
             : null;
 
         $suggestedItems = $camp ? $this->buildSuggestedItems($camp) : collect();
@@ -68,7 +83,18 @@ class DeliveryNoteController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        /*
+         | ใส่จำนวน 0 (หรือเว้นว่าง) = ไม่ส่งสินค้ารายการนั้นในเที่ยวนี้
+         | ตัดแถวพวกนั้นทิ้งก่อนตรวจ แล้วบังคับว่าต้องเหลืออย่างน้อย 1 รายการ
+         | (ตรวจจากชุดที่ตัดแล้ว แต่ค่าที่กรอกไว้บนหน้าจอยังอยู่ครบเมื่อมี error)
+         */
+        $items = collect($request->input('items', []))
+            ->filter(fn ($item) => is_array($item)
+                && ($item['quantity'] ?? '') !== ''
+                && ! (is_numeric($item['quantity']) && (float) $item['quantity'] == 0))
+            ->all();
+
+        $data = validator(array_merge($request->all(), ['items' => $items]), [
             'id_camp'              => ['required', 'exists:camps,id_camp'],
             'delivery_date'        => ['required', 'date'],
             'items'                => ['required', 'array', 'min:1'],
@@ -76,10 +102,19 @@ class DeliveryNoteController extends Controller
             'items.*.quantity'     => ['required', 'numeric', 'gt:0'],
             'items.*.price'        => ['required', 'numeric', 'min:0'],
         ], [
-            'id_camp.required'       => 'กรุณาเลือกแคมป์',
-            'delivery_date.required' => 'กรุณาระบุวันที่ส่งของ',
-            'items.required'         => 'ต้องมีรายการอย่างน้อย 1 รายการ',
-        ]);
+            'id_camp.required'         => 'กรุณาเลือกแคมป์',
+            'id_camp.exists'           => 'ไม่พบแคมป์ที่เลือก',
+            'delivery_date.required'   => 'กรุณาระบุวันที่ส่งของ',
+            'delivery_date.date'       => 'วันที่ส่งของไม่ถูกต้อง',
+            'items.required'           => 'กรุณาใส่จำนวนที่ส่งมากกว่า 0 อย่างน้อย 1 รายการ',
+            'items.min'                => 'กรุณาใส่จำนวนที่ส่งมากกว่า 0 อย่างน้อย 1 รายการ',
+            'items.*.id_product.exists' => 'ไม่พบสินค้าในระบบ',
+            'items.*.quantity.numeric' => 'จำนวนที่ส่งต้องเป็นตัวเลข',
+            'items.*.quantity.gt'      => 'จำนวนที่ส่งต้องมากกว่า 0 (ติดลบไม่ได้)',
+            'items.*.price.required'   => 'กรุณาใส่ราคาต่อหน่วย',
+            'items.*.price.numeric'    => 'ราคาต่อหน่วยต้องเป็นตัวเลข',
+            'items.*.price.min'        => 'ราคาต่อหน่วยต้องไม่ติดลบ',
+        ])->validate();
 
         $camp = Camp::findOrFail($data['id_camp']);
 
@@ -88,7 +123,8 @@ class DeliveryNoteController extends Controller
             // เก็บ id_customer / id_quotation เป็นค่าจริง ไม่ไล่ตามสายโซ่ตอนพิมพ์
             $note = DeliveryNote::create([
                 'id_camp'       => $camp->id_camp,
-                'id_quotation'  => $camp->id_quot,
+                // แคมป์แบบใหม่ไม่มี id_quot ของตัวเอง → ใช้ใบเสนอราคาของใบสั่งขายใบแรกในแคมป์
+                'id_quotation'  => $camp->id_quot ?? $camp->contractSalesOrders()->orderBy('id_so')->value('id_quot'),
                 'id_customer'   => $camp->id_customer,
                 'delivery_date' => $data['delivery_date'],
                 'status'        => 'delivered',
@@ -143,11 +179,14 @@ class DeliveryNoteController extends Controller
 
     /**
      * หัวใจของ auto-fill:
-     * ดึงรายการจากใบเสนอราคาของแคมป์ พร้อมคำนวณว่าส่งไปแล้วเท่าไร เหลือเท่าไร
+     * ดึงรายการตามสัญญาของแคมป์ (ใบสั่งขายทุกใบ หรือใบเสนอราคาเดิม)
+     * พร้อมคำนวณว่าส่งไปแล้วเท่าไร เหลือเท่าไร
      */
     private function buildSuggestedItems(Camp $camp)
     {
-        if (! $camp->quotation) {
+        $contract = $camp->contractItems();
+
+        if ($contract->isEmpty()) {
             return collect();
         }
 
@@ -160,15 +199,15 @@ class DeliveryNoteController extends Controller
             ->groupBy('id_product')
             ->pluck('qty', 'id_product');
 
-        return $camp->quotation->details->map(function ($detail) use ($delivered) {
-            $ordered   = (float) $detail->quantity;
-            $done      = (float) ($delivered[$detail->id_product] ?? 0);
+        return $contract->map(function (array $item) use ($delivered) {
+            $ordered   = (float) $item['quantity'];
+            $done      = (float) ($delivered[$item['id_product']] ?? 0);
             $remaining = max($ordered - $done, 0);
 
             return [
-                'id_product'     => $detail->id_product,
-                'name_product'   => $detail->product->name_product ?? '-',
-                'price_per_unit' => (float) $detail->price_per_unit,
+                'id_product'     => $item['id_product'],
+                'name_product'   => $item['name_product'],
+                'price_per_unit' => (float) $item['price_per_unit'],
                 'ordered'        => $ordered,
                 'delivered'      => $done,
                 'remaining'      => $remaining,

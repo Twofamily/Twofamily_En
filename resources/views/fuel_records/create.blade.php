@@ -264,7 +264,8 @@
         <form id="fuel_record_form" method="POST"
             action="{{ isset($fuel_record)
                 ? route('fuel_records.update', $fuel_record->id_fuel_record)
-                : route('fuel_records.store') }}">
+                : route('fuel_records.store') }}"
+            data-confirm="{{ isset($fuel_record) ? 'ต้องการบันทึกการแก้ไขต้นทุนค่าน้ำมันรายการนี้หรือไม่' : 'ต้องการบันทึกต้นทุนค่าน้ำมันรายการนี้หรือไม่' }}" data-confirm-title="ยืนยันการบันทึกต้นทุนค่าน้ำมัน" data-confirm-ok="บันทึก" data-confirm-variant="success">
             @csrf
 
             @if (isset($fuel_record))
@@ -284,7 +285,7 @@
                                 'date_record',
                                 isset($fuel_record) ? $fuel_record->date_record?->format('Y-m-d') : now()->format('Y-m-d'),
                             ) }}"
-                            required>
+                            required data-required-msg="กรุณาใส่วันที่">
 
                         @error('date_record')
                             <div class="invalid-feedback">
@@ -299,7 +300,8 @@
                         </label>
 
                         <select id="truck_select" name="trucks_id_truck"
-                            class="form-select @error('trucks_id_truck') is-invalid @enderror" required>
+                            class="form-select @error('trucks_id_truck') is-invalid @enderror" required
+                            data-required-msg="กรุณาเลือกรถบรรทุก">
                             @forelse ($trucks as $truck)
                                 <option value="{{ $truck->id_truck }}" data-fuel-rate="{{ $truck->fuel_rate }}"
                                     data-max-load="{{ $truck->weight_truck }}" data-purchase-year="{{ $truck->year_truck }}"
@@ -395,7 +397,7 @@
                         <input type="text" id="start_point" name="start_point"
                             class="form-control @error('start_point') is-invalid @enderror" placeholder="ค้นหาจุดเริ่มต้น"
                             value="{{ old('start_point', $fuel_record->start_point ?? '') }}"
-                            autocomplete="off" required>
+                            autocomplete="off" required data-required-msg="กรุณาใส่จุดเริ่มต้น">
 
                         <small class="text-muted">
                             พิมพ์ชื่อสถานที่ หรือคลิกเลือกตำแหน่งบนแผนที่
@@ -590,7 +592,7 @@
                 </label>
 
                 <input type="text" class="form-control segment-destination" placeholder="ค้นหาปลายทาง"
-                    autocomplete="off" required>
+                    autocomplete="off" required data-required-msg="กรุณาใส่สถานที่ถัดไป">
 
                 <small class="text-muted">
                     เลือกจากรายการค้นหา หรือคลิกเลือกบนแผนที่
@@ -605,7 +607,7 @@
 
                     <div class="input-group">
                         <input type="number" class="form-control segment-load-weight" min="0" step="0.01"
-                            value="0" required>
+                            value="0" required data-required-msg="กรุณาใส่น้ำหนักบรรทุก (รถเปล่ากรอก 0)">
 
                         <span class="input-group-text">
                             กก.

@@ -37,12 +37,27 @@
                         <i class="bi bi-arrow-right-circle me-1"></i> พร้อมออกใบแจ้งหนี้
                     </span>
                     <form method="POST" action="{{ route('invoices.createFromDeliveryNote', $deliveryNote) }}"
-                          style="display:inline;"
+                          class="d-inline-flex align-items-start gap-2"
                           data-confirm="ระบบจะสร้างใบแจ้งหนี้จากใบส่งของ {{ $deliveryNote->code_delivery }}"
                           data-confirm-title="ยืนยันการออกใบแจ้งหนี้"
                           data-confirm-variant="success"
                           data-confirm-ok="ออกใบแจ้งหนี้">
                         @csrf
+                        {{-- วันที่ออกใบแจ้งหนี้: ค่าเริ่มต้นวันนี้, ย้อนได้ถึงวันส่งของ, ห้ามเลือกวันในอนาคต --}}
+                        <div>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">วันที่ออก</span>
+                                <input type="date" name="invoice_date"
+                                       class="form-control @error('invoice_date') is-invalid @enderror"
+                                       value="{{ old('invoice_date', now()->format('Y-m-d')) }}"
+                                       min="{{ $deliveryNote->delivery_date?->format('Y-m-d') }}"
+                                       max="{{ now()->format('Y-m-d') }}"
+                                       required data-required-msg="กรุณาเลือกวันที่ออกใบแจ้งหนี้">
+                            </div>
+                            @error('invoice_date')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
                         <button class="btn btn-sm btn-primary" type="submit">
                             ออกใบแจ้งหนี้จากใบส่งของนี้
                         </button>

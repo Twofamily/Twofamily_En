@@ -19,7 +19,8 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('trucks.update', $truck->id_truck) }}" enctype="multipart/form-data" autocomplete="off">
+        <form method="POST" action="{{ route('trucks.update', $truck->id_truck) }}" enctype="multipart/form-data" autocomplete="off"
+            data-confirm="ต้องการบันทึกการแก้ไขข้อมูลรถบรรทุกคันนี้หรือไม่" data-confirm-title="ยืนยันการแก้ไขข้อมูล" data-confirm-ok="บันทึกการแก้ไข" data-confirm-variant="primary">
             @csrf 
             @method('PUT')
 

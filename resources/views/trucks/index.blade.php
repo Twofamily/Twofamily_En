@@ -26,24 +26,13 @@
             <div class="alert alert-info shadow-sm">{{ session('info') }}</div>
         @endif
 
-        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-            <form method="GET" class="d-flex gap-2">
-                <input type="text" name="q" value="{{ $q }}" class="form-control"
-                    placeholder="ค้นหา: ทะเบียน/ยี่ห้อ/รุ่น" />
+        <x-search-bar :action="route('trucks.index')"
+                      placeholder="ค้นหาทะเบียน / จังหวัด / ยี่ห้อ / รุ่น / ปี / สถานะ เช่น ซ่อมบำรุง"
+                      :search="$search" :per-page="$perPage"
+                      :statuses="\App\Models\Truck::STATUS_LABELS" :status="$status"
+                      :ranges="$ranges" />
 
-                <select name="status" class="form-select">
-                    <option value="">ทุกสถานะ</option>
-                    @foreach (\App\Models\Truck::STATUS_LABELS as $value => $label)
-                        <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
-                    @endforeach
-                </select>
-
-                <button class="btn btn-outline-secondary text-nowrap" type="submit">
-                    <i class="bi bi-search me-1"></i>
-                    ค้นหา
-                </button>
-            </form>
-
+        <div class="d-flex justify-content-end mb-3">
             <a href="{{ route('trucks.create') }}" class="btn btn-dark text-nowrap">
                 <i class="bi bi-plus-lg me-1"></i>
                 เพิ่มรถบรรทุก
@@ -130,9 +119,8 @@
                 </table>
             </div>
 
-            <div class="p-3">
-                {{ $trucks->withQueryString()->links() }}
-            </div>
         </div>
+
+        @include('partials.pagination-footer', ['paginator' => $trucks])
     </div>
 @endsection

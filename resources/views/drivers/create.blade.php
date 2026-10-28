@@ -16,7 +16,8 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('drivers.store') }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('drivers.store') }}" enctype="multipart/form-data"
+            data-confirm="ต้องการบันทึกข้อมูลพนักงานขับรถรายนี้หรือไม่" data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
 
             <!-- ส่วนอัปโหลดรูปภาพ -->
@@ -153,7 +154,8 @@
             <div class="mb-3 mt-4">
                 <label class="form-label">เบอร์โทร (10 หลัก)</label>
                 <input type="text" name="phone_driver" class="form-control @error('phone_driver') is-invalid @enderror"
-                    maxlength="10" pattern="[0-9]{10}" inputmode="numeric" placeholder="เช่น 0812345678"
+                    maxlength="10" pattern="[0-9]{10}" inputmode="numeric" data-digits-only
+                    data-pattern-msg="เบอร์โทรต้องเป็นตัวเลข 10 หลัก" placeholder="เช่น 0812345678"
                     value="{{ old('phone_driver') }}">
                 @error('phone_driver')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -164,7 +166,8 @@
                 <label class="form-label">เลขบัตรประชาชน (13 หลัก)</label>
                 <input type="text" name="citizenid_driver"
                     class="form-control @error('citizenid_driver') is-invalid @enderror" maxlength="13" pattern="[0-9]{13}"
-                    inputmode="numeric" placeholder="เช่น 1234567890123"
+                    data-pattern-msg="เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก"
+                    inputmode="numeric" data-digits-only placeholder="เช่น 1234567890123"
                     value="{{ old('citizenid_driver') }}">
                 @error('citizenid_driver')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -198,7 +201,7 @@
                 });
             }
 
-            const apiURL = 'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api/latest/province_with_district_and_sub_district.json';
+            const apiURL = @json(asset('data/thai-address.json'));
             let thaiData = [];
 
             const provinceSelect = document.getElementById('province');

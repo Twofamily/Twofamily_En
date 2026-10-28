@@ -10,14 +10,16 @@ class TruckBrandController extends Controller
 {
     public function index(Request $request)
     {
-        $q = $request->q;
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
 
         $brands = TruckBrand::withCount('models')
-            ->when($q, fn($query) => $query->where('name_brand', 'like', "%{$q}%"))
+            ->when($search !== '', fn ($query) => $query->where('name_brand', 'like', "%{$search}%"))
             ->orderBy('name_brand')
-            ->paginate(10);
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('truck_brands.index', compact('brands', 'q'));
+        return view('truck_brands.index', compact('brands', 'search', 'perPage'));
     }
 
     public function create()
@@ -84,7 +86,8 @@ class TruckBrandController extends Controller
                     ->ignore($ignoreId),
             ],
         ], [
-            'name_brand.required' => 'กรุณากรอกชื่อยี่ห้อ',
+            'name_brand.required' => 'กรุณาใส่ชื่อยี่ห้อ',
+            'name_brand.max'      => 'ชื่อยี่ห้อยาวได้ไม่เกิน 100 ตัวอักษร',
             'name_brand.unique'   => 'มียี่ห้อนี้ในระบบแล้ว',
         ]);
     }

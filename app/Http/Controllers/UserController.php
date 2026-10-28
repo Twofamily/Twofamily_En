@@ -15,20 +15,34 @@ class UserController extends Controller
      ============================================================ */
     public function index(Request $request)
     {
-        $q = $request->input('q');
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
+
+        // พิมพ์ "ผู้ดูแล" / "พนักงาน" / "ดูอย่างเดียว" ก็ค้นตามบทบาทได้
+        $roles = $this->statusesMatching($search, User::roleList());
+
+        // dropdown สถานะบัญชี + สิทธิ์การใช้งาน
+        $statusLabels = ['active' => 'ใช้งานอยู่', 'suspended' => 'ระงับการใช้งาน'];
+        $status = $this->statusFilter($request, array_keys($statusLabels));
+        $role   = $this->statusFilter($request, array_keys(User::roleList()), 'role');
 
         $users = User::query()
-            ->when($q, function ($query) use ($q) {
-                $query->where(function ($sub) use ($q) {
-                    $sub->where('name', 'like', "%{$q}%")
-                        ->orWhere('email', 'like', "%{$q}%");
+            ->when($status, fn ($query) => $query->where('is_active', $status === 'active'))
+            ->when($role, fn ($query) => $query->where('role', $role))
+            ->when($search !== '', function ($query) use ($search, $roles) {
+                $query->where(function ($sub) use ($search, $roles) {
+                    $sub->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                    if ($roles) {
+                        $sub->orWhereIn('role', $roles);
+                    }
                 });
             })
             ->orderBy('name')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('users.index', compact('users', 'q'));
+        return view('users.index', compact('users', 'search', 'perPage', 'status', 'statusLabels', 'role'));
     }
 
     /* ============================================================

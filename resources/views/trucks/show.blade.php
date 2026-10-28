@@ -105,14 +105,15 @@
                     </p>
 
                     <form method="POST" action="{{ route('maintenances.finish', $ongoing->id_maintenance) }}"
-                        class="row g-2 align-items-end">
+                        class="row g-2 align-items-end"
+            data-confirm="ต้องการบันทึกว่ารถซ่อมเสร็จแล้วหรือไม่ สถานะรถจะกลับเป็นพร้อมใช้งาน" data-confirm-title="ยืนยันการปิดงานซ่อม" data-confirm-ok="บันทึก" data-confirm-variant="success">
                         @csrf
                         @method('PATCH')
 
                         <div class="col-auto">
                             <label class="form-label small mb-1">วันที่ซ่อมเสร็จ</label>
                             <input type="date" name="finished_date" class="form-control form-control-sm"
-                                value="{{ date('Y-m-d') }}" required>
+                                value="{{ date('Y-m-d') }}" required data-required-msg="กรุณาใส่วันที่ซ่อมเสร็จ">
                         </div>
 
                         <div class="col-auto">
@@ -190,7 +191,8 @@
     {{-- Modal เปลี่ยนสถานะ --}}
     <div class="modal fade" id="statusModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <form method="POST" action="{{ route('trucks.status', $truck->id_truck) }}" class="modal-content">
+            <form method="POST" action="{{ route('trucks.status', $truck->id_truck) }}" class="modal-content"
+            data-confirm="ต้องการเปลี่ยนสถานะรถคันนี้หรือไม่" data-confirm-title="ยืนยันการเปลี่ยนสถานะ" data-confirm-ok="เปลี่ยนสถานะ" data-confirm-variant="primary">
                 @csrf
                 @method('PATCH')
 
@@ -213,7 +215,7 @@
                         <div class="mb-2">
                             <label class="form-label">ซ่อมอะไร <span class="text-danger">*</span></label>
                             <input type="text" name="title" class="form-control" value="{{ old('title') }}"
-                                placeholder="เช่น เปลี่ยนยาง 6 เส้น">
+                                placeholder="เช่น เปลี่ยนยาง 6 เส้น" required data-required-msg="กรุณาระบุว่าซ่อมอะไร">
                         </div>
 
                         <div class="mb-2">
@@ -225,7 +227,8 @@
                             <div class="col-6 mb-2">
                                 <label class="form-label">วันที่เริ่มซ่อม <span class="text-danger">*</span></label>
                                 <input type="date" name="start_date" class="form-control"
-                                    value="{{ old('start_date', date('Y-m-d')) }}">
+                                    value="{{ old('start_date', date('Y-m-d')) }}" required
+                                    data-required-msg="กรุณาใส่วันที่เริ่มซ่อม">
                             </div>
                             {{-- <div class="col-6 mb-2">
                                 <label class="form-label">คาดว่าเสร็จ</label>
@@ -246,7 +249,8 @@
 
                     <div id="retireFields" class="border-top pt-3 mt-3 d-none">
                         <label class="form-label">เหตุผลที่ปลดประจำการ <span class="text-danger">*</span></label>
-                        <textarea name="retire_reason" rows="2" class="form-control" placeholder="เช่น อายุการใช้งานเกิน ค่าซ่อมไม่คุ้ม">{{ old('retire_reason') }}</textarea>
+                        <textarea name="retire_reason" rows="2" class="form-control" placeholder="เช่น อายุการใช้งานเกิน ค่าซ่อมไม่คุ้ม"
+                            required data-required-msg="กรุณาใส่เหตุผลที่ปลดประจำการ">{{ old('retire_reason') }}</textarea>
                         <div class="form-text text-danger">
                             รถที่ปลดประจำการจะไม่ปรากฏในรายการเลือกใช้งาน
                         </div>

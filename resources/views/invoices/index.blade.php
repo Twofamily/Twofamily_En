@@ -7,63 +7,20 @@
 @endsection
 
 @php
-    $hasFilter = $search !== '' || $status !== null;
+    // มีค่าค้นหา/ตัวกรองใดก็ได้ (ไม่นับเลขหน้า/จำนวนต่อหน้า)
+    $hasFilter = collect(request()->except(['page', 'per_page']))->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
 @endphp
 
 @section('content')
     <div class="container py-3">
 
-        {{-- ==================== แถบค้นหา / กรอง / จำนวนต่อหน้า ==================== --}}
-        {{-- form เดียวครอบทั้งหมด เพื่อให้ค่าทุกตัวถูกส่งไปพร้อมกัน --}}
-        <form method="GET" action="{{ route('invoices.index') }}" class="mb-3">
-            <div class="row g-2 align-items-center">
-
-                {{-- ช่องค้นหา --}}
-                <div class="col-12 col-md-4">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text"
-                            name="search"
-                            class="form-control"
-                            placeholder="เลขที่ / ชื่อลูกค้า / เลขที่ใบส่งของ"
-                            value="{{ $search }}">
-                    </div>
-                </div>
-
-                {{-- กรองสถานะการชำระ --}}
-                <div class="col-6 col-md-3">
-                    <select name="status" class="form-select">
-                        <option value="">ทุกสถานะ</option>
-                        @foreach (\App\Models\Invoice::STATUSES as $value => $s)
-                            <option value="{{ $value }}" @selected($status === $value)>{{ $s['label'] }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                {{-- ปุ่มค้นหา / ล้าง --}}
-                <div class="col-6 col-md-auto">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-funnel me-1"></i> ค้นหา
-                    </button>
-
-                    @if ($hasFilter)
-                        <a href="{{ route('invoices.index') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-lg"></i>
-                        </a>
-                    @endif
-                </div>
-
-                {{-- จำนวนรายการต่อหน้า --}}
-                <div class="col-12 col-md-auto ms-md-auto">
-                    @include('partials.per-page', ['perPage' => $perPage])
-                </div>
-            </div>
-
-            {{-- รีเซ็ตกลับหน้า 1 ทุกครั้งที่ค้นหาใหม่ --}}
-            <input type="hidden" name="page" value="1">
-        </form>
+        <x-search-bar :action="route('invoices.index')"
+                      placeholder="ค้นหาเลขที่ใบแจ้งหนี้ / ลูกค้า / ใบส่งของ / ใบเสนอราคา / สถานะ เช่น ยังไม่ชำระ"
+                      :search="$search" :per-page="$perPage"
+                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่ออก"
+                      :statuses="\App\Models\Invoice::STATUSES" :status="$status"
+                      status-label="สถานะการชำระ"
+                      :ranges="$ranges" />
 
         {{-- ==================== ตาราง ==================== --}}
         <div class="table-responsive shadow-sm rounded-3">
@@ -72,6 +29,7 @@
                     <tr>
                         <th style="width:60px;" class="text-center">ลำดับ</th>
                         <th>เลขที่ใบแจ้งหนี้</th>
+                        <th>วันที่ออก</th>
                         <th>ลูกค้า</th>
                         <th>อ้างอิง</th>
                         <th class="text-end">ยอดสุทธิ</th>
@@ -99,6 +57,8 @@
                             </td>
 
                             <td><strong>{{ $inv->code_inv }}</strong></td>
+
+                            <td>{{ $inv->invoice_date?->format('d/m/Y') ?? '-' }}</td>
 
                             <td>{{ $inv->customer->name_customer ?? '-' }}</td>
 
@@ -171,7 +131,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">
+                            <td colspan="10" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox fs-2 d-block mb-2"></i>
 
                                 @if ($hasFilter)

@@ -40,7 +40,7 @@
 <div class="mb-3">
     <label class="form-label">เลขทะเบียน</label>
     <input type="text" name="id_truck" id="id_truck" value="{{ old('id_truck', $truck->id_truck ?? '') }}"
-        class="form-control @error('id_truck') is-invalid @enderror" placeholder="เช่น 70-1234" required maxlength="7"
+        class="form-control @error('id_truck') is-invalid @enderror" placeholder="เช่น 70-1234" required maxlength="7" data-required-msg="กรุณาใส่เลขทะเบียน"
         inputmode="numeric">
     @error('id_truck')
         <div class="invalid-feedback">{{ $message }}</div>
@@ -97,7 +97,8 @@
 
     <div class="col-md-4">
         <label class="form-label">ปีที่ซื้อ</label>
-        <select name="year_truck" id="year_truck_select" class="form-select @error('year_truck') is-invalid @enderror">
+        <select name="year_truck" id="year_truck_select" class="form-select @error('year_truck') is-invalid @enderror"
+            required data-required-msg="กรุณาเลือกปีที่ซื้อ">
             <option value="">— เลือกปีที่ซื้อ —</option>
             @for ($y = $ymax; $y >= 1980; $y--)
                 <option value="{{ $y }}" @selected(old('year_truck', $truck->year_truck ?? '') == $y)>
@@ -190,7 +191,8 @@
             <div class="mb-3">
                 <label class="form-label">ซ่อมอะไร</label>
                 <input type="text" name="title" value="{{ old('title') }}"
-                    class="form-control @error('title') is-invalid @enderror" placeholder="เช่น เปลี่ยนยาง 6 เส้น">
+                    class="form-control @error('title') is-invalid @enderror" placeholder="เช่น เปลี่ยนยาง 6 เส้น"
+                    required data-required-msg="กรุณาระบุว่าซ่อมอะไร">
                 @error('title')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -209,7 +211,8 @@
                 <div class="col-md-3">
                     <label class="form-label">วันที่เริ่มซ่อม</label>
                     <input type="date" name="start_date" value="{{ old('start_date', date('Y-m-d')) }}"
-                        class="form-control @error('start_date') is-invalid @enderror">
+                        class="form-control @error('start_date') is-invalid @enderror"
+                        required data-required-msg="กรุณาใส่วันที่เริ่มซ่อม">
                     @error('start_date')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror

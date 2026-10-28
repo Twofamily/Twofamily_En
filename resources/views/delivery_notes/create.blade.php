@@ -38,14 +38,15 @@
             <div class="row g-2 small">
                 <div class="col-md-4"><strong>ลูกค้า:</strong> {{ $camp->customer->name_customer ?? '-' }}</div>
                 <div class="col-md-4">
-                    <strong>ใบเสนอราคา:</strong>
-                    {{ $camp->quotation ? $camp->quotation->code_quot : 'ไม่ได้อ้างอิง' }}
+                    <strong>อ้างอิงสัญญา:</strong>
+                    {{ $camp->contract_code ?? 'ไม่ได้อ้างอิง' }}
                 </div>
                 <div class="col-md-4"><strong>สถานที่ส่ง:</strong> {{ $camp->full_address ?: '-' }}</div>
             </div>
         </div>
 
-        <form method="POST" action="{{ route('delivery-notes.store') }}">
+        <form method="POST" action="{{ route('delivery-notes.store') }}"
+            data-confirm="ต้องการบันทึกใบส่งของนี้หรือไม่ ตรวจสอบจำนวนและรายการให้ถูกต้องก่อนยืนยัน" data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
             <input type="hidden" name="id_camp" value="{{ $camp->id_camp }}">
 
@@ -59,8 +60,8 @@
 
             @if ($suggestedItems->isEmpty())
                 <div class="alert alert-warning">
-                    แคมป์นี้ไม่ได้อ้างอิงใบเสนอราคา จึงไม่มีรายการให้เติมอัตโนมัติ
-                    กรุณาผูกใบเสนอราคาที่หน้าแก้ไขแคมป์ก่อน
+                    แคมป์นี้ยังไม่มีใบสั่งขาย (หรือใบเสนอราคาเดิม) จึงไม่มีรายการให้เติมอัตโนมัติ
+                    กรุณาเพิ่มใบสั่งขายเข้าแคมป์ก่อน จากหน้าใบสั่งขาย
                 </div>
             @else
                 <div class="table-responsive">
@@ -92,13 +93,19 @@
                                         <input type="number" step="0.01" min="0"
                                                name="items[{{ $i }}][quantity]"
                                                value="{{ old("items.$i.quantity", $item['remaining']) }}"
-                                               class="form-control form-control-sm text-end">
+                                               class="form-control form-control-sm text-end @error("items.$i.quantity") is-invalid @enderror">
+                                        @error("items.$i.quantity")
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
                                     </td>
                                     <td>
                                         <input type="number" step="0.01" min="0"
                                                name="items[{{ $i }}][price]"
                                                value="{{ old("items.$i.price", $item['price_per_unit']) }}"
-                                               class="form-control form-control-sm text-end">
+                                               class="form-control form-control-sm text-end @error("items.$i.price") is-invalid @enderror">
+                                        @error("items.$i.price")
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
                                     </td>
                                 </tr>
                             @endforeach
@@ -106,7 +113,11 @@
                     </table>
                 </div>
 
-                @error('items.*.quantity')
+                <div class="form-text mb-2">
+                    ใส่จำนวน 0 ในรายการที่ไม่ได้ส่งเที่ยวนี้ ระบบจะไม่นำรายการนั้นมาออกใบส่งของ
+                </div>
+
+                @error('items')
                     <div class="text-danger small mb-2">{{ $message }}</div>
                 @enderror
 

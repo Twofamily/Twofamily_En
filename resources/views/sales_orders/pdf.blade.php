@@ -332,17 +332,13 @@
                         <td>รวมเป็นเงิน</td>
                         <td class="text-right">{{ number_format($salesOrder->subtotal, 2) }}</td>
                     </tr>
-                    <tr>
-                        <td>หักส่วนลด</td>
-                        <td class="text-right">{{ number_format($salesOrder->discount, 2) }}</td>
-                    </tr>
-                    {{-- แสดงเฉพาะเมื่อตารางมีคอลัมน์ after_discount --}}
-                    @isset($salesOrder->after_discount)
+                    {{-- บริษัทไม่มีส่วนลดแล้ว — แสดงเฉพาะใบเก่าที่เคยบันทึกส่วนลดไว้ --}}
+                    @if ((float) $salesOrder->discount > 0)
                         <tr>
-                            <td>ยอดหลังหักส่วนลด</td>
-                            <td class="text-right">{{ number_format($salesOrder->after_discount, 2) }}</td>
+                            <td>หักส่วนลด</td>
+                            <td class="text-right">{{ number_format($salesOrder->discount, 2) }}</td>
                         </tr>
-                    @endisset
+                    @endif
                     <tr>
                         {{-- ใช้ vat_rate ที่บันทึกไว้ถ้ามีคอลัมน์ ไม่มีก็แสดง 7 ตามเดิม --}}
                         <td>ภาษีมูลค่าเพิ่ม {{ rtrim(rtrim(number_format($salesOrder->vat_rate ?? 7, 2), '0'), '.') }}%</td>

@@ -28,7 +28,7 @@ class TruckStoreRequest extends FormRequest
 
             'truck_brand_id'    => 'required|exists:truck_brands,id',
             'truck_model_id'    => 'required|exists:truck_models,id',
-            'year_truck'        => ['nullable', 'integer', "between:1980,$yearMax"],
+            'year_truck'        => ['required', 'integer', "between:1980,$yearMax"],
             'weight_truck'      => ['nullable', 'integer', 'min:0'],
             'fuelfactory_truck' => ['nullable', 'integer', 'min:0'],
             'cubic_capacity'    => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -69,6 +69,7 @@ class TruckStoreRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'id_truck.required'       => 'กรุณาใส่เลขทะเบียน',
             'id_truck.regex'  => 'เลขทะเบียนใช้ได้เฉพาะตัวอักษรไทย A-Z ตัวเลข และขีดกลาง (-)',
             'id_truck.unique' => 'เลขทะเบียนนี้มีอยู่ในระบบแล้ว',
 
@@ -76,6 +77,13 @@ class TruckStoreRequest extends FormRequest
             'start_date.required_if'         => 'กรุณาระบุวันที่เริ่มซ่อม',
             'expected_return.after_or_equal' => 'วันที่คาดว่าเสร็จต้องไม่ก่อนวันที่เริ่มซ่อม',
             'cost.numeric'                   => 'ค่าซ่อมต้องเป็นตัวเลข',
+
+            'province_truck.required' => 'กรุณาเลือกจังหวัดที่จดทะเบียน',
+            'truck_brand_id.required' => 'กรุณาเลือกยี่ห้อ',
+            'truck_model_id.required' => 'กรุณาเลือกรุ่น',
+            'year_truck.required'     => 'กรุณาเลือกปีที่ซื้อ',
+            'status_truck.required'   => 'กรุณาเลือกสถานะ',
+            'fuel_rate.required'      => 'รุ่นรถนี้ยังไม่มีอัตราสิ้นเปลือง กรุณาเพิ่มที่หน้ารุ่นรถบรรทุก',
         ];
     }
 }

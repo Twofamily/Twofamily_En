@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Camp;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Quotation;
@@ -18,32 +19,45 @@ class SalesOrderController extends Controller
 
         public function index(Request $request)
     {
-        $perPage    = $this->perPage($request);
-        $search     = $this->searchTerm($request);
-        $status     = $this->statusFilter($request, array_keys(SalesOrder::STATUS_LABELS));
-        $customerId = (int) $request->input('customer') ?: null;
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
+        [$dateFrom, $dateTo] = $this->dateRange($request);
+
+        // พิมพ์ "ยืนยัน" / "ปิดงาน" / "ยกเลิก" ก็ค้นตามสถานะได้
+        $statuses = $this->statusesMatching($search, SalesOrder::STATUS_LABELS);
+
+        // dropdown เลือกสถานะ + ช่วงยอดสุทธิ
+        $status = $this->statusFilter($request, array_keys(SalesOrder::STATUS_LABELS));
+        $ranges = $this->numberRanges($request, [
+            'total' => ['label' => 'ยอดสุทธิ', 'unit' => 'บาท', 'step' => '0.01'],
+        ]);
 
         $salesOrders = SalesOrder::with(['customer', 'quotation', 'camp'])
-            // ค้นหาจากเลขที่ใบสั่งขาย เลข PO หรือชื่อลูกค้า
-            // ครอบด้วย closure เพื่อให้ orWhere ไม่หลุดไปชนกับตัวกรองอื่น
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($sub) use ($search) {
+            // ช่องค้นหาช่องเดียว: เลขที่ใบสั่งขาย เลข PO ลูกค้า ใบเสนอราคา แคมป์ และสถานะ
+            // ครอบด้วย closure เพื่อให้ orWhere ไม่หลุดไปชนกับช่วงวันที่
+            ->when($search !== '', function ($query) use ($search, $statuses) {
+                $query->where(function ($sub) use ($search, $statuses) {
                     $sub->where('code_so', 'like', "%{$search}%")
                         ->orWhere('po_number', 'like', "%{$search}%")
-                        ->orWhereHas('customer', fn ($c) => $c->where('name_customer', 'like', "%{$search}%"));
+                        ->orWhereHas('customer', fn ($c) => $c->where('name_customer', 'like', "%{$search}%"))
+                        ->orWhereHas('quotation', fn ($q) => $q->where('code_quot', 'like', "%{$search}%"))
+                        ->orWhereHas('camp', fn ($c) => $c->where('code_camp', 'like', "%{$search}%")
+                                                          ->orWhere('name_camp', 'like', "%{$search}%"));
+                    if ($statuses) {
+                        $sub->orWhereIn('status', $statuses);
+                    }
                 });
             })
-            ->when($status !== null, fn ($query) => $query->where('status', $status))
-            ->when($customerId !== null, fn ($query) => $query->where('id_customer', $customerId))
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->tap(fn ($query) => $this->applyNumberRange($query, 'total_amount', $ranges['total']))
+            ->tap(fn ($query) => $this->applyDateRange($query, 'order_date', $dateFrom, $dateTo))
             ->latest('id_so')
             ->paginate($perPage)
-            // พา search / status / customer / per_page ติดไปกับลิงก์เปลี่ยนหน้า
+            // พา search / ช่วงวันที่ / per_page ติดไปกับลิงก์เปลี่ยนหน้า
             ->withQueryString();
 
-        $customers = Customer::orderBy('name_customer')->get(['id_customer', 'name_customer']);
-
         return view('sales_orders.index', compact(
-            'salesOrders', 'customers', 'perPage', 'search', 'status', 'customerId'
+            'salesOrders', 'perPage', 'search', 'dateFrom', 'dateTo', 'status', 'ranges'
         ));
     }
 
@@ -84,7 +98,7 @@ class SalesOrderController extends Controller
             return back()->withInput()->with('error', $error);
         }
 
-        $totals = $this->calculateTotals($data['items'], $data['discount'] ?? 0);
+        $totals = $this->calculateTotals($data['items']);
 
         $salesOrder = DB::transaction(function () use ($data, $totals) {
 
@@ -121,7 +135,15 @@ class SalesOrderController extends Controller
             'camp.deliveryNotes',
         ]);
 
-        return view('sales_orders.show', compact('salesOrder'));
+        // แคมป์ที่ยังเปิดอยู่ของลูกค้ารายนี้ ให้เลือก "เพิ่มเข้าแคมป์เดิม" ได้ (กรณีสั่งเพิ่ม)
+        $campOptions = $salesOrder->canOpenCamp()
+            ? Camp::active()
+                ->where('id_customer', $salesOrder->id_customer)
+                ->latest('id_camp')
+                ->get()
+            : collect();
+
+        return view('sales_orders.show', compact('salesOrder', 'campOptions'));
     }
 
     public function edit(SalesOrder $salesOrder)
@@ -151,7 +173,7 @@ class SalesOrderController extends Controller
 
         $data = $this->validateSalesOrder($request, $salesOrder);
 
-        $totals = $this->calculateTotals($data['items'], $data['discount'] ?? 0);
+        $totals = $this->calculateTotals($data['items']);
 
         DB::transaction(function () use ($salesOrder, $data, $totals) {
 
@@ -178,7 +200,7 @@ class SalesOrderController extends Controller
     public function destroy(SalesOrder $salesOrder)
     {
         if ($salesOrder->hasCamp()) {
-            return back()->with('error', 'ใบสั่งขายนี้เปิดแคมป์ไปแล้ว ไม่สามารถลบได้');
+            return back()->with('error', 'ใบสั่งขายนี้อยู่ในแคมป์แล้ว ไม่สามารถลบได้');
         }
 
         if ($salesOrder->status !== 'draft') {
@@ -208,7 +230,46 @@ class SalesOrderController extends Controller
 
         $salesOrder->update(['status' => 'confirmed']);
 
-        return back()->with('ok', 'ยืนยันใบสั่งขายเรียบร้อย พร้อมเปิดแคมป์งานแล้ว');
+        return back()->with('ok', 'ยืนยันใบสั่งขายเรียบร้อย — เปิดแคมป์ใหม่ หรือเพิ่มเข้าแคมป์เดิมของลูกค้าได้');
+    }
+
+    /**
+     * ผูกใบสั่งขายเข้าแคมป์ที่มีอยู่แล้ว (ลูกค้าสั่งเพิ่มในงานเดิม)
+     * กรณีเปิดแคมป์ใหม่ ไปที่ camps.create?sales_order=... แทน
+     */
+    public function attachCamp(Request $request, SalesOrder $salesOrder)
+    {
+        if (! $salesOrder->canOpenCamp()) {
+            return back()->with('error', $salesOrder->hasCamp()
+                ? 'ใบสั่งขายนี้อยู่ในแคมป์แล้ว'
+                : 'ต้องยืนยันใบสั่งขายก่อน จึงจะเพิ่มเข้าแคมป์ได้');
+        }
+
+        $data = $request->validate([
+            'id_camp' => ['required', 'exists:camps,id_camp'],
+        ], [
+            'id_camp.required' => 'กรุณาเลือกแคมป์',
+            'id_camp.exists'   => 'ไม่พบแคมป์ที่เลือก',
+        ]);
+
+        $camp = Camp::findOrFail($data['id_camp']);
+
+        if ((int) $camp->id_customer !== (int) $salesOrder->id_customer) {
+            return back()->with('error', 'แคมป์ที่เลือกเป็นของลูกค้ารายอื่น');
+        }
+
+        if ($camp->status_camp !== 'active') {
+            return back()->with('error', 'แคมป์ที่เลือกปิดไปแล้ว');
+        }
+
+        $salesOrder->update([
+            'id_camp' => $camp->id_camp,
+            'status'  => 'in_progress',
+        ]);
+
+        return redirect()
+            ->route('camps.show', $camp)
+            ->with('ok', "เพิ่มใบสั่งขาย {$salesOrder->code_so} เข้าแคมป์ {$camp->code_camp} แล้ว");
     }
 
     /** ย้อนกลับเป็นร่าง เพื่อแก้ไข (ทำได้ก่อนเปิดแคมป์เท่านั้น) */
@@ -219,7 +280,7 @@ class SalesOrderController extends Controller
         }
 
         if ($salesOrder->hasCamp()) {
-            return back()->with('error', 'เปิดแคมป์ไปแล้ว ไม่สามารถย้อนกลับเป็นร่างได้');
+            return back()->with('error', 'ใบสั่งขายนี้อยู่ในแคมป์แล้ว ไม่สามารถย้อนกลับเป็นร่างได้');
         }
 
         $salesOrder->update(['status' => 'draft']);
@@ -231,7 +292,7 @@ class SalesOrderController extends Controller
     {
         if (! $salesOrder->canCancel()) {
             return back()->with('error', $salesOrder->hasCamp()
-                ? 'ใบสั่งขายนี้เปิดแคมป์ไปแล้ว ไม่สามารถยกเลิกได้'
+                ? 'ใบสั่งขายนี้อยู่ในแคมป์แล้ว ไม่สามารถยกเลิกได้'
                 : 'ไม่สามารถยกเลิกใบสั่งขายในสถานะนี้ได้');
         }
 
@@ -273,7 +334,6 @@ class SalesOrderController extends Controller
             'order_date'         => ['required', 'date'],
             'due_date'           => ['nullable', 'date', 'after_or_equal:order_date'],
             'po_number'          => ['nullable', 'string', 'max:50'],
-            'discount'           => ['nullable', 'numeric', 'min:0'],
             'note'               => ['nullable', 'string', 'max:1000'],
             'items'              => ['required', 'array', 'min:1'],
             'items.*.id_product' => ['required', 'exists:products,id_product'],
@@ -320,14 +380,15 @@ class SalesOrderController extends Controller
      * คำนวณยอดและเก็บเป็นคอลัมน์
      * แยก vat_amount ออกมาต่างหาก เพื่อใช้ออกใบกำกับภาษีได้ถูกต้อง
      */
-    private function calculateTotals(array $items, mixed $discount): array
+    private function calculateTotals(array $items): array
     {
         $subtotal = round(collect($items)->sum(
             fn(array $item) => (float) $item['quantity'] * (float) $item['price']
         ), 2);
 
-        $discount      = min((float) $discount, $subtotal);
-        $afterDiscount = round($subtotal - $discount, 2);
+        // บริษัทไม่มีส่วนลดสินค้าแล้ว — คอลัมน์ discount ยังอยู่ในตาราง แต่บันทึกเป็น 0 เสมอ
+        $discount      = 0;
+        $afterDiscount = $subtotal;
         $vatAmount     = round($afterDiscount * self::VAT_RATE, 2);
 
         return [

@@ -15,12 +15,11 @@
          */
         $q = $invoice->quotation;
 
-        $subTotal      = $invoice->subtotal ?? $q?->subtotal ?? 0;
-        $discount      = $invoice->discount ?? $q?->discount ?? 0;
-        $afterDiscount = $invoice->after_discount ?? max($subTotal - $discount, 0);
-        $vatRate       = $invoice->vat_rate ?? 7;
-        $vat           = $invoice->vat_amount ?? $afterDiscount * $vatRate / 100;
-        $grandTotal    = $invoice->total_amount ?? $afterDiscount + $vat;
+        // ใบแจ้งหนี้ไม่มีส่วนลด — คิดจากรายการในใบนี้ + VAT
+        $subTotal   = $invoice->itemsSubtotal();
+        $vatRate    = \App\Models\Invoice::VAT_RATE;
+        $vat        = $invoice->itemsVat();
+        $grandTotal = $invoice->itemsNetTotal();
 
         /* วันที่: ใช้คอลัมน์ที่บันทึกไว้ก่อน ถ้าไม่มีจึงคำนวณแบบเดิม */
         $issueDate = \Carbon\Carbon::parse($invoice->invoice_date ?? $invoice->created_at);
@@ -377,14 +376,6 @@
                     <tr>
                         <td>รวมเป็นเงิน</td>
                         <td class="text-right">{{ number_format($subTotal, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td>หักส่วนลด</td>
-                        <td class="text-right">{{ number_format($discount, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td>มูลค่าสินค้า/บริการก่อนภาษี</td>
-                        <td class="text-right">{{ number_format($afterDiscount, 2) }}</td>
                     </tr>
                     <tr>
                         <td>ภาษีมูลค่าเพิ่ม {{ rtrim(rtrim(number_format($vatRate, 2), '0'), '.') }}%</td>

@@ -20,20 +20,21 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('customers.update', $customer) }}">
+        <form method="POST" action="{{ route('customers.update', $customer) }}"
+            data-confirm="ต้องการบันทึกการแก้ไขข้อมูลลูกค้ารายนี้หรือไม่" data-confirm-title="ยืนยันการแก้ไขข้อมูล" data-confirm-ok="บันทึกการแก้ไข" data-confirm-variant="primary">
             @csrf
             @method('PUT')
 
             <div class="mb-3">
                 <label class="form-label">ชื่อลูกค้า</label>
-                <input type="text" name="name_customer" class="form-control"
+                <input type="text" name="name_customer" class="form-control" data-required-msg="กรุณาใส่ชื่อลูกค้า"
                     value="{{ old('name_customer', $customer->name_customer) }}"
                     placeholder="เช่น บริษัท ทูแฟมิลี่ เอ็นจิเนียริ่ง จำกัด หรือ นายกรภัทร สิงวะราช" required>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">ประเภทลูกค้า</label>
-                <select name="customer_type" class="form-select">
+                <select name="customer_type" class="form-select" required>
                     <option value="person" @selected(old('customer_type', $customer->customer_type) == 'person')>
                         บุคคล
                     </option>
@@ -48,8 +49,8 @@
 
             <div class="mb-3">
                 <label class="form-label">เบอร์โทร (10 หลัก)</label>
-                <input type="text" name="phone_customer" class="form-control" maxlength="10" pattern="[0-9]{10}"
-                    inputmode="numeric" value="{{ old('phone_customer', $customer->phone_customer) }}"
+                <input type="text" name="phone_customer" class="form-control" maxlength="10" pattern="[0-9]{10}" data-pattern-msg="กรุณาใส่เบอร์โทรเป็นตัวเลข 10 หลัก"
+                    inputmode="numeric" data-digits-only value="{{ old('phone_customer', $customer->phone_customer) }}"
                     placeholder="เช่น 0812345678">
             </div>
 
@@ -93,8 +94,8 @@
 
             <div class="mb-3">
                 <label class="form-label">รหัสไปรษณีย์</label>
-                <input type="text" name="zipcode" class="form-control" maxlength="5" pattern="[0-9]{5}"
-                    inputmode="numeric" value="{{ old('zipcode', $customer->zipcode) }}" placeholder="เช่น 40000">
+                <input type="text" name="zipcode" class="form-control" maxlength="5" pattern="[0-9]{5}" data-pattern-msg="กรุณาใส่รหัสไปรษณีย์เป็นตัวเลข 5 หลัก"
+                    inputmode="numeric" data-digits-only value="{{ old('zipcode', $customer->zipcode) }}" placeholder="เช่น 40000">
             </div>
 
             <div class="d-flex gap-2 pt-2">

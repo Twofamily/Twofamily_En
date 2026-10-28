@@ -75,79 +75,11 @@
             @endif
         </div>
 
-        <div class="fuel-filter-card p-3 shadow-sm mb-3">
-            <form method="GET" action="{{ route('fuel_records.index') }}">
-                <div class="row g-3 align-items-end">
-                    <div class="col-lg-4 col-md-6">
-                        <label for="q" class="form-label">
-                            ค้นหา
-                        </label>
-
-                        <input type="text" id="q" name="q" class="form-control"
-                            placeholder="ต้นทาง ปลายทาง หรือทะเบียนรถ" value="{{ $q }}">
-                    </div>
-
-                    <div class="col-lg-3 col-md-6">
-                        <label for="trucks_id" class="form-label">
-                            ทะเบียนรถ
-                        </label>
-
-                        <select id="trucks_id" name="trucks_id" class="form-select">
-                            <option value="">
-                                ทะเบียนทั้งหมด
-                            </option>
-
-                            @foreach ($trucks as $truck)
-                                <option value="{{ $truck->id_truck }}" @selected($trucks_id === (string) $truck->id_truck)>
-                                    {{ $truck->id_truck }}
-
-                                    @if ($truck->province_truck)
-                                        - {{ $truck->province_truck }}
-                                    @endif
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="col-lg-2 col-md-6">
-                        <label for="date_from" class="form-label">
-                            ตั้งแต่วันที่
-                        </label>
-
-                        <input type="date" id="date_from" name="date_from" class="form-control"
-                            value="{{ $date_from }}">
-                    </div>
-
-                    <div class="col-lg-2 col-md-6">
-                        <label for="date_to" class="form-label">
-                            ถึงวันที่
-                        </label>
-
-                        <input type="date" id="date_to" name="date_to" class="form-control"
-                            value="{{ $date_to }}">
-                    </div>
-
-                    <div class="col-lg-1 col-md-6">
-                        <button type="submit" class="btn btn-primary w-100" title="ค้นหา" aria-label="ค้นหา">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
-                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                <circle cx="11" cy="11" r="8" />
-
-                                <path stroke-linecap="round" d="m21 21-4.35-4.35" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                @if ($q !== '' || $trucks_id !== '' || $date_from || $date_to)
-                    <div class="mt-3">
-                        <a href="{{ route('fuel_records.index') }}" class="btn btn-outline-secondary btn-sm">
-                            ล้างตัวกรอง
-                        </a>
-                    </div>
-                @endif
-            </form>
-        </div>
+        <x-search-bar :action="route('fuel_records.index')"
+                      placeholder="ค้นหาทะเบียนรถ / ยี่ห้อ / จุดเริ่มต้น / ปลายทาง"
+                      :search="$search" :per-page="$perPage"
+                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่"
+                      :ranges="$ranges" />
 
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0 fuel-table">
@@ -327,7 +259,7 @@
                     @empty
                         <tr>
                             <td colspan="10" class="text-center text-muted py-4">
-                                @if ($q !== '' || $trucks_id !== '' || $date_from || $date_to)
+                                @if ($search !== '' || $dateFrom || $dateTo)
                                     ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา
                                 @else
                                     — ไม่พบข้อมูล —
@@ -338,11 +270,8 @@
                 </tbody>
             </table>
 
-            @if ($records->hasPages())
-                <div class="p-3">
-                    {{ $records->links() }}
-                </div>
-            @endif
         </div>
+
+        @include('partials.pagination-footer', ['paginator' => $records])
     </div>
 @endsection

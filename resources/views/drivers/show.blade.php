@@ -82,6 +82,22 @@
                         </div>
                     </div>
 
+                    {{-- แคมป์ที่ทำงาน (ผ่านการมอบหมายรถ) --}}
+                    @php $current = $driver->camps->firstWhere('pivot.released_date', null); @endphp
+                    <div class="mb-4">
+                        <div class="label">ประจำแคมป์ตอนนี้</div>
+                        <div class="value">
+                            @if ($current)
+                                <a href="{{ route('camps.show', $current) }}" class="text-decoration-none">
+                                    {{ $current->code_camp }} — {{ $current->name_camp }}
+                                </a>
+                                <span class="text-muted small">· ขับรถ {{ $current->pivot->id_truck }}</span>
+                            @else
+                                <span class="text-muted">ว่าง (ไม่ได้ประจำแคมป์ไหน)</span>
+                            @endif
+                        </div>
+                    </div>
+
                     <div class="pt-2 d-flex gap-2">
                         <a href="{{ route('drivers.index') }}" class="btn btn-outline-secondary">
                             ย้อนกลับ
@@ -92,6 +108,52 @@
                         </a>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ประวัติการทำงานตามแคมป์ --}}
+    <div class="card detail-card mt-4">
+        <div class="card-body p-4">
+            <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">ประวัติการทำงานตามแคมป์</h6>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>แคมป์</th>
+                            <th>ลูกค้า</th>
+                            <th>รถ</th>
+                            <th>ช่วงเวลา</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($driver->camps as $camp)
+                            <tr>
+                                <td>
+                                    <a href="{{ route('camps.show', $camp) }}" class="text-decoration-none">
+                                        {{ $camp->code_camp }}
+                                    </a>
+                                    <div class="small text-muted">{{ $camp->name_camp }}</div>
+                                </td>
+                                <td>{{ $camp->customer->name_customer ?? '-' }}</td>
+                                <td>{{ $camp->pivot->id_truck }}</td>
+                                <td>
+                                    {{ thai_date($camp->pivot->assigned_date) }} –
+                                    @if ($camp->pivot->released_date)
+                                        {{ thai_date($camp->pivot->released_date) }}
+                                    @else
+                                        <span class="badge bg-success">ปัจจุบัน</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">ยังไม่เคยประจำแคมป์ไหน</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

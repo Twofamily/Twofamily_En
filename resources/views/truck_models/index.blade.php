@@ -9,42 +9,18 @@
 @section('content')
     <div class="container py-4">
 
-        <form method="GET" class="row g-3 mb-3">
-            <div class="col-md-3">
-                <input type="text" name="q" value="{{ $q }}" class="form-control"
-                    placeholder="ค้นหารุ่น">
-            </div>
+        <x-search-bar :action="route('truck_models.index')"
+                      placeholder="ค้นหาชื่อรุ่น / ยี่ห้อ / ประเภท / เชื้อเพลิง / ปีรุ่น"
+                      :search="$search" :per-page="$perPage"
+                      :statuses="$statusLabels" :status="$status"
+                      :ranges="$ranges" />
 
-            <div class="col-md-3">
-                <select name="brand" class="form-select">
-                    <option value="">— ทุกยี่ห้อ —</option>
-                    @foreach ($brands as $b)
-                        <option value="{{ $b->id }}" @selected($brandId == $b->id)>
-                            {{ $b->name_brand }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="col-md-6">
-                <button class="btn btn-dark text-nowrap">
-                    <i class="bi bi-search me-1"></i>
-                    ค้นหา
-                </button>
-
-                <a href="{{ route('truck_models.index') }}"
-                    class="btn btn-outline-secondary text-nowrap">
-                    <i class="bi bi-x-circle me-1"></i>
-                    ล้าง
-                </a>
-
-                <a href="{{ route('truck_models.create') }}"
-                    class="btn btn-dark float-end text-nowrap">
-                    <i class="bi bi-plus-lg me-1"></i>
-                    เพิ่มรุ่น
-                </a>
-            </div>
-        </form>
+        <div class="d-flex justify-content-end mb-3">
+            <a href="{{ route('truck_models.create') }}" class="btn btn-dark text-nowrap">
+                <i class="bi bi-plus-lg me-1"></i>
+                เพิ่มรุ่นรถบรรทุก
+            </a>
+        </div>
 
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
@@ -113,7 +89,7 @@
         </div>
 
         <div class="mt-3">
-            {{ $models->withQueryString()->links() }}
+            @include('partials.pagination-footer', ['paginator' => $models])
         </div>
     </div>
 @endsection

@@ -42,29 +42,41 @@
 <div class="row g-3 mt-2">
     <div class="col-md-3">
         <label class="form-label">ประเภท</label>
-        <select name="truck_type" class="form-select">
+        <select name="truck_type" class="form-select @error('truck_type') is-invalid @enderror" required>
             @foreach (['ดัมพ์', 'พ่วง', 'เทรลเลอร์', 'กระบะ'] as $t)
                 <option value="{{ $t }}" @selected(old('truck_type', $model->truck_type ?? 'ดัมพ์') == $t)>{{ $t }}</option>
             @endforeach
         </select>
+        @error('truck_type')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
         <label class="form-label">จำนวนล้อ</label>
         <input type="number" name="wheels" min="4" max="24" step="2"
-            value="{{ old('wheels', $model->wheels ?? '') }}" class="form-control" placeholder="10">
+            value="{{ old('wheels', $model->wheels ?? '') }}" class="form-control @error('wheels') is-invalid @enderror" required placeholder="10">
+        @error('wheels')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
         <label class="form-label">ความจุกระบะ (คิว)</label>
         <input type="number" name="cubic_capacity" min="0" max="100" step="0.1"
-            value="{{ old('cubic_capacity', $model->cubic_capacity ?? '') }}" class="form-control" placeholder="10">
+            value="{{ old('cubic_capacity', $model->cubic_capacity ?? '') }}" class="form-control @error('cubic_capacity') is-invalid @enderror" required placeholder="10">
+        @error('cubic_capacity')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
         <label class="form-label">น้ำหนักบรรทุก (กก.)</label>
         <input type="number" name="load_capacity" min="0" step="1"
-            value="{{ old('load_capacity', $model->load_capacity ?? '') }}" class="form-control" placeholder="16000">
+            value="{{ old('load_capacity', $model->load_capacity ?? '') }}" class="form-control @error('load_capacity') is-invalid @enderror" required placeholder="16000">
+        @error('load_capacity')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
     </div>
 </div>
 
@@ -72,28 +84,37 @@
     <div class="col-md-3">
         <label class="form-label">น้ำหนักรถเปล่า (กก.)</label>
         <input type="number" name="curb_weight" min="0" step="1"
-            value="{{ old('curb_weight', $model->curb_weight ?? '') }}" class="form-control" placeholder="9000">
+            value="{{ old('curb_weight', $model->curb_weight ?? '') }}" class="form-control @error('curb_weight') is-invalid @enderror" required placeholder="9000">
+        @error('curb_weight')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
         <label class="form-label">ความจุถังน้ำมัน (ลิตร)</label>
         <input type="number" name="tank_capacity" min="0" max="1000" step="1"
-            value="{{ old('tank_capacity', $model->tank_capacity ?? '') }}" class="form-control" placeholder="300">
+            value="{{ old('tank_capacity', $model->tank_capacity ?? '') }}" class="form-control @error('tank_capacity') is-invalid @enderror" required placeholder="300">
+        @error('tank_capacity')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
         <label class="form-label">อัตราสิ้นเปลือง (กม./ลิตร)</label>
         <input type="number" name="fuel_rate" min="0.1" max="50" step="0.01" required
-            value="{{ old('fuel_rate', $model->fuel_rate ?? '') }}" class="form-control" placeholder="3.50">
+            value="{{ old('fuel_rate', $model->fuel_rate ?? '') }}" class="form-control @error('fuel_rate') is-invalid @enderror" placeholder="3.50">
         @error('fuel_rate')
-            <div class="invalid-feedback d-block">{{ $message }}</div>
+            <div class="invalid-feedback">{{ $message }}</div>
         @enderror
     </div>
 
     <div class="col-md-3">
         <label class="form-label">เชื้อเพลิง</label>
         <input type="text" name="fuel_type" maxlength="30"
-            value="{{ old('fuel_type', $model->fuel_type ?? 'ดีเซล') }}" class="form-control">
+            value="{{ old('fuel_type', $model->fuel_type ?? 'ดีเซล') }}" class="form-control @error('fuel_type') is-invalid @enderror" required>
+        @error('fuel_type')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
     </div>
 </div>
 
@@ -101,20 +122,26 @@
     <div class="col-md-3">
         <label class="form-label">ขนาดเครื่องยนต์ (ซีซี)</label>
         <input type="number" name="engine_cc" min="0" step="1"
-            value="{{ old('engine_cc', $model->engine_cc ?? '') }}" class="form-control" placeholder="7790">
+            value="{{ old('engine_cc', $model->engine_cc ?? '') }}" class="form-control @error('engine_cc') is-invalid @enderror" required placeholder="7790">
+        @error('engine_cc')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
         <label class="form-label">แรงม้า</label>
         <input type="number" name="horsepower" min="0" step="1"
-            value="{{ old('horsepower', $model->horsepower ?? '') }}" class="form-control" placeholder="240">
+            value="{{ old('horsepower', $model->horsepower ?? '') }}" class="form-control @error('horsepower') is-invalid @enderror" required placeholder="240">
+        @error('horsepower')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
         <label class="form-label">สถานะ</label>
-        <select name="is_active" class="form-select">
+        <select name="is_active" class="form-select @error('is_active') is-invalid @enderror" required>
             <option value="1" @selected(old('is_active', $model->is_active ?? 1) == 1)>เปิดใช้งาน</option>
             <option value="0" @selected(old('is_active', $model->is_active ?? 1) == 0)>ปิดใช้งาน</option>
         </select>
     </div>
-</div>
+</div>

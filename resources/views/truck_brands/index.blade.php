@@ -9,31 +9,16 @@
 @section('content')
     <div class="container py-4">
 
-        <form method="GET" class="row g-3 mb-3">
-            <div class="col-md-4">
-                <input type="text" name="q" value="{{ $q }}" class="form-control"
-                    placeholder="ค้นหายี่ห้อ">
-            </div>
+        <x-search-bar :action="route('truck_brands.index')"
+                      placeholder="ค้นหาชื่อยี่ห้อ"
+                      :search="$search" :per-page="$perPage" />
 
-            <div class="col-md-8">
-                <button class="btn btn-dark text-nowrap">
-                    <i class="bi bi-search me-1"></i>
-                    ค้นหา
-                </button>
-
-                <a href="{{ route('truck_brands.index') }}"
-                    class="btn btn-outline-secondary text-nowrap">
-                    <i class="bi bi-x-circle me-1"></i>
-                    ล้าง
-                </a>
-
-                <a href="{{ route('truck_brands.create') }}"
-                    class="btn btn-dark float-end text-nowrap">
-                    <i class="bi bi-plus-lg me-1"></i>
-                    เพิ่มยี่ห้อ
-                </a>
-            </div>
-        </form>
+        <div class="d-flex justify-content-end mb-3">
+            <a href="{{ route('truck_brands.create') }}" class="btn btn-dark text-nowrap">
+                <i class="bi bi-plus-lg me-1"></i>
+                เพิ่มยี่ห้อรถบรรทุก
+            </a>
+        </div>
 
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
@@ -94,8 +79,6 @@
             </table>
         </div>
 
-        <div class="mt-3">
-            {{ $brands->withQueryString()->links() }}
-        </div>
+        @include('partials.pagination-footer', ['paginator' => $brands])
     </div>
 @endsection

@@ -105,18 +105,18 @@ class Quotation extends Model
     }
 
     /**
-     * แคมป์ที่เปิดจากใบเสนอราคานี้ ผ่านใบสั่งขาย
-     * เส้นทางใหม่: quotation → sales_order → camp
+     * แคมป์ของงานนี้ ผ่านใบสั่งขาย
+     * เส้นทางใหม่: quotation → sales_order (id_camp) → camp
      */
     public function camp()
     {
         return $this->hasOneThrough(
             Camp::class,
             SalesOrder::class,
-            'id_quot',   // FK บน sales_orders
-            'id_so',     // FK บน camps
+            'id_quot',   // FK บน sales_orders ที่ชี้มาใบเสนอราคา
+            'id_camp',   // PK บน camps
             'id_quot',   // PK บน quotations
-            'id_so'      // PK บน sales_orders
+            'id_camp'    // FK บน sales_orders ที่ชี้ไปแคมป์
         );
     }
 

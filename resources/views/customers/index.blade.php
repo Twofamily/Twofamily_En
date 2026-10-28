@@ -9,23 +9,19 @@
 @section('content')
     <div class="container py-3">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <form class="d-flex gap-2" style="max-width: 500px;">
-                <input type="text" name="q" value="{{ $q }}" class="form-control"
-                    placeholder="ค้นหาชื่อ / เบอร์ / อีเมล">
-                <button class="btn btn-outline-secondary text-nowrap">
-                    <i class="bi bi-search me-1"></i>
-                    ค้นหา
-                </button>
-            </form>
+        <x-search-bar :action="route('customers.index')"
+                      placeholder="ค้นหาชื่อ / ประเภท / เบอร์โทร / อีเมล / ที่อยู่ / จังหวัด"
+                      :search="$search" :per-page="$perPage"
+                      :statuses="$typeLabels" :status="$type" status-name="type" status-label="ประเภทลูกค้า" />
 
-            @if (auth()->user()->canEdit())
+        @if (auth()->user()->canEdit())
+            <div class="d-flex justify-content-end mb-3">
                 <a href="{{ route('customers.create') }}" class="btn btn-dark text-nowrap">
                     <i class="bi bi-plus-lg me-1"></i>
                     เพิ่มลูกค้า
                 </a>
-            @endif
-        </div>
+            </div>
+        @endif
 
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
@@ -103,7 +99,7 @@
             </table>
         </div>
 
-        {{ $customers->withQueryString()->links() }}
+        @include('partials.pagination-footer', ['paginator' => $customers])
 
     </div>
 @endsection

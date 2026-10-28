@@ -7,76 +7,19 @@
 @endsection
 
 @php
-    $hasFilter = $search !== '' || $status !== null || $customerId !== null;
+    // มีค่าค้นหา/ตัวกรองใดก็ได้ (ไม่นับเลขหน้า/จำนวนต่อหน้า)
+    $hasFilter = collect(request()->except(['page', 'per_page']))->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
 @endphp
 
 @section('content')
     <div class="container py-3">
 
-        {{-- ==================== แถบค้นหา / กรอง / จำนวนต่อหน้า ==================== --}}
-        {{-- form เดียวครอบทั้งหมด เพื่อให้ค่าทุกตัวถูกส่งไปพร้อมกัน --}}
-        <form method="GET" action="{{ route('sales-orders.index') }}" class="mb-3">
-            <div class="row g-2 align-items-center">
-
-                {{-- ช่องค้นหา --}}
-                <div class="col-12 col-lg-3">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text"
-                            name="search"
-                            class="form-control"
-                            placeholder="เลขที่ / เลข PO / ชื่อลูกค้า"
-                            value="{{ $search }}">
-                    </div>
-                </div>
-
-                {{-- กรองลูกค้า --}}
-                <div class="col-6 col-lg-3">
-                    <select name="customer" class="form-select">
-                        <option value="">ทุกลูกค้า</option>
-                        @foreach ($customers as $customer)
-                            <option value="{{ $customer->id_customer }}"
-                                @selected($customerId === $customer->id_customer)>
-                                {{ $customer->name_customer }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                {{-- กรองสถานะ --}}
-                <div class="col-6 col-lg-2">
-                    <select name="status" class="form-select">
-                        <option value="">ทุกสถานะ</option>
-                        @foreach (\App\Models\SalesOrder::STATUS_LABELS as $value => $label)
-                            <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                {{-- ปุ่มค้นหา / ล้าง --}}
-                <div class="col-6 col-lg-auto">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-funnel me-1"></i> ค้นหา
-                    </button>
-
-                    @if ($hasFilter)
-                        <a href="{{ route('sales-orders.index') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-lg"></i>
-                        </a>
-                    @endif
-                </div>
-
-                {{-- จำนวนรายการต่อหน้า --}}
-                <div class="col-12 col-lg-auto ms-lg-auto">
-                    @include('partials.per-page', ['perPage' => $perPage])
-                </div>
-            </div>
-
-            {{-- รีเซ็ตกลับหน้า 1 ทุกครั้งที่ค้นหาใหม่ --}}
-            <input type="hidden" name="page" value="1">
-        </form>
+        <x-search-bar :action="route('sales-orders.index')"
+                      placeholder="ค้นหาเลขที่ / เลข PO / ลูกค้า / ใบเสนอราคา / แคมป์ / สถานะ"
+                      :search="$search" :per-page="$perPage"
+                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่สั่ง"
+                      :statuses="\App\Models\SalesOrder::STATUS_LABELS" :status="$status"
+                      :ranges="$ranges" />
 
         {{-- ==================== ปุ่มสร้าง ==================== --}}
         <div class="d-flex justify-content-end align-items-center mb-3">

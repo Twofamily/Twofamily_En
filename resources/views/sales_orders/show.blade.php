@@ -33,7 +33,7 @@
             <div class="d-flex align-items-center gap-2 flex-wrap">
                 @if ($salesOrder->camp)
                     <span class="text-success">
-                        <i class="bi bi-check-circle-fill me-1"></i> เปิดแคมป์แล้ว
+                        <i class="bi bi-check-circle-fill me-1"></i> อยู่ในแคมป์งาน
                     </span>
                     <a href="{{ route('camps.show', $salesOrder->camp->id_camp) }}"
                        class="btn btn-sm btn-outline-dark">
@@ -41,15 +41,38 @@
                     </a>
                 @elseif ($salesOrder->canOpenCamp())
                     <span class="text-primary">
-                        <i class="bi bi-arrow-right-circle me-1"></i> พร้อมเปิดแคมป์งาน
+                        <i class="bi bi-arrow-right-circle me-1"></i> พร้อมเข้าแคมป์งาน
                     </span>
                     <a href="{{ route('camps.create', ['sales_order' => $salesOrder->id_so]) }}"
                        class="btn btn-sm btn-primary">
-                        เปิดแคมป์จากใบสั่งขายนี้
+                        <i class="bi bi-plus-lg me-1"></i>เปิดแคมป์ใหม่
                     </a>
+
+                    {{-- ลูกค้าสั่งเพิ่มในงานเดิม → เพิ่มใบสั่งขายนี้เข้าแคมป์ที่เปิดอยู่ --}}
+                    @if ($campOptions->isNotEmpty())
+                        <span class="text-muted small">หรือ</span>
+                        <form method="POST" action="{{ route('sales-orders.attachCamp', $salesOrder) }}"
+                              class="d-flex gap-2 align-items-center"
+                              data-confirm="ใบสั่งขาย {{ $salesOrder->code_so }} จะถูกเพิ่มเข้าแคมป์ที่เลือก ยอดตามสัญญาของแคมป์จะเพิ่มขึ้นตามใบสั่งขายนี้"
+                              data-confirm-title="เพิ่มเข้าแคมป์เดิม"
+                              data-confirm-variant="primary"
+                              data-confirm-ok="เพิ่มเข้าแคมป์">
+                            @csrf
+                            <select name="id_camp" class="form-select form-select-sm" style="min-width: 240px;" required>
+                                @foreach ($campOptions as $option)
+                                    <option value="{{ $option->id_camp }}">
+                                        {{ $option->code_camp }} — {{ $option->name_camp }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary text-nowrap" type="submit">
+                                เพิ่มเข้าแคมป์เดิม
+                            </button>
+                        </form>
+                    @endif
                 @elseif ($salesOrder->status === 'draft')
                     <span class="text-muted">
-                        <i class="bi bi-pencil me-1"></i> ยังเป็นร่าง — ยืนยันก่อนจึงจะเปิดแคมป์ได้
+                        <i class="bi bi-pencil me-1"></i> ยังเป็นร่าง — ยืนยันก่อนจึงจะเข้าแคมป์ได้
                     </span>
                 @elseif ($salesOrder->status === 'cancelled')
                     <span class="text-danger">
@@ -76,7 +99,7 @@
                 @if ($salesOrder->canConfirm())
                     <form method="POST" action="{{ route('sales-orders.confirm', $salesOrder) }}"
                           style="display:inline;"
-                          data-confirm="ใบสั่งขาย {{ $salesOrder->code_so }} จะถูกยืนยัน หลังจากนี้จะแก้ไขรายการไม่ได้ และสามารถเปิดแคมป์งานได้"
+                          data-confirm="ใบสั่งขาย {{ $salesOrder->code_so }} จะถูกยืนยัน หลังจากนี้จะแก้ไขรายการไม่ได้ และสามารถเปิดแคมป์ใหม่ หรือเพิ่มเข้าแคมป์เดิมได้"
                           data-confirm-title="ยืนยันใบสั่งขาย"
                           data-confirm-variant="success"
                           data-confirm-ok="ยืนยัน">
@@ -129,19 +152,7 @@
                     </form>
                 @endif
 
-                @if ($salesOrder->status === 'draft' && ! $salesOrder->camp)
-                    <form method="POST" action="{{ route('sales-orders.destroy', $salesOrder) }}"
-                          style="display:inline;"
-                          data-confirm="ใบสั่งขาย {{ $salesOrder->code_so }} จะถูกลบออกจากระบบ"
-                          data-confirm-title="ยืนยันการลบข้อมูล"
-                          data-confirm-variant="danger"
-                          data-confirm-ok="ลบข้อมูล">
-                        @csrf @method('DELETE')
-                        <button class="btn btn-sm btn-outline-danger" type="submit">
-                            ลบ
-                        </button>
-                    </form>
-                @endif
+                {{-- ปุ่มลบถูกเอาออก: ใบสั่งขายที่ไม่ใช้แล้วให้กด "ยกเลิก" แทน เพื่อเก็บประวัติเอกสารไว้ --}}
             </div>
         </div>
     </div>
@@ -243,10 +254,13 @@
                                     <th colspan="4" class="text-end fw-normal text-muted">รวมเป็นเงิน</th>
                                     <th class="text-end">{{ number_format($salesOrder->subtotal, 2) }}</th>
                                 </tr>
-                                <tr>
-                                    <th colspan="4" class="text-end fw-normal text-muted">ส่วนลด</th>
-                                    <th class="text-end">{{ number_format($salesOrder->discount, 2) }}</th>
-                                </tr>
+                                {{-- บริษัทไม่มีส่วนลดแล้ว — แสดงเฉพาะใบเก่าที่เคยบันทึกส่วนลดไว้ --}}
+                                @if ((float) $salesOrder->discount > 0)
+                                    <tr>
+                                        <th colspan="4" class="text-end fw-normal text-muted">ส่วนลด (เอกสารเดิม)</th>
+                                        <th class="text-end">{{ number_format($salesOrder->discount, 2) }}</th>
+                                    </tr>
+                                @endif
                                 <tr>
                                     <th colspan="4" class="text-end fw-normal text-muted">ภาษีมูลค่าเพิ่ม 7%</th>
                                     <th class="text-end">{{ number_format($salesOrder->vat_amount, 2) }}</th>

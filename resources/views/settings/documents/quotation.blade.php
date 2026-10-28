@@ -9,7 +9,8 @@
     <div class="card-body">
 
 
-        <form method="POST" action="{{ route('settings.quotation.update') }}">
+        <form method="POST" action="{{ route('settings.quotation.update') }}"
+            data-confirm="ต้องการบันทึกการตั้งค่าใบเสนอราคาหรือไม่" data-confirm-title="ยืนยันการบันทึกการตั้งค่า" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
 
             <div class="row g-3">

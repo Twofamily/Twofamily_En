@@ -145,111 +145,29 @@
         @endif
 
         {{-- ช่องค้นหาและตัวกรอง --}}
-        <div class="row g-2 align-items-center mb-3">
-            <div class="col-lg-10">
-                <form
-                    method="GET"
-                    action="{{ route('camps.index') }}"
-                    class="row g-2"
-                >
-                    {{-- ค้นหาด้วยข้อความ --}}
-                    <div class="col-md-5">
-                        <input
-                            type="search"
-                            name="q"
-                            value="{{ $q ?? request('q') }}"
-                            class="form-control"
-                            placeholder="ค้นหา: ชื่อแคมป์ / รหัส / ลูกค้า"
-                            autocomplete="off"
-                        >
-                    </div>
+        <x-search-bar :action="route('camps.index')"
+                      placeholder="ค้นหาชื่อ/รหัสแคมป์ / ลูกค้า / ที่ตั้ง (ตำบล อำเภอ จังหวัด) / ผู้ติดต่อ / เลขใบเสนอราคา"
+                      :search="$search" :per-page="$perPage"
+                      :statuses="\App\Models\Camp::STATUS_LABELS" :status="$status">
 
-                    {{-- กรองตามลูกค้า --}}
-                    <div class="col-md-3">
-                        <select
-                            name="customer"
-                            class="form-select"
-                            aria-label="กรองตามลูกค้า"
-                        >
-                            <option value="">ลูกค้าทั้งหมด</option>
-
-                            @foreach ($customers as $customer)
-                                <option
-                                    value="{{ $customer->id_customer }}"
-                                    @selected(
-                                        ($customerId ?? request('customer')) ==
-                                        $customer->id_customer
-                                    )
-                                >
-                                    {{ $customer->name_customer }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    {{-- กรองตามสถานะ --}}
-                    <div class="col-md-2">
-                        <select
-                            name="status"
-                            class="form-select"
-                            aria-label="กรองตามสถานะ"
-                        >
-                            <option value="">ทุกสถานะ</option>
-
-                            @foreach (\App\Models\Camp::STATUS_LABELS as $value => $label)
-                                <option
-                                    value="{{ $value }}"
-                                    @selected(
-                                        ($status ?? request('status')) ===
-                                        $value
-                                    )
-                                >
-                                    {{ $label }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    {{-- ปุ่มค้นหา --}}
-                    <div class="col-md-2">
-                        <button
-                            class="btn btn-outline-secondary w-100"
-                            type="submit"
-                        >
-                            <i class="bi bi-search me-1"></i>
-                            ค้นหา
-                        </button>
-                    </div>
-
-                    {{-- ปุ่มล้างการค้นหา --}}
-                    @if (
-                        filled($q ?? request('q')) ||
-                        filled($customerId ?? request('customer')) ||
-                        filled($status ?? request('status'))
-                    )
-                        <div class="col-12">
-                            <a
-                                href="{{ route('camps.index') }}"
-                                class="btn btn-link btn-sm text-decoration-none px-0"
-                            >
-                                <i class="bi bi-x-circle me-1"></i>
-                                ล้างการค้นหาและตัวกรอง
-                            </a>
-                        </div>
-                    @endif
-                </form>
+            {{-- ค้นหาที่ตั้ง: เลือกจังหวัด (พิมพ์ อำเภอ/ตำบล ในช่องค้นหาได้ด้วย) --}}
+            <div class="col-12 col-md-4 col-xl-2">
+                <label class="form-label small text-muted mb-1">จังหวัดที่ตั้ง</label>
+                <select name="province" class="form-select" onchange="this.form.submit()">
+                    <option value="">— ทุกจังหวัด —</option>
+                    @foreach ($provinces as $p)
+                        <option value="{{ $p }}" @selected($province === $p)>{{ $p }}</option>
+                    @endforeach
+                </select>
             </div>
+        </x-search-bar>
 
-            {{-- ปุ่มเพิ่มแคมป์ --}}
-            <div class="col-lg-2 text-lg-end">
-                <a
-                    href="{{ route('camps.create') }}"
-                    class="btn btn-dark add-camp-button"
-                >
-                    <i class="bi bi-plus-lg me-1"></i>
-                    เพิ่มแคมป์
-                </a>
-            </div>
+        {{-- ปุ่มเพิ่มแคมป์ --}}
+        <div class="d-flex justify-content-end mb-3">
+            <a href="{{ route('camps.create') }}" class="btn btn-dark add-camp-button">
+                <i class="bi bi-plus-lg me-1"></i>
+                เพิ่มแคมป์
+            </a>
         </div>
 
         {{-- ตารางข้อมูลแคมป์ --}}
@@ -292,6 +210,19 @@
                                 {{-- ที่ตั้ง --}}
                                 <td class="small addr-col">
                                     {{ $camp->full_address ?: '-' }}
+
+                                    @if ($camp->latitude && $camp->longitude)
+                                        <div class="mt-1">
+                                            <a href="https://www.google.com/maps/search/?api=1&query={{ $camp->latitude }},{{ $camp->longitude }}"
+                                               target="_blank" rel="noopener" class="text-decoration-none">
+                                                <i class="bi bi-geo-alt-fill text-danger"></i> ดูบนแผนที่
+                                            </a>
+                                        </div>
+                                    @else
+                                        <div class="mt-1 text-muted">
+                                            <i class="bi bi-geo-alt"></i> ยังไม่ปักหมุด
+                                        </div>
+                                    @endif
                                 </td>
 
                                 {{-- ผู้ติดต่อ --}}
@@ -408,12 +339,9 @@
                 </table>
             </div>
 
-            {{-- Pagination --}}
-            @if ($camps->hasPages())
-                <div class="p-3 border-top">
-                    {{ $camps->withQueryString()->links() }}
-                </div>
-            @endif
         </div>
+
+        {{-- Pagination --}}
+        @include('partials.pagination-footer', ['paginator' => $camps])
     </div>
 @endsection

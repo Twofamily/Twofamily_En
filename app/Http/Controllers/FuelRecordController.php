@@ -22,113 +22,46 @@ class FuelRecordController extends Controller
 
     public function index(Request $request): View
     {
-        $q = trim(
-            (string) $request->input('q', '')
-        );
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
+        [$dateFrom, $dateTo] = $this->dateRange($request);
 
-        $trucks_id = trim(
-            (string) $request->input('trucks_id', '')
-        );
+        // ค้นหาแบบช่วง (ต่ำสุด–สูงสุด) ของคอลัมน์ตัวเลข
+        $ranges = $this->numberRanges($request, [
+            'distance' => ['label' => 'ระยะทาง',         'unit' => 'กม.',      'step' => '0.01'],
+            'price'    => ['label' => 'ราคาน้ำมัน',       'unit' => 'บาท/ลิตร', 'step' => '0.01'],
+            'liters'   => ['label' => 'น้ำมันรวม',        'unit' => 'ลิตร',     'step' => '0.01'],
+            'cost'     => ['label' => 'ค่าน้ำมันทั้งหมด', 'unit' => 'บาท',      'step' => '0.01'],
+        ]);
 
-        $date_from = $request->input('date_from');
-
-        $date_to = $request->input('date_to');
-
+        // ช่องค้นหาช่องเดียว: ทะเบียนรถ ยี่ห้อ จุดเริ่มต้น ปลายทาง (รวมปลายทางทุกช่วง)
         $records = FuelRecord::query()
             ->with([
                 'truck.brand',
             ])
             ->withCount('segments')
-            ->when(
-                $q !== '',
-                function ($query) use ($q) {
-                    $query->where(function ($searchQuery) use ($q) {
-                        $searchQuery
-                            ->where(
-                                'start_point',
-                                'like',
-                                "%{$q}%"
-                            )
-                            ->orWhere(
-                                'destination',
-                                'like',
-                                "%{$q}%"
-                            )
-                            ->orWhere(
-                                'trucks_id_truck',
-                                'like',
-                                "%{$q}%"
-                            )
-                            ->orWhereHas(
-                                'segments',
-                                function ($segmentQuery) use ($q) {
-                                    $segmentQuery->where(function ($nestedQuery) use ($q) {
-                                        $nestedQuery
-                                            ->where(
-                                                'start_point',
-                                                'like',
-                                                "%{$q}%"
-                                            )
-                                            ->orWhere(
-                                                'destination',
-                                                'like',
-                                                "%{$q}%"
-                                            );
-                                    });
-                                }
-                            );
-                    });
-                }
-            )
-            ->when(
-                $trucks_id !== '',
-                function ($query) use ($trucks_id) {
-                    $query->where(
-                        'trucks_id_truck',
-                        $trucks_id
-                    );
-                }
-            )
-            ->when(
-                filled($date_from),
-                function ($query) use ($date_from) {
-                    $query->whereDate(
-                        'date_record',
-                        '>=',
-                        $date_from
-                    );
-                }
-            )
-            ->when(
-                filled($date_to),
-                function ($query) use ($date_to) {
-                    $query->whereDate(
-                        'date_record',
-                        '<=',
-                        $date_to
-                    );
-                }
-            )
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($sub) use ($search) {
+                    $sub->where('start_point', 'like', "%{$search}%")
+                        ->orWhere('destination', 'like', "%{$search}%")
+                        ->orWhere('trucks_id_truck', 'like', "%{$search}%")
+                        ->orWhereHas('truck.brand', fn ($b) => $b->where('name_brand', 'like', "%{$search}%"))
+                        ->orWhereHas('segments', fn ($seg) => $seg
+                            ->where('start_point', 'like', "%{$search}%")
+                            ->orWhere('destination', 'like', "%{$search}%"));
+                });
+            })
+            ->tap(fn ($query) => $this->applyNumberRange($query, 'distance', $ranges['distance']))
+            ->tap(fn ($query) => $this->applyNumberRange($query, 'cost_fuel', $ranges['price']))
+            ->tap(fn ($query) => $this->applyNumberRange($query, 'total_fuel_liters', $ranges['liters']))
+            ->tap(fn ($query) => $this->applyNumberRange($query, 'cost_fuel_total', $ranges['cost']))
+            ->tap(fn ($query) => $this->applyDateRange($query, 'date_record', $dateFrom, $dateTo))
             ->orderByDesc('date_record')
             ->orderByDesc('id_fuel_record')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
-        $trucks = Truck::query()
-            ->orderBy('id_truck')
-            ->get();
-
-        return view(
-            'fuel_records.index',
-            compact(
-                'records',
-                'trucks',
-                'q',
-                'trucks_id',
-                'date_from',
-                'date_to'
-            )
-        );
+        return view('fuel_records.index', compact('records', 'search', 'perPage', 'dateFrom', 'dateTo', 'ranges'));
     }
 
     public function create(): View

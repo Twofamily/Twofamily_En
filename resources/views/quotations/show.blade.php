@@ -7,11 +7,13 @@
 @endsection
 
 @php
-    $subTotal = $quotation->details->sum('total_price');
-    $discount = $quotation->discount ?? 0;
+    // บริษัทไม่มีส่วนลดแล้ว: ยอดสุทธิ = รวมเป็นเงิน + VAT
+    // (ใบเก่าที่เคยมีส่วนลด ยังแสดงบรรทัดส่วนลดให้ยอดตรงกับเอกสารที่ออกไปแล้ว)
+    $subTotal      = $quotation->details->sum('total_price');
+    $discount      = (float) ($quotation->discount ?? 0);
     $afterDiscount = max($subTotal - $discount, 0);
-    $vat = round($afterDiscount * 0.07, 2);
-    $grandTotal = $afterDiscount + $vat;
+    $vat           = round($afterDiscount * 0.07, 2);
+    $grandTotal    = $afterDiscount + $vat;
 
     $so = $quotation->salesOrder;
 
@@ -205,10 +207,12 @@
                                         <td colspan="4" class="text-end text-muted">รวมเป็นเงิน</td>
                                         <td class="text-end fw-bold">{{ number_format($subTotal, 2) }}</td>
                                     </tr>
-                                    <tr>
-                                        <td colspan="4" class="text-end text-muted">ส่วนลด</td>
-                                        <td class="text-end fw-bold">{{ number_format($discount, 2) }}</td>
-                                    </tr>
+                                    @if ($discount > 0)
+                                        <tr>
+                                            <td colspan="4" class="text-end text-muted">ส่วนลด (เอกสารเดิม)</td>
+                                            <td class="text-end fw-bold">{{ number_format($discount, 2) }}</td>
+                                        </tr>
+                                    @endif
                                     <tr>
                                         <td colspan="4" class="text-end text-muted">ภาษีมูลค่าเพิ่ม 7%</td>
                                         <td class="text-end fw-bold">{{ number_format($vat, 2) }}</td>

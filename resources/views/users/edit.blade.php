@@ -32,8 +32,9 @@
 
             <div class="mb-3">
                 <label class="form-label">ชื่อ-นามสกุล</label>
-                <input type="text" name="name" value="{{ old('name', $user->name) }}"
-                    class="form-control @error('name', 'updateUser') is-invalid @enderror">
+                <input type="text" name="name" value="{{ old('name', $user->name) }}" maxlength="255"
+                    class="form-control @error('name', 'updateUser') is-invalid @enderror"
+                    required data-required-msg="กรุณาใส่ชื่อ-นามสกุล">
                 @error('name', 'updateUser')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -41,8 +42,9 @@
 
             <div class="mb-3">
                 <label class="form-label">อีเมล (ใช้เข้าสู่ระบบ)</label>
-                <input type="email" name="email" value="{{ old('email', $user->email) }}"
-                    class="form-control @error('email', 'updateUser') is-invalid @enderror">
+                <input type="email" name="email" value="{{ old('email', $user->email) }}" maxlength="255"
+                    class="form-control @error('email', 'updateUser') is-invalid @enderror"
+                    required data-required-msg="กรุณาใส่อีเมล">
                 @error('email', 'updateUser')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -50,7 +52,8 @@
 
             <div class="mb-3">
                 <label class="form-label">สิทธิ์การใช้งาน</label>
-                <select name="role" class="form-select @error('role', 'updateUser') is-invalid @enderror">
+                <select name="role" class="form-select @error('role', 'updateUser') is-invalid @enderror"
+                    required data-required-msg="กรุณาเลือกสิทธิ์การใช้งาน">
                     @foreach ($roles as $key => $label)
                         <option value="{{ $key }}"
                             {{ old('role', $user->role) === $key ? 'selected' : '' }}>
@@ -98,8 +101,9 @@
 
             <div class="mb-3">
                 <label class="form-label">รหัสผ่านใหม่</label>
-                <input type="password" name="password"
-                    class="form-control @error('password', 'updatePassword') is-invalid @enderror">
+                <input type="password" name="password" id="new_password" minlength="8" autocomplete="new-password"
+                    class="form-control @error('password', 'updatePassword') is-invalid @enderror"
+                    required data-required-msg="กรุณาใส่รหัสผ่านใหม่">
                 <div class="form-text">อย่างน้อย 8 ตัวอักษร</div>
                 @error('password', 'updatePassword')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -108,7 +112,9 @@
 
             <div class="mb-3">
                 <label class="form-label">ยืนยันรหัสผ่านใหม่</label>
-                <input type="password" name="password_confirmation" class="form-control">
+                <input type="password" name="password_confirmation" class="form-control" autocomplete="new-password"
+                    required data-required-msg="กรุณายืนยันรหัสผ่านใหม่"
+                    data-match="new_password" data-match-msg="รหัสผ่านทั้งสองช่องไม่ตรงกัน">
             </div>
 
             <button class="btn btn-outline-danger">รีเซ็ตรหัสผ่าน</button>

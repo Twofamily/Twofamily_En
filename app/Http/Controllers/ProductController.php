@@ -11,22 +11,32 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $q      = $request->q;
-        $typeId = $request->type;
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
+        $typeId  = $request->integer('type') ?: null;
 
+        // กรองช่วงราคาต่อหน่วย (ต่ำสุด–สูงสุด)
+        $ranges = $this->numberRanges($request, [
+            'price' => ['label' => 'ราคาต่อหน่วย', 'unit' => 'บาท', 'step' => '1'],
+        ]);
+
+        $types = ProductType::orderBy('name_product_type')->pluck('name_product_type', 'id_product_type');
+
+        // ช่องค้นหาช่องเดียว: ชื่อ / รายละเอียด / ชื่อประเภท / ราคา
         $products = Product::with('type')
-            ->when($q, fn($query) => $query->where(fn($subQuery) =>
-                $subQuery->where('name_product', 'like', "%{$q}%")
-                    ->orWhere('detail_product', 'like', "%{$q}%")
+            ->when($typeId, fn ($query) => $query->where('product_type_id', $typeId))
+            ->tap(fn ($query) => $this->applyNumberRange($query, 'unit_price', $ranges['price']))
+            ->when($search !== '', fn ($query) => $query->where(fn ($sub) =>
+                $sub->where('name_product', 'like', "%{$search}%")
+                    ->orWhere('detail_product', 'like', "%{$search}%")
+                    ->orWhere('unit_price', 'like', "%{$search}%")
+                    ->orWhereHas('type', fn ($t) => $t->where('name_product_type', 'like', "%{$search}%"))
             ))
-            ->when($typeId, fn($query) => $query->where('product_type_id', $typeId))
             ->latest('id_product')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
-        $types = ProductType::orderBy('name_product_type')->get();
-
-        return view('products.index', compact('products', 'types', 'q', 'typeId'));
+        return view('products.index', compact('products', 'search', 'perPage', 'ranges', 'types', 'typeId'));
     }
 
     public function create()
@@ -100,9 +110,17 @@ class ProductController extends Controller
             'name_product'    => ['required', 'string', 'max:45'],
             'detail_product'  => ['nullable', 'string', 'max:255'],
             'unit_price'      => ['required', 'integer', 'min:0'],
-            'product_type_id' => ['nullable', 'exists:product_types,id_product_type'],
+            'product_type_id' => ['required', 'exists:product_types,id_product_type'],
             'new_type'        => ['nullable', 'string', 'max:255'],
             'image'           => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+        ], [
+            'name_product.required'    => 'กรุณาใส่ชื่อสินค้า',
+            'name_product.max'         => 'ชื่อสินค้ายาวได้ไม่เกิน 45 ตัวอักษร',
+            'unit_price.required'      => 'กรุณาใส่ราคาต่อหน่วย',
+            'unit_price.integer'       => 'ราคาต่อหน่วยต้องเป็นตัวเลขจำนวนเต็ม',
+            'unit_price.min'           => 'ราคาต่อหน่วยต้องไม่ติดลบ',
+            'product_type_id.required' => 'กรุณาเลือกประเภทสินค้า',
+            'product_type_id.exists'   => 'ไม่พบประเภทสินค้าที่เลือก',
         ]);
     }
 

@@ -8,7 +8,8 @@
 
 @section('content')
     <div class="container py-3">
-        <form method="POST" action="{{ route('products.store') }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('products.store') }}" enctype="multipart/form-data"
+            data-confirm="ต้องการบันทึกสินค้านี้หรือไม่" data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
 
             <!-- ส่วนแสดงตัวอย่างและอัปโหลดรูปภาพ -->
@@ -41,7 +42,8 @@
             <div class="mb-3">
                 <label class="form-label">ชื่อสินค้า</label>
                 <input type="text" name="name_product" value="{{ old('name_product') }}"
-                    class="form-control @error('name_product') is-invalid @enderror" placeholder="เช่น หินกรวด" required>
+                    class="form-control @error('name_product') is-invalid @enderror" placeholder="เช่น หินกรวด" maxlength="45" required
+                    data-required-msg="กรุณาใส่ชื่อสินค้า">
                 @error('name_product')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -59,7 +61,8 @@
             <div class="mb-3">
                 <label class="form-label">ราคาต่อหน่วย (บาท / คิว)</label>
                 <input type="number" name="unit_price" value="{{ old('unit_price') }}"
-                    class="form-control @error('unit_price') is-invalid @enderror" placeholder="เช่น 390" min="0" required>
+                    class="form-control @error('unit_price') is-invalid @enderror" placeholder="เช่น 390" min="0" step="1" required
+                    data-required-msg="กรุณาใส่ราคาต่อหน่วย">
                 @error('unit_price')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -67,7 +70,8 @@
 
             <div class="mb-3">
                 <label class="form-label">ประเภทสินค้า</label>
-                <select name="product_type_id" class="form-select @error('product_type_id') is-invalid @enderror">
+                <select name="product_type_id" class="form-select @error('product_type_id') is-invalid @enderror"
+                    required data-required-msg="กรุณาเลือกประเภทสินค้า">
                     <option value="">— เลือกประเภทสินค้า —</option>
                     @foreach ($types as $t)
                         <option value="{{ $t->id_product_type }}" @selected(old('product_type_id') == $t->id_product_type)>

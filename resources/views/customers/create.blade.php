@@ -9,18 +9,19 @@
 @section('content')
     <div class="container py-4">
 
-        <form method="POST" action="{{ route('customers.store') }}">
+        <form method="POST" action="{{ route('customers.store') }}"
+            data-confirm="ต้องการบันทึกข้อมูลลูกค้ารายนี้หรือไม่" data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
 
             <div class="mb-3">
                 <label class="form-label">ชื่อลูกค้า</label>
-                <input type="text" name="name_customer" class="form-control"
+                <input type="text" name="name_customer" class="form-control" data-required-msg="กรุณาใส่ชื่อลูกค้า"
                     placeholder="เช่น บริษัท ทูแฟมิลี่ เอ็นจิเนียริ่ง จำกัด หรือ นายกรภัทร สิงวะราช" required>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">ประเภทลูกค้า</label>
-                <select name="customer_type" class="form-select">
+                <select name="customer_type" class="form-select" required>
                     <option value="person">บุคคล</option>
                     <option value="company">บริษัท</option>
                 </select>
@@ -31,8 +32,8 @@
 
             <div class="mb-3">
                 <label class="form-label">เบอร์โทร (10 หลัก)</label>
-                <input type="text" name="phone_customer" class="form-control" maxlength="10" pattern="[0-9]{10}"
-                    inputmode="numeric" placeholder="เช่น 0812345678">
+                <input type="text" name="phone_customer" class="form-control" maxlength="10" pattern="[0-9]{10}" data-pattern-msg="กรุณาใส่เบอร์โทรเป็นตัวเลข 10 หลัก"
+                    inputmode="numeric" data-digits-only placeholder="เช่น 0812345678">
             </div>
 
             <div class="mb-3">
@@ -85,7 +86,7 @@
         document.addEventListener('DOMContentLoaded', function() {
 
             const apiURL =
-                'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api/latest/province_with_district_and_sub_district.json';
+                @json(asset('data/thai-address.json'));
 
             let thaiData = [];
 

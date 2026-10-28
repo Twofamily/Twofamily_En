@@ -115,6 +115,10 @@ Route::middleware([
         ->middleware('role:admin,staff')
         ->name('camps.trucks.release');
 
+    Route::patch('camps/{camp}/trucks/{assignment}/driver', [CampController::class, 'changeDriver'])
+        ->middleware('role:admin,staff')
+        ->name('camps.trucks.driver');
+
 
     /* ==================== Operations ==================== */
 
@@ -175,6 +179,12 @@ Route::middleware([
         ->middleware('role:admin,staff')
         ->name('sales-orders.close');
 
+    // เพิ่มใบสั่งขายเข้าแคมป์เดิม (ลูกค้าสั่งเพิ่มในงานเดิม)
+    // ถ้าเปิดแคมป์ใหม่ ใช้ camps.create?sales_order=...
+    Route::post('sales-orders/{salesOrder}/attach-camp', [SalesOrderController::class, 'attachCamp'])
+        ->middleware('role:admin,staff')
+        ->name('sales-orders.attachCamp');
+
     /* ==================== ใบแจ้งหนี้ ==================== */
 
     Route::resource('invoices', InvoiceController::class)
@@ -201,11 +211,32 @@ Route::middleware([
         ->middleware('role:admin,staff')
         ->name('payments.destroy');
 
+    // หักเงินรับล่วงหน้าของแคมป์ในใบแจ้งหนี้
+    Route::post('/invoices/{id}/apply-advance', [PaymentController::class, 'applyAdvance'])
+        ->middleware('role:admin,staff')
+        ->name('payments.applyAdvance');
+
 
     /* ==================== ใบเสร็จ ==================== */
 
     Route::get('/receipts', [ReceiptController::class, 'index'])
         ->name('receipts.index');
+
+    // ใบเสร็จรับเงินล่วงหน้า / ขายสด (ไม่ต้องมีใบแจ้งหนี้)
+    // ต้องมาก่อน /receipts/{id} ไม่งั้น {id} จะกินคำว่า "create"
+    Route::get('/receipts/create', [ReceiptController::class, 'create'])
+        ->middleware('role:admin,staff')
+        ->name('receipts.create');
+
+    Route::post('/receipts', [ReceiptController::class, 'store'])
+        ->middleware('role:admin,staff')
+        ->name('receipts.store');
+
+    // เพิ่มลูกค้าใหม่จากหน้าขายสด — ใช้ storeAjax ตัวเดิม แต่เช็กสิทธิ์ตามหน้าใบเสร็จ
+    // (customers.store.ajax ผูกสิทธิ์กับหน้าใบเสนอราคา คนที่ดูแลแค่ใบเสร็จจะโดน 403)
+    Route::post('/receipts/customers', [CustomerController::class, 'storeAjax'])
+        ->middleware('role:admin,staff')
+        ->name('receipts.customers.store');
 
     Route::get('/receipts/pdf/{id}', [ReceiptController::class, 'pdf'])
         ->name('receipts.pdf');

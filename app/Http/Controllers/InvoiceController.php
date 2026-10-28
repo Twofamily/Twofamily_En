@@ -12,7 +12,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceController extends Controller
 {
-    public function createFromDeliveryNote(DeliveryNote $deliveryNote)
+    public function createFromDeliveryNote(Request $request, DeliveryNote $deliveryNote)
     {
         $deliveryNote->load('details', 'quotation');
 
@@ -20,17 +20,38 @@ class InvoiceController extends Controller
             return redirect()->route('invoices.show', $deliveryNote->invoice);
         }
 
+        // วันที่ออกใบแจ้งหนี้: ห้ามก่อนวันส่งของ และห้ามเป็นวันในอนาคต
+        $data = $request->validate([
+            'invoice_date' => [
+                'required',
+                'date',
+                'after_or_equal:' . $deliveryNote->delivery_date->format('Y-m-d'),
+                'before_or_equal:today',
+            ],
+        ], [
+            'invoice_date.required'        => 'กรุณาเลือกวันที่ออกใบแจ้งหนี้',
+            'invoice_date.after_or_equal'  => 'วันที่ออกใบแจ้งหนี้ต้องไม่ก่อนวันที่ส่งของ ('
+                                              . $deliveryNote->delivery_date->format('d/m/Y') . ')',
+            'invoice_date.before_or_equal' => 'วันที่ออกใบแจ้งหนี้ต้องไม่เป็นวันในอนาคต',
+        ]);
+
         // ใช้ transaction เพื่อให้หัวใบแจ้งหนี้ รายการ และตัวนับเลขที่เอกสาร
         // สำเร็จพร้อมกันทั้งหมด หรือ rollback ทั้งหมด
         // ถ้าล้มกลางทาง จะไม่เหลือใบแจ้งหนี้ที่ไม่มีรายการ และเลขที่จะไม่ข้าม
-        $invoice = DB::transaction(function () use ($deliveryNote) {
+        $invoice = DB::transaction(function () use ($deliveryNote, $data) {
+
+            // ใบแจ้งหนี้ไม่มีส่วนลด: ยอดสุทธิ = รายการที่ส่งจริงในใบส่งของนี้ + VAT
+            $subtotal = round($deliveryNote->details->sum(fn ($d) => (float) $d->total_price), 2);
+            $total    = round($subtotal + $subtotal * Invoice::VAT_RATE / 100, 2);
 
             $invoice = Invoice::create([
+                'invoice_date'     => $data['invoice_date'],
                 'id_customer'      => $deliveryNote->id_customer,
+                'id_camp'          => $deliveryNote->id_camp,
                 'id_quotation'     => $deliveryNote->id_quotation,
                 'id_delivery_note' => $deliveryNote->id_delivery_note,
-                'discount'         => $deliveryNote->quotation->discount ?? 0,
-                'total'            => $deliveryNote->quotation->total_amount,
+                'discount'         => 0,
+                'total'            => $total,
                 'status'           => 'unpaid',
             ]);
 
@@ -60,7 +81,9 @@ class InvoiceController extends Controller
                 'quotation',
                 'deliveryNote',
                 'payments.recordedBy',
-                'receipt'
+                'payments.advanceReceipt',
+                'receipt',
+                'camp'
             )
             ->findOrFail($id);
 
@@ -71,7 +94,16 @@ class InvoiceController extends Controller
     {
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
-        $status  = $this->statusFilter($request, array_keys(Invoice::STATUSES));
+        [$dateFrom, $dateTo] = $this->dateRange($request);
+
+        // พิมพ์ "ยังไม่ชำระ" / "บางส่วน" / "ครบแล้ว" ก็ค้นตามสถานะการชำระได้
+        $statuses = $this->statusesMatching($search, Invoice::STATUSES);
+
+        // dropdown เลือกสถานะ + ช่วงยอดสุทธิ
+        $status = $this->statusFilter($request, array_keys(Invoice::STATUSES));
+        $ranges = $this->numberRanges($request, [
+            'total' => ['label' => 'ยอดสุทธิ', 'unit' => 'บาท', 'step' => '0.01'],
+        ]);
 
         $invoices = Invoice::with(['customer', 'quotation', 'deliveryNote'])
             // ดึงยอดชำระรวม / จำนวนรายการชำระ / มีใบเสร็จไหม มาใน query เดียว
@@ -79,21 +111,27 @@ class InvoiceController extends Controller
             ->withSum('payments', 'amount')     // → payments_sum_amount
             ->withCount('payments')             // → payments_count
             ->withExists('receipt')             // → receipt_exists
-            // ค้นหาจากเลขที่ใบแจ้งหนี้ ชื่อลูกค้า หรือเลขที่ใบส่งของ
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($sub) use ($search) {
+            // ช่องค้นหาช่องเดียว: เลขที่ใบแจ้งหนี้ ลูกค้า ใบส่งของ ใบเสนอราคา และสถานะ
+            ->when($search !== '', function ($query) use ($search, $statuses) {
+                $query->where(function ($sub) use ($search, $statuses) {
                     $sub->where('code_inv', 'like', "%{$search}%")
                         ->orWhereHas('customer', fn ($c) => $c->where('name_customer', 'like', "%{$search}%"))
                         // code_delivery เป็นแค่ accessor ต้องค้นจากคอลัมน์จริง code_dn
-                        ->orWhereHas('deliveryNote', fn ($d) => $d->where('code_dn', 'like', "%{$search}%"));
+                        ->orWhereHas('deliveryNote', fn ($d) => $d->where('code_dn', 'like', "%{$search}%"))
+                        ->orWhereHas('quotation', fn ($q) => $q->where('code_quot', 'like', "%{$search}%"));
+                    if ($statuses) {
+                        $sub->orWhereIn('status', $statuses);
+                    }
                 });
             })
-            ->when($status !== null, fn ($query) => $query->where('status', $status))
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->tap(fn ($query) => $this->applyNumberRange($query, 'total', $ranges['total']))
+            ->tap(fn ($query) => $this->applyDateRange($query, 'invoice_date', $dateFrom, $dateTo))
             ->orderByDesc('id_invoice')
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('invoices.index', compact('invoices', 'perPage', 'search', 'status'));
+        return view('invoices.index', compact('invoices', 'perPage', 'search', 'dateFrom', 'dateTo', 'status', 'ranges'));
     }
 
     public function pdf($id)

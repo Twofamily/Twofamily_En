@@ -69,11 +69,25 @@
             action="{{ $isEdit
                 ? route('camps.update', ['camp' => $camp->getRouteKey()])
                 : route('camps.store') }}"
-        >
+            data-confirm="{{ $isEdit ? 'ต้องการบันทึกการแก้ไขข้อมูลแคมป์นี้หรือไม่' : 'ต้องการเพิ่มแคมป์งานนี้หรือไม่' }}" data-confirm-title="{{ $isEdit ? 'ยืนยันการแก้ไขข้อมูล' : 'ยืนยันการบันทึกข้อมูล' }}" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
 
             @if ($isEdit)
                 @method('PUT')
+            @endif
+
+            {{-- เปิดแคมป์ใหม่จากใบสั่งขาย: บันทึกแล้วระบบจะผูกใบสั่งขายเข้าแคมป์นี้ให้ --}}
+            @if (! empty($salesOrder))
+                <input type="hidden" name="id_so" value="{{ $salesOrder->id_so }}">
+                <div class="alert alert-primary d-flex align-items-center gap-2">
+                    <i class="bi bi-link-45deg fs-5"></i>
+                    <div>
+                        เปิดแคมป์ใหม่จากใบสั่งขาย <strong>{{ $salesOrder->code_so }}</strong>
+                        ({{ $salesOrder->customer->name_customer ?? '-' }}
+                        · {{ number_format($salesOrder->total_amount, 2) }} บาท)
+                        <div class="small">บันทึกแล้วใบสั่งขายจะอยู่ในแคมป์นี้ ถ้าลูกค้าสั่งเพิ่มภายหลัง เปิดใบสั่งขายใหม่แล้วกด "เพิ่มเข้าแคมป์เดิม"</div>
+                    </div>
+                </div>
             @endif
 
             <div class="row g-4">
@@ -121,6 +135,9 @@
                                     name="id_customer"
                                     class="form-select @error('id_customer') is-invalid @enderror"
                                     required
+                                    data-required-msg="กรุณาเลือกลูกค้า"
+                                    data-searchable
+                                    data-placeholder="พิมพ์ชื่อลูกค้าเพื่อค้นหา..."
                                 >
                                     <option value="">— เลือกลูกค้า —</option>
                                     @foreach ($customers as $customer)
@@ -146,7 +163,9 @@
                                     value="{{ old('name_camp', $camp->name_camp ?? '') }}"
                                     class="form-control @error('name_camp') is-invalid @enderror"
                                     placeholder="เช่น แคมป์บ้านไผ่ เฟส 2"
+                                    maxlength="255"
                                     required
+                                    data-required-msg="กรุณาใส่ชื่อแคมป์"
                                 >
                                 @error('name_camp')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -203,6 +222,7 @@
                                         id="province"
                                         name="province"
                                         class="form-select @error('province') is-invalid @enderror"
+                                        required
                                     >
                                         <option value="">— เลือกจังหวัด —</option>
                                     </select>
@@ -218,6 +238,7 @@
                                         name="district"
                                         class="form-select @error('district') is-invalid @enderror"
                                         disabled
+                                        required
                                     >
                                         <option value="">— เลือกอำเภอ —</option>
                                     </select>
@@ -233,6 +254,7 @@
                                         name="subdistrict"
                                         class="form-select @error('subdistrict') is-invalid @enderror"
                                         disabled
+                                        required
                                     >
                                         <option value="">— เลือกตำบล —</option>
                                     </select>
@@ -318,7 +340,7 @@
                                         class="form-control @error('contact_phone') is-invalid @enderror"
                                         maxlength="10"
                                         pattern="[0-9]{10}"
-                                        inputmode="numeric"
+                                        inputmode="numeric" data-digits-only
                                         placeholder="เช่น 0812345678"
                                     >
                                     @error('contact_phone')
@@ -397,12 +419,18 @@
                 </button>
             </div>
         </form>
+
+        {{-- เพิ่ม / ถอนรถประจำแคมป์ — ทำได้เฉพาะหน้าแก้ไข (หน้าดูข้อมูลเป็น read-only)
+             อยู่นอก <form> หลัก เพราะแต่ละปุ่มส่งฟอร์มของตัวเอง --}}
+        @if ($isEdit)
+            @include('camps._trucks')
+        @endif
     </div>
 
     <script>
         (() => {
             const thaiAddressApi =
-                'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api/latest/province_with_district_and_sub_district.json';
+                @json(asset('data/thai-address.json'));
 
             const defaultPosition = { lat: 16.4419, lng: 102.8360 };
 
@@ -446,6 +474,8 @@
                 const info = quotationMap[this.value];
                 if (!info) return;
                 customerSelect.value = String(info.id_customer);
+                // แจ้งช่องค้นหาลูกค้า (searchable-select) ให้แสดงชื่อที่เลือกด้วย
+                customerSelect.dispatchEvent(new Event('change', { bubbles: true }));
             });
 
             /* ---------- แจ้งเตือน ---------- */

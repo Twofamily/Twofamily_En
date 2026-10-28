@@ -9,18 +9,11 @@
 @section('content')
     <div class="container py-3">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <form class="d-flex gap-2" method="GET" action="{{ route('drivers.index') }}"
-                style="max-width: 500px;">
-                <input type="text" name="q" value="{{ $q }}" class="form-control"
-                    placeholder="ค้นหาชื่อ / เบอร์ / เลขบัตร">
+        <x-search-bar :action="route('drivers.index')"
+                      placeholder="ค้นหาชื่อ / นามสกุล / เบอร์โทร / เลขบัตรประชาชน"
+                      :search="$search" :per-page="$perPage" />
 
-                <button class="btn btn-outline-secondary text-nowrap">
-                    <i class="bi bi-search me-1"></i>
-                    ค้นหา
-                </button>
-            </form>
-
+        <div class="d-flex justify-content-end mb-3">
             <a href="{{ route('drivers.create') }}" class="btn btn-dark text-nowrap">
                 <i class="bi bi-plus-lg me-1"></i>
                 เพิ่มพนักงานขับรถ
@@ -108,7 +101,7 @@
         </div>
 
         <div class="mt-3">
-            {{ $drivers->withQueryString()->links() }}
+            @include('partials.pagination-footer', ['paginator' => $drivers])
         </div>
     </div>
 @endsection

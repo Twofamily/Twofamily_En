@@ -19,7 +19,8 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('trucks.store') }}" enctype="multipart/form-data" autocomplete="off">
+        <form method="POST" action="{{ route('trucks.store') }}" enctype="multipart/form-data" autocomplete="off"
+            data-confirm="ต้องการบันทึกรถบรรทุกคันนี้หรือไม่" data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
 
             @include('trucks._form', [

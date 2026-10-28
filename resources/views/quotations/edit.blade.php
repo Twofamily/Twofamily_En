@@ -4,12 +4,13 @@
     <div class="container">
         <h3>แก้ไขใบเสนอราคา</h3>
 
-        <form method="POST" action="{{ route('quotations.update', $quotation->id_quot) }}">
+        <form method="POST" action="{{ route('quotations.update', $quotation->id_quot) }}"
+            data-confirm="ต้องการบันทึกการแก้ไขใบเสนอราคานี้หรือไม่" data-confirm-title="ยืนยันการแก้ไขข้อมูล" data-confirm-ok="บันทึกการแก้ไข" data-confirm-variant="primary">
             @csrf @method('PUT')
 
             <div class="mb-3">
-                <label>ลูกค้า</label>
-                <select name="id_customer" class="form-select">
+                <label class="form-label">ลูกค้า</label>
+                <select name="id_customer" class="form-select" required data-required-msg="กรุณาเลือกลูกค้า">
                     @foreach ($customers as $c)
                         <option value="{{ $c->id_customer }}" @selected($quotation->id_customer == $c->id_customer)>
                             {{ $c->name_customer }}
@@ -32,7 +33,8 @@
                     @foreach ($quotation->details as $i => $d)
                         <tr>
                             <td>
-                                <select name="items[{{ $i }}][id_product]" class="form-select product">
+                                <select name="items[{{ $i }}][id_product]" class="form-select product"
+                                    required data-required-msg="กรุณาเลือกสินค้า">
                                     @foreach ($products as $p)
                                         <option value="{{ $p->id_product }}" data-price="{{ $p->unit_price }}"
                                             @selected($p->id_product == $d->id_product)>
@@ -43,7 +45,8 @@
                             </td>
                             <td>
                                 <input type="number" name="items[{{ $i }}][quantity]" class="form-control qty"
-                                    value="{{ $d->quantity }}">
+                                    value="{{ $d->quantity }}" step="0.01" min="0.01" required
+                                    data-required-msg="กรุณาใส่จำนวน">
                             </td>
                             <td>
                                 <input type="number" name="items[{{ $i }}][price]" class="form-control price"
@@ -64,17 +67,9 @@
                 <div class="col-md-5">
                     <table class="table table-borderless">
                         <tr>
-                            <th class="text-end">ยอดรวมก่อนส่วนลด</th>
+                            <th class="text-end">รวมเป็นเงิน</th>
                             <td class="text-end">
                                 <span id="subTotal">0.00</span> บาท
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <th class="text-end">ส่วนลด</th>
-                            <td>
-                                <input type="number" name="discount" id="discount" class="form-control text-end"
-                                    value="{{ $quotation->discount ?? 0 }}">
                             </td>
                         </tr>
 
@@ -108,7 +103,6 @@
         const subTotalEl = document.getElementById('subTotal');
         const vatEl = document.getElementById('vatAmount');
         const grandTotalEl = document.getElementById('grandTotal');
-        const discountInput = document.getElementById('discount');
 
         function calcRow(row) {
             const price = Number(
@@ -127,10 +121,9 @@
                 subTotal += Number(input.value || 0);
             });
 
-            let discount = Number(discountInput.value || 0);
-            let afterDiscount = Math.max(subTotal - discount, 0);
-            let vat = afterDiscount * 0.07;
-            let grandTotal = afterDiscount + vat;
+            // บริษัทไม่มีส่วนลด: ยอดสุทธิ = รวมเป็นเงิน + VAT 7%
+            let vat = subTotal * 0.07;
+            let grandTotal = subTotal + vat;
 
             subTotalEl.textContent = subTotal.toFixed(2);
             vatEl.textContent = vat.toFixed(2);
@@ -148,7 +141,6 @@
             }
         });
 
-        discountInput.addEventListener('input', calculateSummary);
 
         document.addEventListener('click', e => {
             if (e.target.classList.contains('remove')) {

@@ -9,6 +9,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/action-buttons.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/form-ui.css') }}">
+    {{-- ปฏิทินเลือกวันที่ แสดงเป็น วัน/เดือน/ปี (ไฟล์อยู่ในเครื่อง ใช้ offline ได้) --}}
+    <link rel="stylesheet" href="{{ asset('js/vendor/flatpickr/flatpickr.min.css') }}">
 
     {{--
         อ่านสถานะย่อ/ขยายก่อนหน้าจะ render
@@ -597,7 +600,8 @@
                         @endif
 
                         <li>
-                            <form method="POST" action="{{ route('logout') }}">
+                            <form method="POST" action="{{ route('logout') }}"
+            data-confirm="ต้องการออกจากระบบหรือไม่" data-confirm-title="ยืนยันการออกจากระบบ" data-confirm-ok="ออกจากระบบ" data-confirm-variant="danger">
                                 @csrf
                                 <button type="submit" class="dropdown-item text-danger">
                                     <i class="bi bi-box-arrow-right me-2"></i>ออกจากระบบ
@@ -671,6 +675,13 @@
 
     {{-- ระบบยืนยันการทำรายการ --}}
     <x-confirm-modal />
+    {{-- ลำดับสำคัญ: searchable-select → date-input → form-validation → confirm
+         ฟอร์มต้องผ่านการตรวจ required ก่อน modal ยืนยันจึงจะเด้ง --}}
+    <script src="{{ asset('js/vendor/flatpickr/flatpickr.min.js') }}"></script>
+    <script src="{{ asset('js/vendor/flatpickr/th.js') }}"></script>
+    <script src="{{ asset('js/searchable-select.js') }}"></script>
+    <script src="{{ asset('js/date-input.js') }}"></script>
+    <script src="{{ asset('js/form-validation.js') }}"></script>
     <script src="{{ asset('js/confirm.js') }}"></script>
 
     {{-- ==================== สคริปต์ควบคุมไซด์บาร์ ==================== --}}

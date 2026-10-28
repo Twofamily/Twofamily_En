@@ -18,6 +18,7 @@ class SalesOrder extends Model
         'code_so',
         'id_quot',
         'id_customer',
+        'id_camp',
         'order_date',
         'due_date',
         'po_number',
@@ -44,7 +45,7 @@ class SalesOrder extends Model
     public const STATUS_LABELS = [
         'draft'       => 'ร่าง',
         'confirmed'   => 'ยืนยันแล้ว',
-        'in_progress' => 'เปิดแคมป์แล้ว',
+        'in_progress' => 'อยู่ในแคมป์งาน',
         'closed'      => 'ปิดงาน',
         'cancelled'   => 'ยกเลิก',
     ];
@@ -80,23 +81,23 @@ class SalesOrder extends Model
         return $this->hasMany(SalesOrderDetail::class, 'id_so', 'id_so');
     }
 
-    /** 1 ใบสั่งขาย → 1 แคมป์ (งานต่องาน) */
+    /**
+     * ใบสั่งขายนี้อยู่ในแคมป์ไหน
+     * 1 แคมป์ มีใบสั่งขายได้หลายใบ (ลูกค้าสั่งเพิ่มกลางงาน = เปิดใบสั่งขายใหม่ในแคมป์เดิม)
+     */
     public function camp()
     {
-        return $this->hasOne(Camp::class, 'id_so', 'id_so');
+        return $this->belongsTo(Camp::class, 'id_camp', 'id_camp');
     }
 
-    /** ใบส่งของทั้งหมดที่เกิดจากใบสั่งขายนี้ (ผ่านแคมป์) */
+    /**
+     * ใบส่งของของแคมป์ที่ใบสั่งขายนี้อยู่
+     * หมายเหตุ: ถ้าแคมป์มีหลายใบสั่งขาย จะเห็นใบส่งของของทั้งแคมป์
+     * เพราะใบส่งของอ้างอิงแคมป์ ไม่ได้อ้างอิงใบสั่งขายรายใบ
+     */
     public function deliveryNotes()
     {
-        return $this->hasManyThrough(
-            DeliveryNote::class,
-            Camp::class,
-            'id_so',      // FK บน camps
-            'id_camp',    // FK บน delivery_notes
-            'id_so',      // PK บน sales_orders
-            'id_camp'     // PK บน camps
-        );
+        return $this->hasMany(DeliveryNote::class, 'id_camp', 'id_camp');
     }
 
     /* ==================== Accessors ==================== */
@@ -125,7 +126,7 @@ class SalesOrder extends Model
         return $this->status === 'draft' && $this->details()->exists();
     }
 
-    /** เปิดแคมป์ได้เมื่อยืนยันแล้ว และยังไม่เคยเปิด */
+    /** เข้าแคมป์ได้ (เปิดแคมป์ใหม่ หรือผูกแคมป์เดิม) เมื่อยืนยันแล้ว และยังไม่อยู่ในแคมป์ไหน */
     public function canOpenCamp(): bool
     {
         return $this->status === 'confirmed' && ! $this->hasCamp();
@@ -133,10 +134,10 @@ class SalesOrder extends Model
 
     public function hasCamp(): bool
     {
-        return $this->camp()->exists();
+        return $this->id_camp !== null;
     }
 
-    /** ยกเลิกได้ตราบใดที่ยังไม่เปิดแคมป์ */
+    /** ยกเลิกได้ตราบใดที่ยังไม่เข้าแคมป์ */
     public function canCancel(): bool
     {
         return in_array($this->status, ['draft', 'confirmed'], true)
@@ -145,11 +146,11 @@ class SalesOrder extends Model
 
     /* ==================== Scopes ==================== */
 
-    /** ใบสั่งขายที่พร้อมเปิดแคมป์ = ยืนยันแล้ว + ยังไม่มีแคมป์ */
+    /** ใบสั่งขายที่พร้อมเข้าแคมป์ = ยืนยันแล้ว + ยังไม่อยู่ในแคมป์ */
     public function scopeOpenableForCamp($query)
     {
         return $query->where('status', 'confirmed')
-                     ->whereDoesntHave('camp');
+                     ->whereNull('id_camp');
     }
 
     public function scopeActive($query)

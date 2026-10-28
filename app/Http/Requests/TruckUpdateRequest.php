@@ -30,7 +30,7 @@ class TruckUpdateRequest extends FormRequest
             ],
             'truck_brand_id'    => 'required|exists:truck_brands,id',
             'truck_model_id'    => 'required|exists:truck_models,id',
-            'year_truck'        => ['nullable', 'integer', "between:1980,$yearMax"],
+            'year_truck'        => ['required', 'integer', "between:1980,$yearMax"],
             'weight_truck'      => ['nullable', 'integer', 'min:0'],
             'fuelfactory_truck' => ['nullable', 'integer', 'min:0'],
             'status_truck'      => ['bail', 'required', Rule::in(['active', 'maintenance', 'retired'])],
@@ -50,6 +50,21 @@ class TruckUpdateRequest extends FormRequest
                 'min:0.1',
                 'max:50',
             ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'id_truck.required'       => 'กรุณาใส่เลขทะเบียน',
+            'id_truck.regex'          => 'เลขทะเบียนใช้ได้เฉพาะตัวอักษรไทย A-Z ตัวเลข และขีดกลาง (-)',
+            'id_truck.unique'         => 'เลขทะเบียนนี้มีอยู่ในระบบแล้ว',
+            'province_truck.required' => 'กรุณาเลือกจังหวัดที่จดทะเบียน',
+            'truck_brand_id.required' => 'กรุณาเลือกยี่ห้อ',
+            'truck_model_id.required' => 'กรุณาเลือกรุ่น',
+            'year_truck.required'     => 'กรุณาเลือกปีที่ซื้อ',
+            'status_truck.required'   => 'กรุณาเลือกสถานะ',
+            'fuel_rate.required'      => 'รุ่นรถนี้ยังไม่มีอัตราสิ้นเปลือง กรุณาเพิ่มที่หน้ารุ่นรถบรรทุก',
         ];
     }
 

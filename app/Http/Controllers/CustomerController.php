@@ -89,20 +89,36 @@ class CustomerController extends Controller
 
     public function index(Request $request)
     {
-        $q = $request->q;
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
 
-        $customers = Customer::when(
-            $q,
-            fn($query) =>
-            $query->where('name_customer', 'like', "%{$q}%")
-                ->orWhere('phone_customer', 'like', "%{$q}%")
-                ->orWhere('email_customer', 'like', "%{$q}%")
-        )
+        // ช่องค้นหาช่องเดียว ค้นได้ทุกคอลัมน์ที่แสดง รวมถึงพิมพ์ "บริษัท" / "บุคคล"
+        $types = collect(['person' => 'บุคคล', 'company' => 'บริษัท'])
+            ->filter(fn ($label) => $search !== '' && mb_stripos($label, $search) !== false)
+            ->keys();
+
+        // dropdown ประเภทลูกค้า
+        $typeLabels = ['person' => 'บุคคล', 'company' => 'บริษัท'];
+        $type = $this->statusFilter($request, array_keys($typeLabels), 'type');
+
+        $customers = Customer::query()
+            ->when($type, fn ($query) => $query->where('customer_type', $type))
+            ->when($search !== '', function ($query) use ($search, $types) {
+                $query->where(function ($sub) use ($search, $types) {
+                    foreach (['name_customer', 'phone_customer', 'email_customer', 'address_detail',
+                              'subdistrict', 'district', 'province', 'zipcode'] as $col) {
+                        $sub->orWhere($col, 'like', "%{$search}%");
+                    }
+                    if ($types->isNotEmpty()) {
+                        $sub->orWhereIn('customer_type', $types);
+                    }
+                });
+            })
             ->latest('id_customer')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('customers.index', compact('customers', 'q'));
+        return view('customers.index', compact('customers', 'perPage', 'search', 'typeLabels', 'type'));
     }
 
     public function create()

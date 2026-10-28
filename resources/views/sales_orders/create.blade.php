@@ -67,7 +67,6 @@
                 'price'      => (float) $d->price_per_unit,
             ])->values()->all());
 
-            $discountValue = $quotation->discount;
         @endphp
 
         <div class="alert alert-info d-flex justify-content-between align-items-center">
@@ -80,7 +79,8 @@
             </a>
         </div>
 
-        <form method="POST" action="{{ route('sales-orders.store') }}" autocomplete="off">
+        <form method="POST" action="{{ route('sales-orders.store') }}" autocomplete="off"
+            data-confirm="ต้องการบันทึกใบสั่งขายนี้หรือไม่" data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก" data-confirm-variant="primary">
             @csrf
             <input type="hidden" name="id_quot" value="{{ $quotation->id_quot }}">
             <input type="hidden" name="id_customer" value="{{ $quotation->id_customer }}">
@@ -121,7 +121,6 @@
             @include('sales_orders._items', [
                 'products'      => $products,
                 'rows'          => $rows,
-                'discountValue' => $discountValue,
             ])
 
             <div class="d-flex justify-content-end gap-2">

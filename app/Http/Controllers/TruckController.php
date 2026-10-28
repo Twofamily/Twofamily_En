@@ -15,22 +15,43 @@ class TruckController extends Controller
 {
     public function index(Request $request)
     {
-        $q = $request->q;
-        $status = $request->status;
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
 
+        // พิมพ์ "ซ่อม" / "พร้อม" / "ปลด" ก็ค้นตามสถานะได้
+        $statuses = $this->statusesMatching($search, Truck::STATUS_LABELS);
+
+        // dropdown เลือกสถานะ + ช่วงปีที่ซื้อ
+        $status = $this->statusFilter($request, array_keys(Truck::STATUS_LABELS));
+        $ranges = $this->numberRanges($request, [
+            'year' => [
+                'label'   => 'ปีที่ซื้อ',
+                'unit'    => null,
+                'options' => Truck::whereNotNull('year_truck')->distinct()->orderBy('year_truck')->pluck('year_truck'),
+            ],
+        ]);
+
+        // ช่องค้นหาช่องเดียว: ทะเบียน จังหวัด ปี ยี่ห้อ รุ่น และสถานะ
         $trucks = Truck::with(['brand', 'model'])
-            ->when($q, function ($query) use ($q) {
-                $query->where(function ($sub) use ($q) {
-                    $sub->where('id_truck', 'like', "%{$q}%")
-                        ->orWhereHas('brand', fn($b) => $b->where('name_brand', 'like', "%{$q}%"))
-                        ->orWhereHas('model', fn($m) => $m->where('name_model', 'like', "%{$q}%"));
+            ->when($search !== '', function ($query) use ($search, $statuses) {
+                $query->where(function ($sub) use ($search, $statuses) {
+                    $sub->where('id_truck', 'like', "%{$search}%")
+                        ->orWhere('province_truck', 'like', "%{$search}%")
+                        ->orWhere('year_truck', 'like', "%{$search}%")
+                        ->orWhereHas('brand', fn ($b) => $b->where('name_brand', 'like', "%{$search}%"))
+                        ->orWhereHas('model', fn ($m) => $m->where('name_model', 'like', "%{$search}%"));
+                    if ($statuses) {
+                        $sub->orWhereIn('status_truck', $statuses);
+                    }
                 });
             })
-            ->when($status, fn($query) => $query->where('status_truck', $status))
+            ->when($status, fn ($query) => $query->where('status_truck', $status))
+            ->tap(fn ($query) => $this->applyNumberRange($query, 'year_truck', $ranges['year']))
             ->latest()
-            ->paginate(10);
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('trucks.index', compact('trucks', 'q', 'status'));
+        return view('trucks.index', compact('trucks', 'search', 'perPage', 'status', 'ranges'));
     }
 
     public function create()

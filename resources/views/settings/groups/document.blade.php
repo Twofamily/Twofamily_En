@@ -30,6 +30,9 @@
                     <td>{{ $info['label'] }}</td>
                     <td>
                         <input type="text" name="doc[prefix][{{ $type }}]" maxlength="10"
+                            required data-required-msg="กรุณากรอกตัวย่อ{{ $info['label'] }}"
+                            pattern="[A-Za-z0-9]+" data-pattern-msg="ตัวย่อใช้ได้เฉพาะ A-Z และ 0-9"
+                            aria-label="ตัวย่อ{{ $info['label'] }}"
                             value="{{ old($key, $values[$key]) }}" data-prefix="{{ $type }}"
                             class="form-control form-control-sm text-uppercase @error($key) is-invalid @enderror">
                         @error($key)

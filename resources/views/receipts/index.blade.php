@@ -7,69 +7,35 @@
 @endsection
 
 @php
-    $hasFilter = $search !== '' || $dateFrom !== null || $dateTo !== null;
+    // มีค่าค้นหา/ตัวกรองใดก็ได้ (ไม่นับเลขหน้า/จำนวนต่อหน้า)
+    $hasFilter = collect(request()->except(['page', 'per_page']))->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
     $canManage = in_array(auth()->user()->role, ['admin', 'staff']);
 @endphp
 
 @section('content')
     <div class="container py-3">
 
-        {{-- ==================== แถบค้นหา / กรอง / จำนวนต่อหน้า ==================== --}}
-        {{-- form เดียวครอบทั้งหมด เพื่อให้ค่าทุกตัวถูกส่งไปพร้อมกัน --}}
-        <form method="GET" action="{{ route('receipts.index') }}" class="mb-3">
-            <div class="row g-2 align-items-center">
-
-                {{-- ช่องค้นหา --}}
-                <div class="col-12 col-lg-3">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text"
-                            name="search"
-                            class="form-control"
-                            placeholder="เลขที่ใบเสร็จ / ใบแจ้งหนี้ / ลูกค้า"
-                            value="{{ $search }}">
-                    </div>
+        {{-- ออกใบเสร็จโดยไม่ต้องมีใบแจ้งหนี้ (ใบเสร็จตามใบแจ้งหนี้ ออกจากหน้าใบแจ้งหนี้) --}}
+        <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center mb-3">
+            @if ($canManage)
+                <div class="d-flex gap-2">
+                    <a href="{{ route('receipts.create', ['type' => 'advance']) }}" class="btn btn-sm btn-outline-dark">
+                        <i class="bi bi-cash-coin me-1"></i>รับเงินล่วงหน้า
+                    </a>
+                    <a href="{{ route('receipts.create', ['type' => 'direct']) }}" class="btn btn-sm btn-dark">
+                        <i class="bi bi-cart-check me-1"></i>ขายสด
+                    </a>
                 </div>
+            @endif
+        </div>
 
-                {{-- ช่วงวันที่ --}}
-                <div class="col-6 col-lg-2">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white small">ตั้งแต่</span>
-                        <input type="date" name="date_from" class="form-control" value="{{ $dateFrom }}">
-                    </div>
-                </div>
-
-                <div class="col-6 col-lg-2">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white small">ถึง</span>
-                        <input type="date" name="date_to" class="form-control" value="{{ $dateTo }}">
-                    </div>
-                </div>
-
-                {{-- ปุ่มค้นหา / ล้าง --}}
-                <div class="col-6 col-lg-auto">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-funnel me-1"></i> ค้นหา
-                    </button>
-
-                    @if ($hasFilter)
-                        <a href="{{ route('receipts.index') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-lg"></i>
-                        </a>
-                    @endif
-                </div>
-
-                {{-- จำนวนรายการต่อหน้า --}}
-                <div class="col-12 col-lg-auto ms-lg-auto">
-                    @include('partials.per-page', ['perPage' => $perPage])
-                </div>
-            </div>
-
-            {{-- รีเซ็ตกลับหน้า 1 ทุกครั้งที่ค้นหาใหม่ --}}
-            <input type="hidden" name="page" value="1">
-        </form>
+        <x-search-bar :action="route('receipts.index')"
+                      placeholder="ค้นหาเลขที่ใบเสร็จ / ใบแจ้งหนี้ / แคมป์ / ชื่อลูกค้า"
+                      :statuses="\App\Models\Receipt::TYPES" :status="$type"
+                      status-name="type" status-label="ประเภท"
+                      :search="$search" :per-page="$perPage"
+                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่รับชำระ"
+                      :ranges="$ranges" />
 
         {{-- ==================== ตาราง ==================== --}}
         <div class="table-responsive shadow-sm rounded-3">
@@ -78,9 +44,10 @@
                     <tr>
                         <th style="width:60px;" class="text-center">ลำดับ</th>
                         <th>เลขที่ใบเสร็จ</th>
+                        <th>ประเภท</th>
                         <th>วันที่ออก</th>
                         <th>ลูกค้า</th>
-                        <th>อ้างอิงใบแจ้งหนี้</th>
+                        <th>อ้างอิง</th>
                         <th class="text-end">ยอดรับชำระ</th>
                         <th class="text-center" style="width:140px;">จัดการ</th>
                     </tr>
@@ -96,17 +63,27 @@
 
                             <td><strong>{{ $r->code_rc }}</strong></td>
 
-                            <td>{{ \Carbon\Carbon::parse($r->date_receipt)->format('d/m/Y') }}</td>
+                            <td><span class="badge bg-{{ $r->type_badge }}">{{ $r->type_label }}</span></td>
 
-                            <td>{{ $r->invoice?->customer->name_customer ?? '-' }}</td>
+                            <td>{{ thai_date($r->date_receipt) }}</td>
 
-                            <td>
+                            <td>{{ $r->customer->name_customer ?? '-' }}</td>
+
+                            <td class="small">
                                 @if ($r->invoice)
                                     <a href="{{ route('invoices.show', $r->invoice->id_invoice) }}"
-                                       class="text-decoration-none small">
+                                       class="text-decoration-none">
                                         {{ $r->invoice->code_inv }}
                                     </a>
-                                @else
+                                @endif
+                                @if ($r->camp)
+                                    <div>
+                                        <a href="{{ route('camps.show', $r->camp) }}" class="text-decoration-none text-muted">
+                                            {{ $r->camp->code_camp }}
+                                        </a>
+                                    </div>
+                                @endif
+                                @if (! $r->invoice && ! $r->camp)
                                     <span class="text-muted">-</span>
                                 @endif
                             </td>
@@ -128,7 +105,7 @@
                                         <form method="POST"
                                             action="{{ route('receipts.destroy', $r->id_receipt) }}"
                                             class="delete-form"
-                                            data-confirm="ใบเสร็จ {{ $r->code_rc }} จะถูกลบออกจากระบบ และรายการชำระของใบแจ้งหนี้จะกลับมาแก้ไขได้อีกครั้ง"
+                                            data-confirm="ใบเสร็จ {{ $r->code_rc }} จะถูกลบออกจากระบบ{{ $r->isInvoiceType() ? ' และรายการชำระของใบแจ้งหนี้จะกลับมาแก้ไขได้อีกครั้ง' : ' พร้อมหลักฐานการชำระที่แนบไว้' }}"
                                             data-confirm-title="ยืนยันการลบข้อมูล"
                                             data-confirm-variant="danger"
                                             data-confirm-ok="ลบข้อมูล">
@@ -148,7 +125,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
+                            <td colspan="8" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox fs-2 d-block mb-2"></i>
 
                                 @if ($hasFilter)
@@ -170,7 +147,7 @@
                 @if ($receipts->total() > 0)
                     <tfoot>
                         <tr class="table-primary fw-bold">
-                            <td colspan="5" class="text-end">
+                            <td colspan="6" class="text-end">
                                 {{ $hasFilter ? 'ยอดรับชำระรวมตามเงื่อนไข' : 'ยอดรับชำระรวมทั้งหมด' }}
                                 ({{ number_format($receipts->total()) }} ใบ)
                             </td>

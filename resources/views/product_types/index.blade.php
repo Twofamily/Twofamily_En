@@ -9,6 +9,10 @@
 @section('content')
     <div class="container py-3">
 
+        <x-search-bar :action="route('product_types.index')"
+                      placeholder="ค้นหาชื่อประเภทสินค้า"
+                      :search="$search" :per-page="$perPage" />
+
         <div class="d-flex justify-content-end align-items-center mb-3">
             <a href="{{ route('product_types.create') }}" class="btn btn-dark text-nowrap">
                 <i class="bi bi-plus-lg me-1"></i>
@@ -73,9 +77,6 @@
             </table>
         </div>
 
-        {{-- แสดง pagination --}}
-        <div class="mt-3">
-            {{ $types->withQueryString()->links() }}
-        </div>
+        @include('partials.pagination-footer', ['paginator' => $types])
     </div>
 @endsection

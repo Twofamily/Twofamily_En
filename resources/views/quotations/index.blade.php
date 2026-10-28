@@ -9,57 +9,12 @@
 @section('content')
     <div class="container py-3">
 
-        {{-- ==================== แถบค้นหา / กรอง / จำนวนต่อหน้า ==================== --}}
-        {{-- form เดียวครอบทั้งหมด เพื่อให้ค่าทุกตัวถูกส่งไปพร้อมกัน --}}
-        <form method="GET" action="{{ route('quotations.index') }}" class="mb-3">
-            <div class="row g-2 align-items-center">
-
-                {{-- ช่องค้นหา --}}
-                <div class="col-12 col-md-4">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text"
-                            name="search"
-                            class="form-control"
-                            placeholder="ค้นหาเลขที่เอกสาร หรือชื่อลูกค้า"
-                            value="{{ $search }}">
-                    </div>
-                </div>
-
-                {{-- กรองสถานะ --}}
-                <div class="col-6 col-md-3">
-                    <select name="status" class="form-select">
-                        <option value="">ทุกสถานะ</option>
-                        <option value="draft"    @selected($status === 'draft')>ร่าง</option>
-                        <option value="approved" @selected($status === 'approved')>อนุมัติแล้ว</option>
-                        <option value="rejected" @selected($status === 'rejected')>ยกเลิก</option>
-                    </select>
-                </div>
-
-                {{-- ปุ่มค้นหา / ล้าง --}}
-                <div class="col-6 col-md-auto">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-funnel me-1"></i> ค้นหา
-                    </button>
-
-                    @if ($search !== '' || $status !== null)
-                        <a href="{{ route('quotations.index') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-lg"></i>
-                        </a>
-                    @endif
-                </div>
-
-                {{-- จำนวนรายการต่อหน้า --}}
-                <div class="col-12 col-md-auto ms-md-auto">
-                    @include('partials.per-page', ['perPage' => $perPage])
-                </div>
-            </div>
-
-            {{-- รีเซ็ตกลับหน้า 1 ทุกครั้งที่ค้นหาใหม่ --}}
-            <input type="hidden" name="page" value="1">
-        </form>
+        <x-search-bar :action="route('quotations.index')"
+                      placeholder="ค้นหาเลขที่ใบเสนอราคา / ชื่อลูกค้า / สถานะ เช่น อนุมัติ"
+                      :search="$search" :per-page="$perPage"
+                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่ออก"
+                      :statuses="\App\Models\Quotation::STATUS_LABELS" :status="$status"
+                      :ranges="$ranges" />
 
         {{-- ==================== ปุ่มสร้าง ==================== --}}
         <div class="d-flex justify-content-end align-items-center mb-3">
@@ -190,7 +145,7 @@
                             <td colspan="7" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox fs-2 d-block mb-2"></i>
 
-                                @if ($search !== '' || $status !== null)
+                                @if ($search !== '' || $dateFrom || $dateTo)
                                     ไม่พบใบเสนอราคาที่ตรงกับเงื่อนไขที่ค้นหา
                                     <div class="mt-2">
                                         <a href="{{ route('quotations.index') }}"

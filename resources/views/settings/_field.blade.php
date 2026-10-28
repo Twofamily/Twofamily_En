@@ -13,6 +13,10 @@
     $value = old($key, $values[$key] ?? $def['default']);
     $error = $errors->first($key);
     $hint  = $hint ?? null;
+
+    // ช่องที่ทะเบียนกำหนด rules เป็น required → ติดดาวแดง + กรอบแดงถ้าไม่กรอก (form-validation.js)
+    $isRequired  = in_array('required', $def['rules'] ?? [], true) && $def['type'] !== 'image';
+    $requiredMsg = ($def['type'] === 'select' ? 'กรุณาเลือก' : 'กรุณากรอก') . $def['label'];
 @endphp
 
 @if ($def['type'] === 'bool')
@@ -28,10 +32,12 @@
 
     @if ($def['type'] === 'text')
         <textarea id="{{ $id }}" name="{{ $name }}" rows="3"
+            @if ($isRequired) required data-required-msg="{{ $requiredMsg }}" @endif
             class="form-control {{ $error ? 'is-invalid' : '' }}">{{ $value }}</textarea>
 
     @elseif ($def['type'] === 'select')
-        <select id="{{ $id }}" name="{{ $name }}" class="form-select {{ $error ? 'is-invalid' : '' }}">
+        <select id="{{ $id }}" name="{{ $name }}" class="form-select {{ $error ? 'is-invalid' : '' }}"
+            @if ($isRequired) required data-required-msg="{{ $requiredMsg }}" @endif>
             @foreach ($def['options'] as $optionValue => $optionLabel)
                 <option value="{{ $optionValue }}" @selected((string) $value === (string) $optionValue)>
                     {{ $optionLabel }}
@@ -59,6 +65,7 @@
         <input id="{{ $id }}" name="{{ $name }}"
             type="{{ in_array($def['type'], ['int', 'decimal'], true) ? 'number' : 'text' }}"
             @if ($def['type'] === 'decimal') step="0.01" @endif
+            @if ($isRequired) required data-required-msg="{{ $requiredMsg }}" @endif
             value="{{ $value }}" class="form-control {{ $error ? 'is-invalid' : '' }}">
     @endif
 

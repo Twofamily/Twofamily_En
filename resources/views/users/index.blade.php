@@ -9,17 +9,22 @@
 @section('content')
     <div class="container py-3">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <form class="d-flex gap-2" style="max-width: 500px;">
-                <input type="text" name="q" value="{{ $q }}" class="form-control"
-                    placeholder="ค้นหาชื่อ / อีเมล">
+        <x-search-bar :action="route('users.index')"
+                      placeholder="ค้นหาชื่อ / อีเมล / สิทธิ์การใช้งาน"
+                      :search="$search" :per-page="$perPage"
+                      :statuses="$statusLabels" :status="$status" status-label="สถานะบัญชี">
+            <div class="col-12 col-md-4 col-xl-2">
+                <label class="form-label small text-muted mb-1">สิทธิ์การใช้งาน</label>
+                <select name="role" class="form-select" onchange="this.form.submit()">
+                    <option value="">— ทุกสิทธิ์ —</option>
+                    @foreach (\App\Models\User::roleList() as $value => $label)
+                        <option value="{{ $value }}" @selected($role === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </x-search-bar>
 
-                <button class="btn btn-outline-secondary text-nowrap">
-                    <i class="bi bi-search me-1"></i>
-                    ค้นหา
-                </button>
-            </form>
-
+        <div class="d-flex justify-content-end mb-3">
             <a href="{{ route('users.create') }}" class="btn btn-dark text-nowrap">
                 <i class="bi bi-plus-lg me-1"></i>
                 เพิ่มผู้ใช้งาน
@@ -133,7 +138,7 @@
         </div>
 
         <div class="mt-3">
-            {{ $users->withQueryString()->links() }}
+            @include('partials.pagination-footer', ['paginator' => $users])
         </div>
 
     </div>

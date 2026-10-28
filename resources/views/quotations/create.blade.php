@@ -9,14 +9,20 @@
 @section('content')
     <div class="container py-3">
 
-        <form method="POST" action="{{ route('quotations.store') }}">
+        {{-- ผ่านการตรวจ required ครบแล้ว จึงจะเด้ง modal ให้ยืนยันก่อนสร้างจริง --}}
+        <form method="POST" action="{{ route('quotations.store') }}" id="quotationForm"
+            data-confirm="กรุณาตรวจสอบลูกค้า รายการสินค้า และยอดเงินให้ถูกต้องก่อนสร้างใบเสนอราคา"
+            data-confirm-title="ยืนยันการสร้างใบเสนอราคา"
+            data-confirm-ok="สร้างใบเสนอราคา"
+            data-confirm-variant="success">
             @csrf
 
             <div class="mb-3">
                 <label class="form-label">ลูกค้า</label>
 
                 <div class="d-flex gap-2">
-                    <select name="id_customer" id="customerSelect" class="form-select" required>
+                    <select name="id_customer" id="customerSelect" class="form-select @error('id_customer') is-invalid @enderror"
+                        required data-required-msg="กรุณาเลือกลูกค้า">
                         <option value="">— เลือกลูกค้า —</option>
                         @foreach ($customers as $c)
                             <option value="{{ $c->id_customer }}" @selected(old('id_customer') == $c->id_customer)>
@@ -56,7 +62,7 @@
                         <div class="mb-3">
                             <label class="form-label">เบอร์โทร (10 หลัก)</label>
                             <input type="text" id="cust_phone" class="form-control" maxlength="10"
-                                inputmode="numeric" placeholder="เช่น 0812345678">
+                                inputmode="numeric" data-digits-only placeholder="เช่น 0812345678">
                         </div>
 
                         <div class="mb-3">
@@ -128,7 +134,8 @@
                 <tbody>
                     <tr>
                         <td>
-                            <select name="items[0][id_product]" class="form-select product">
+                            <select name="items[0][id_product]" class="form-select product"
+                                required data-required-msg="กรุณาเลือกสินค้า">
                                 @foreach ($products as $p)
                                     <option value="{{ $p->id_product }}" data-price="{{ $p->unit_price }}">
                                         {{ $p->name_product }}
@@ -137,8 +144,8 @@
                             </select>
                         </td>
                         <td>
-                            <input type="number" step="0.01" min="0" name="items[0][quantity]"
-                                class="form-control qty" value="1">
+                            <input type="number" step="0.01" min="0.01" name="items[0][quantity]"
+                                class="form-control qty" value="1" required data-required-msg="กรุณาใส่จำนวน">
                         </td>
                         <td>
                             <input type="number" step="0.01" name="items[0][price]" class="form-control price" readonly>
@@ -161,15 +168,8 @@
                 <div class="col-md-5">
                     <table class="table table-borderless">
                         <tr>
-                            <th class="text-end">ยอดรวมก่อนส่วนลด</th>
+                            <th class="text-end">รวมเป็นเงิน</th>
                             <td class="text-end"><span id="subTotal">0.00</span> บาท</td>
-                        </tr>
-                        <tr>
-                            <th class="text-end align-middle">ส่วนลด</th>
-                            <td>
-                                <input type="number" name="discount" id="discount"
-                                    class="form-control text-end" value="{{ old('discount', 0) }}" min="0">
-                            </td>
                         </tr>
                         <tr>
                             <th class="text-end">VAT 7%</th>
@@ -200,7 +200,6 @@
             const subTotalEl = document.getElementById('subTotal');
             const vatEl = document.getElementById('vatAmount');
             const grandTotalEl = document.getElementById('grandTotal');
-            const discountInput = document.getElementById('discount');
 
             function calcRow(row) {
                 const price = Number(row.querySelector('.product').selectedOptions[0]?.dataset.price || 0);
@@ -217,13 +216,17 @@
                     subTotal += Number(input.value || 0);
                 });
 
-                const discount = Math.min(Number(discountInput.value || 0), subTotal);
-                const afterDiscount = Math.max(subTotal - discount, 0);
-                const vat = afterDiscount * 0.07;
+                // บริษัทไม่มีส่วนลด: ยอดสุทธิ = รวมเป็นเงิน + VAT 7%
+                const vat = subTotal * 0.07;
 
                 subTotalEl.textContent = subTotal.toFixed(2);
                 vatEl.textContent = vat.toFixed(2);
-                grandTotalEl.textContent = (afterDiscount + vat).toFixed(2);
+                grandTotalEl.textContent = (subTotal + vat).toFixed(2);
+
+                // ให้ modal ยืนยันแสดงยอดสุทธิล่าสุดด้วย
+                document.getElementById('quotationForm').dataset.confirm =
+                    'ยอดสุทธิ ' + (subTotal + vat).toLocaleString('th-TH', { minimumFractionDigits: 2 }) +
+                    ' บาท — กรุณาตรวจสอบลูกค้าและรายการสินค้าให้ถูกต้องก่อนสร้างใบเสนอราคา';
             }
 
             document.addEventListener('input', e => {
@@ -240,7 +243,6 @@
                 }
             });
 
-            discountInput.addEventListener('input', calculateSummary);
 
             document.getElementById('addRow').onclick = () => {
                 const tbody = document.querySelector('#itemsTable tbody');
@@ -303,7 +305,7 @@
             };
 
             const apiURL =
-                'https://raw.githubusercontent.com/kongvut/thai-province-data/master/api/latest/province_with_district_and_sub_district.json';
+                @json(asset('data/thai-address.json'));
 
             let thaiData = [];
 

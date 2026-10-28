@@ -62,7 +62,7 @@ $company = [
         'label'   => 'เลขประจำตัวผู้เสียภาษี',
         'type'    => 'string',
         'default' => '',
-        'rules'   => ['nullable', 'digits:13'],   // controller ตัดขีดและช่องว่างออกก่อนตรวจ
+        'rules'   => ['required', 'digits:13'],   // ต้องมีในใบกำกับภาษี   // controller ตัดขีดและช่องว่างออกก่อนตรวจ
         'legacy'  => ['tax_id'],
     ],
     'company.branch' => [
@@ -77,7 +77,7 @@ $company = [
         'label'   => 'ที่อยู่',
         'type'    => 'text',
         'default' => '',
-        'rules'   => ['nullable', 'string', 'max:500'],
+        'rules'   => ['required', 'string', 'max:500'],
         'legacy'  => ['company_address'],
     ],
     'company.phone' => [
@@ -85,7 +85,7 @@ $company = [
         'label'   => 'เบอร์โทรศัพท์',
         'type'    => 'string',
         'default' => '',
-        'rules'   => ['nullable', 'string', 'max:50'],
+        'rules'   => ['required', 'string', 'max:50'],
         'legacy'  => ['company_phone'],
     ],
     'company.email' => [
@@ -196,7 +196,7 @@ $payment = [
         'label'   => 'ธนาคาร',
         'type'    => 'string',
         'default' => '',
-        'rules'   => ['nullable', 'string', 'max:100'],
+        'rules'   => ['required', 'string', 'max:100'],
         'legacy'  => ['bank_name'],
     ],
     'payment.account_name' => [
@@ -204,7 +204,7 @@ $payment = [
         'label'   => 'ชื่อบัญชี',
         'type'    => 'string',
         'default' => '',
-        'rules'   => ['nullable', 'string', 'max:255'],
+        'rules'   => ['required', 'string', 'max:255'],
         'legacy'  => ['bank_account_name'],
     ],
     'payment.account_no' => [
@@ -212,7 +212,7 @@ $payment = [
         'label'   => 'เลขที่บัญชี',
         'type'    => 'string',
         'default' => '',
-        'rules'   => ['nullable', 'string', 'max:30', 'regex:/^[0-9\-\s]+$/'],
+        'rules'   => ['required', 'string', 'max:30', 'regex:/^[0-9\-\s]+$/'],
         'legacy'  => ['bank_account'],
     ],
     'payment.require_slip' => [
@@ -231,18 +231,10 @@ $payment = [
     ],
 ];
 
-/* ---------- ทั่วไป ---------- */
-
-$general = [
-    'general.per_page' => [
-        'group'   => 'general',
-        'label'   => 'จำนวนแถวต่อหน้าเริ่มต้น',
-        'type'    => 'select',
-        'options' => ['10' => '10', '25' => '25', '50' => '50', '100' => '100'],
-        'default' => '10',
-        'rules'   => ['required', 'in:10,25,50,100'],
-    ],
-];
+/* ---------- ทั่วไป ----------
+| เอาแท็บ "ทั่วไป" ออกแล้ว (ค่า general.per_page ไม่ได้ถูกใช้ที่ไหน
+| จำนวนแถวต่อหน้าใช้ Controller::DEFAULT_PER_PAGE และผู้ใช้เลือกเองในแต่ละหน้า)
+*/
 
 return [
 
@@ -250,11 +242,10 @@ return [
         'company'  => ['label' => 'ข้อมูลบริษัท',   'icon' => 'bi-building'],
         'document' => ['label' => 'เอกสาร',        'icon' => 'bi-file-earmark-text'],
         'payment'  => ['label' => 'การรับชำระเงิน', 'icon' => 'bi-bank'],
-        'general'  => ['label' => 'ทั่วไป',         'icon' => 'bi-sliders'],
     ],
 
     'document_types' => $documentTypes,
 
-    'definitions' => array_merge($company, $document, $payment, $general),
+    'definitions' => array_merge($company, $document, $payment),
 
 ];

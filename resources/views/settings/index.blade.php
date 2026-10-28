@@ -18,9 +18,12 @@
         @endforeach
     </ul>
 
-    <form method="POST" action="{{ route('settings.update', $group) }}" enctype="multipart/form-data">
+    <form method="POST" action="{{ route('settings.update', $group) }}" enctype="multipart/form-data"
+            data-confirm="ต้องการบันทึกการตั้งค่าระบบหรือไม่ การเปลี่ยนแปลงจะมีผลกับเอกสารทุกฉบับที่ออกหลังจากนี้" data-confirm-title="ยืนยันการบันทึกการตั้งค่า" data-confirm-ok="บันทึก" data-confirm-variant="primary">
         @csrf
         @method('PUT')
+
+        <div class="form-text mb-3"><span class="req-star">*</span> = จำเป็นต้องกรอก (ใช้แสดงในเอกสาร PDF)</div>
 
         @include("settings.groups.{$group}")
 

@@ -317,14 +317,17 @@
                         <td>รวมเป็นเงิน</td>
                         <td class="text-right">{{ number_format($quotation->subtotal, 2) }}</td>
                     </tr>
-                    <tr>
-                        <td>หักส่วนลด</td>
-                        <td class="text-right">{{ number_format($quotation->discount, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td>ยอดหลังหักส่วนลด</td>
-                        <td class="text-right">{{ number_format($quotation->after_discount, 2) }}</td>
-                    </tr>
+                    {{-- บริษัทไม่มีส่วนลดแล้ว — แสดงเฉพาะใบเก่าที่เคยบันทึกส่วนลดไว้ --}}
+                    @if ((float) $quotation->discount > 0)
+                        <tr>
+                            <td>หักส่วนลด</td>
+                            <td class="text-right">{{ number_format($quotation->discount, 2) }}</td>
+                        </tr>
+                        <tr>
+                            <td>ยอดหลังหักส่วนลด</td>
+                            <td class="text-right">{{ number_format($quotation->after_discount, 2) }}</td>
+                        </tr>
+                    @endif
                     <tr>
                         <td>ภาษีมูลค่าเพิ่ม {{ rtrim(rtrim(number_format($quotation->vat_rate, 2), '0'), '.') }}%</td>
                         <td class="text-right">{{ number_format($quotation->vat_amount, 2) }}</td>

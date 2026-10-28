@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\RevenueReport;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -13,9 +15,12 @@ class DashboardController extends Controller
         'ปิดงาน', 'ยกเลิก', 'เสร็จสิ้น', 'จบงาน',
     ];
 
-    public function index()
+    public function index(Request $request)
     {
         $data = [];
+
+        // ---------- รายได้ (กรองตามช่วงเวลาที่เลือก) ----------
+        $data['revenue'] = (new RevenueReport($request))->toArray();
 
         // ---------- กองรถ ----------
         $data['truckCounts'] = [
@@ -25,13 +30,8 @@ class DashboardController extends Controller
             'retired'     => $this->count('trucks', fn($q) => $q->where('status_truck', 'retired')),
         ];
 
-        $data['recentTrucks'] = $this->rows('trucks', fn($q) => $q->orderByDesc('created_at'), 5);
-
         // ---------- คนขับ ----------
         $data['driversTotal'] = $this->count('drivers');
-
-        // ---------- ลูกค้า ----------
-        $data['customersTotal'] = $this->count('customers');
 
         // ---------- แคมป์ ----------
         $data['hasCamps']   = $this->has('camps');
@@ -46,7 +46,43 @@ class DashboardController extends Controller
 
         $data['activeCamps'] = $this->activeCamps();
 
+        // ---------- ลูกหนี้ค้างชำระ ----------
+        $data['receivables'] = $this->receivables();
+
         return view('dashboard', $data);
+    }
+
+    /**
+     * ยอดค้างรับจากใบแจ้งหนี้ที่ยังชำระไม่ครบ
+     * = ยอดใบแจ้งหนี้ − ยอดที่ลูกค้าโอนเข้ามาแล้ว (ตาราง payments)
+     * ตัวเลขนี้คือเงินที่บริษัทยังต้องตามเก็บ
+     */
+    private function receivables(): array
+    {
+        $empty = ['amount' => 0.0, 'count' => 0];
+
+        if (!$this->has('invoices')) {
+            return $empty;
+        }
+
+        $q = DB::table('invoices as i')->where('i.status', '!=', 'paid');
+
+        if (Schema::hasColumn('invoices', 'deleted_at')) {
+            $q->whereNull('i.deleted_at');
+        }
+
+        // ยอดที่ชำระแล้วของแต่ละใบ (ไม่มีตาราง payments = ถือว่ายังไม่ได้ชำระ)
+        $paid = $this->has('payments')
+            ? '(SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE p.id_invoice = i.id_invoice)'
+            : '0';
+
+        $row = $q->selectRaw("COUNT(*) as cnt, COALESCE(SUM(GREATEST(i.total - $paid, 0)), 0) as amount")
+                 ->first();
+
+        return [
+            'amount' => (float) ($row->amount ?? 0),
+            'count'  => (int) ($row->cnt ?? 0),
+        ];
     }
 
     /** รายการแคมป์ที่ยังดำเนินการอยู่ พร้อมชื่อลูกค้า */
@@ -128,15 +164,5 @@ class DashboardController extends Controller
         if ($filter) $filter($q);
 
         return (int) $q->count();
-    }
-
-    private function rows(string $table, ?callable $filter = null, int $limit = 5)
-    {
-        if (!$this->has($table)) return collect();
-
-        $q = $this->table($table);
-        if ($filter) $filter($q);
-
-        return $q->limit($limit)->get();
     }
 }

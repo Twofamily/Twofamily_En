@@ -9,18 +9,13 @@
 @section('content')
     <div class="container py-3">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <x-search-bar :action="route('products.index')"
+                      placeholder="ค้นหาชื่อสินค้า / ประเภท / รายละเอียด / ราคา"
+                      :search="$search" :per-page="$perPage"
+                      :statuses="$types" :status="$typeId" status-name="type" status-label="ประเภท"
+                      :ranges="$ranges" />
 
-            <form class="d-flex gap-2" method="GET" action="{{ route('products.index') }}">
-                <input type="text" name="q" class="form-control" style="min-width:240px"
-                    value="{{ $q }}" placeholder="ค้นหาชื่อ/รายละเอียด…">
-
-                <button class="btn btn-outline-secondary text-nowrap" type="submit">
-                    <i class="bi bi-search me-1"></i>
-                    ค้นหา
-                </button>
-            </form>
-
+        <div class="d-flex justify-content-end align-items-center mb-3">
             <a href="{{ route('products.create') }}" class="btn btn-dark text-nowrap">
                 <i class="bi bi-plus-lg me-1"></i>
                 เพิ่มสินค้า
@@ -111,7 +106,7 @@
         </div>
 
         <div class="mt-3">
-            {{ $products->withQueryString()->links() }}
+            @include('partials.pagination-footer', ['paginator' => $products])
         </div>
     </div>
 @endsection

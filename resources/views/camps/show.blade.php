@@ -7,6 +7,8 @@
 @endsection
 
 @section('content')
+    {{-- หน้าดูข้อมูลแคมป์ = read-only
+         การแก้ไขทุกอย่าง (รวมถึงเพิ่ม/ถอนรถ) ทำที่หน้าแก้ไข --}}
     <div class="container py-2">
         @if (session('info'))
             <div class="alert alert-info shadow-sm">{{ session('info') }}</div>
@@ -57,18 +59,29 @@
                     </div>
 
                     <div class="col-md-6">
-                        <div class="text-muted small">อ้างอิงใบเสนอราคา</div>
+                        <div class="text-muted small">ใบสั่งขายในแคมป์</div>
                         <div>
-                            @if ($camp->quotation)
-                                <a href="{{ route('quotations.show', $camp->quotation) }}" class="text-decoration-none">
-                                    {{ $camp->quotation->code_quot }}
-                                </a>
-                                <span class="text-muted">
-                                    · {{ number_format($camp->quotation->total_amount, 2) }} บาท
-                                </span>
-                            @else
-                                <span class="text-muted">ยังไม่ได้อ้างอิงใบเสนอราคา</span>
-                            @endif
+                            @forelse ($camp->salesOrders as $so)
+                                <div>
+                                    <a href="{{ route('sales-orders.show', $so) }}" class="text-decoration-none">
+                                        {{ $so->code_so }}
+                                    </a>
+                                    <span class="text-muted">· {{ number_format($so->total_amount, 2) }} บาท</span>
+                                    <span class="badge bg-{{ $so->status_color }}">{{ $so->status_label }}</span>
+                                </div>
+                            @empty
+                                @if ($camp->quotation)
+                                    {{-- แคมป์เก่าที่ผูกใบเสนอราคาตรง ๆ --}}
+                                    <a href="{{ route('quotations.show', $camp->quotation) }}" class="text-decoration-none">
+                                        {{ $camp->quotation->code_quot }}
+                                    </a>
+                                    <span class="text-muted">
+                                        · {{ number_format($camp->quotation->total_amount, 2) }} บาท (ใบเสนอราคาเดิม)
+                                    </span>
+                                @else
+                                    <span class="text-muted">ยังไม่มีใบสั่งขาย — เพิ่มได้จากหน้าใบสั่งขาย ปุ่ม "เพิ่มเข้าแคมป์เดิม"</span>
+                                @endif
+                            @endforelse
                         </div>
                     </div>
 
@@ -132,58 +145,95 @@
             </div>
         </div>
 
-        @if ($camp->status_camp === 'active')
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-body">
-                    <h6 class="mb-3">เพิ่มรถบรรทุกเข้าแคมป์</h6>
+        {{-- ==================== สรุปการเงินของแคมป์ ==================== --}}
+        @php
+            $tiles = [
+                ['มูลค่าตามสัญญา',          $summary['contract_value'],   'text-dark',    'รวม VAT ของใบสั่งขายทุกใบ'],
+                ['ส่งของแล้ว',              $summary['delivered_value'],  'text-dark',    'มูลค่าก่อน VAT'],
+                ['ออกใบแจ้งหนี้แล้ว',        $summary['invoiced'],         'text-dark',    'รวม VAT'],
+                ['รับเงินแล้วทั้งหมด',        $summary['cash_received'],    'text-success', 'ตามใบแจ้งหนี้ + ล่วงหน้า + ขายสด'],
+                ['เงินล่วงหน้าคงเหลือ',      $summary['advance_balance'],  'text-warning', 'ยังไม่ได้หักในใบแจ้งหนี้'],
+                ['ลูกค้าค้างชำระ',           $summary['outstanding'],      $summary['outstanding'] > 0 ? 'text-danger' : 'text-success', 'ใบแจ้งหนี้ที่ยังไม่ได้รับเงิน'],
+            ];
+        @endphp
 
-                    @if ($availableTrucks->isEmpty())
-                        <div class="text-muted small">
-                            ไม่มีรถที่พร้อมใช้งานเหลืออยู่ (รถอาจอยู่ระหว่างซ่อมบำรุง หรือติดงานที่แคมป์อื่น)
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span class="fw-semibold">สรุปการเงินของแคมป์</span>
+
+                @if (in_array(auth()->user()->role, ['admin', 'staff']) && $camp->status_camp === 'active')
+                    <a href="{{ route('receipts.create', ['type' => 'advance', 'camp' => $camp->id_camp]) }}"
+                       class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-cash-coin me-1"></i>รับเงินล่วงหน้า
+                    </a>
+                @endif
+            </div>
+
+            <div class="card-body">
+                <div class="row g-2 text-center">
+                    @foreach ($tiles as [$label, $value, $color, $hint])
+                        <div class="col-6 col-md-4 col-xl-2">
+                            <div class="bg-light rounded-3 p-2 h-100">
+                                <div class="small text-muted">{{ $label }}</div>
+                                <div class="fw-bold {{ $color }}">{{ number_format($value, 2) }}</div>
+                                <div class="text-muted" style="font-size: 11px;">{{ $hint }}</div>
+                            </div>
                         </div>
-                    @else
-                        <form method="POST" action="{{ route('camps.trucks.assign', $camp->id_camp) }}"
-                            class="row g-2 align-items-end">
-                            @csrf
-
-                            <div class="col-md-4">
-                                <label class="form-label small mb-1">เลือกรถ</label>
-                                <select name="id_truck" class="form-select" required>
-                                    <option value="">— เลือกรถ —</option>
-                                    @foreach ($availableTrucks as $truck)
-                                        <option value="{{ $truck->id_truck }}">
-                                            {{ $truck->id_truck }}
-                                            ({{ $truck->brand->name_brand ?? '' }} {{ $truck->model->name_model ?? '' }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label small mb-1">วันที่เริ่มทำงาน</label>
-                                <input type="date" name="assigned_date" class="form-control" value="{{ date('Y-m-d') }}"
-                                    required>
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label small mb-1">หมายเหตุ</label>
-                                <input type="text" name="note" class="form-control" placeholder="ไม่บังคับ">
-                            </div>
-
-                            <div class="col-md-2">
-                                <button class="btn btn-dark w-100">+ เพิ่มรถ</button>
-                            </div>
-                        </form>
-                    @endif
+                    @endforeach
                 </div>
             </div>
-        @endif
+        </div>
+
+        {{-- ==================== ใบเสร็จของแคมป์ ==================== --}}
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white fw-semibold">ใบเสร็จของแคมป์นี้</div>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>เลขที่</th>
+                            <th>ประเภท</th>
+                            <th>วันที่รับเงิน</th>
+                            <th class="text-end">ยอดรับ</th>
+                            <th class="text-end">ล่วงหน้าคงเหลือ</th>
+                            <th class="text-center" style="width: 100px;">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($receipts as $rc)
+                            <tr>
+                                <td class="fw-semibold">{{ $rc->code_rc }}</td>
+                                <td><span class="badge bg-{{ $rc->type_badge }}">{{ $rc->type_label }}</span></td>
+                                <td>{{ thai_date($rc->date_receipt) }}</td>
+                                <td class="text-end">{{ number_format($rc->total, 2) }}</td>
+                                <td class="text-end">
+                                    @if ($rc->isAdvance())
+                                        {{ number_format($rc->advanceRemaining(), 2) }}
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ route('receipts.show', $rc->id_receipt) }}"
+                                       class="btn btn-sm btn-outline-primary">ดู</a>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">ยังไม่มีใบเสร็จของแคมป์นี้</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         {{-- ความคืบหน้าการส่งของ --}}
         @if ($progress->isNotEmpty())
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold">
-                    ความคืบหน้าการส่งของ (เทียบกับใบเสนอราคา)
+                    ความคืบหน้าการส่งของ (เทียบกับยอดตามสัญญา)
                 </div>
 
                 <div class="table-responsive">
@@ -232,11 +282,6 @@
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <span class="fw-semibold">ใบส่งของของแคมป์นี้</span>
-
-                @if ($camp->status_camp === 'active')
-                    <a href="{{ route('delivery-notes.create', ['camp' => $camp->id_camp]) }}"
-                        class="btn btn-sm btn-dark">+ สร้างใบส่งของ</a>
-                @endif
             </div>
 
             <div class="table-responsive">
@@ -283,8 +328,12 @@
         </div>
 
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white fw-semibold">
-                รถบรรทุกที่ทำงานที่แคมป์นี้
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">รถบรรทุกและคนขับที่ทำงานที่แคมป์นี้</span>
+                <a href="{{ route('camps.edit', $camp->id_camp) }}#camp-trucks"
+                    class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-pencil-square me-1"></i>จัดการรถ/คนขับ (หน้าแก้ไข)
+                </a>
             </div>
 
             <div class="table-responsive">
@@ -293,10 +342,10 @@
                         <tr>
                             <th>ทะเบียน</th>
                             <th>ยี่ห้อ / รุ่น</th>
+                            <th>คนขับ</th>
                             <th>วันที่เริ่ม</th>
                             <th>หมายเหตุ</th>
                             <th>สถานะ</th>
-                            <th class="text-center" style="width: 260px;">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -304,31 +353,28 @@
                             <tr>
                                 <td class="fw-semibold">{{ $truck->id_truck }}</td>
                                 <td>{{ $truck->brand->name_brand ?? '-' }} {{ $truck->model->name_model ?? '' }}</td>
-                                <td>{{ \Carbon\Carbon::parse($truck->pivot->assigned_date)->format('d/m/Y') }}</td>
+                                <td>
+                                    @if ($truck->pivot->driver)
+                                        <a href="{{ route('drivers.show', $truck->pivot->driver) }}" class="text-decoration-none">
+                                            {{ $truck->pivot->driver->full_name }}
+                                        </a>
+                                        @if ($truck->pivot->driver->phone_driver)
+                                            <div class="small text-muted">{{ $truck->pivot->driver->phone_driver }}</div>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">ยังไม่ระบุ</span>
+                                    @endif
+                                </td>
+                                <td>{{ thai_date($truck->pivot->assigned_date) }}</td>
                                 <td class="small text-muted">{{ $truck->pivot->note ?? '-' }}</td>
                                 <td>
                                     @if ($truck->pivot->released_date)
                                         <span class="badge bg-secondary">
                                             ถอนแล้ว
-                                            {{ \Carbon\Carbon::parse($truck->pivot->released_date)->format('d/m/Y') }}
+                                            {{ thai_date($truck->pivot->released_date) }}
                                         </span>
                                     @else
                                         <span class="badge bg-success">กำลังทำงาน</span>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    @if (!$truck->pivot->released_date)
-                                        <form method="POST"
-                                            action="{{ route('camps.trucks.release', [$camp->id_camp, $truck->pivot->id_assignment]) }}"
-                                            class="d-flex gap-1 justify-content-center">
-                                            @csrf @method('PATCH')
-                                            <input type="date" name="released_date"
-                                                class="form-control form-control-sm" value="{{ date('Y-m-d') }}"
-                                                required>
-                                            <button class="btn btn-sm btn-outline-danger">ถอนออก</button>
-                                        </form>
-                                    @else
-                                        <span class="text-muted small">-</span>
                                     @endif
                                 </td>
                             </tr>

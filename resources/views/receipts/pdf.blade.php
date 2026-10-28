@@ -5,32 +5,33 @@
     <meta charset="utf-8">
 
     @php
-        $inv    = $receipt->invoice;
+        $inv      = $receipt->invoice;
+        $customer = $receipt->payer();
+        $lines    = $receipt->lines();
+
         // เลขที่อ่านจากคอลัมน์ code_rc (สร้างอัตโนมัติตอนบันทึก รูปแบบ RC-2569-0001)
         $rcCode = $receipt->code_rc ?? '-';
 
-        /*
-         * ยอดเงิน: ใช้ยอดที่บันทึกไว้ในใบแจ้งหนี้ก่อน ให้ตรงกับใบแจ้งหนี้ใบที่อ้างอิง
-         * ถ้ายังไม่มีคอลัมน์ จะถอยไปใช้วิธีเดิม (อ่านจากใบเสนอราคาแล้วคำนวณ)
-         * เพื่อไม่ให้ไฟล์นี้พังระหว่างที่ยังไม่ได้เพิ่ม migration
-         */
-        $q = $inv?->quotation;
+        // หัวเอกสารตามประเภท
+        $docTitle = match ($receipt->receipt_type) {
+            'advance' => ['ใบเสร็จรับเงินล่วงหน้า', 'ADVANCE RECEIPT'],
+            default   => ['ใบเสร็จรับเงิน', 'RECEIPT'],
+        };
 
-        $subTotal      = $inv?->subtotal ?? $q?->subtotal ?? 0;
-        $discount      = $inv?->discount ?? $q?->discount ?? 0;
-        $afterDiscount = $inv?->after_discount ?? max($subTotal - $discount, 0);
-        $vatRate       = $inv?->vat_rate ?? 7;
-        $vat           = $inv?->vat_amount ?? $afterDiscount * $vatRate / 100;
-        $grandTotal    = $inv?->total_amount ?? $afterDiscount + $vat;
+        // ยอดที่บันทึกไว้ในใบเสร็จ (ใบเก่าที่ยังไม่มีคอลัมน์ ถอยไปใช้ยอดของใบแจ้งหนี้)
+        $subTotal   = (float) $receipt->subtotal ?: ($inv?->itemsSubtotal() ?? 0);
+        $vatRate    = \App\Models\Invoice::VAT_RATE;
+        $vat        = (float) $receipt->vat_amount ?: ($inv?->itemsVat() ?? 0);
+        $gross      = round($subTotal + $vat, 2);
+        $deducted   = (float) $receipt->advance_deducted;
+        $grandTotal = (float) $receipt->total;
 
-        /*
-         * วิธีชำระเงิน: ถ้าตาราง receipts มีคอลัมน์ payment_method จะติ๊กให้อัตโนมัติ
-         * ถ้าไม่มี ช่องจะว่างไว้ให้ติ๊กด้วยมือ
-         */
-        $method = strtolower((string) ($receipt->payment_method ?? ''));
-        $isCash     = in_array($method, ['cash', 'เงินสด'], true);
-        $isTransfer = in_array($method, ['transfer', 'bank_transfer', 'โอน', 'โอนเงิน'], true);
-        $isCheque   = in_array($method, ['cheque', 'check', 'เช็ค'], true);
+        // วิธีชำระ: ติ๊กจากหลักฐานการชำระรายการแรก
+        $proof      = $receipt->proofPayments()->first();
+        $method     = $proof?->method;
+        $isCash     = $method === 'cash';
+        $isTransfer = $method === 'transfer';
+        $isCheque   = $method === 'cheque';
     @endphp
 
     <title>ใบเสร็จรับเงิน {{ $rcCode }}</title>
@@ -257,7 +258,7 @@
                 <table class="doc-box small">
                     <tr>
                         <td colspan="2" class="doc-title">
-                            ใบเสร็จรับเงิน<br><span>RECEIPT</span>
+                            {{ $docTitle[0] }}<br><span>{{ $docTitle[1] }}</span>
                         </td>
                     </tr>
                     <tr>
@@ -287,7 +288,7 @@
         </tr>
         <tr>
             <td class="label" width="12%">ชื่อ</td>
-            <td width="50%"><b>{{ $inv?->customer->name_customer ?? '-' }}</b></td>
+            <td width="50%"><b>{{ $customer->name_customer ?? '-' }}</b></td>
             <td class="label divider" width="16%">ใบแจ้งหนี้</td>
             <td width="22%">
                 {{ $inv?->code_inv ?? '-' }}
@@ -295,7 +296,7 @@
         </tr>
         <tr>
             <td class="label">ที่อยู่</td>
-            <td>{{ $inv?->customer ? customer_address($inv->customer) : '-' }}</td>
+            <td>{{ $customer ? customer_address($customer) : '-' }}</td>
             <td class="label divider">ใบส่งของ</td>
             <td>
                 {{ $inv?->deliveryNote?->code_dn ?? '-' }}
@@ -303,15 +304,15 @@
         </tr>
         <tr>
             <td class="label">เลขภาษี</td>
-            <td>{{ $inv?->customer->tax_id ?? '-' }}</td>
-            <td class="divider"></td>
-            <td></td>
+            <td>{{ $customer->tax_id ?? '-' }}</td>
+            <td class="label divider">แคมป์งาน</td>
+            <td>{{ $receipt->camp->code_camp ?? '-' }}</td>
         </tr>
         <tr>
             <td class="label">โทร</td>
-            <td>{{ $inv?->customer->phone_customer ?? '-' }}</td>
-            <td class="divider"></td>
-            <td></td>
+            <td>{{ $customer->phone_customer ?? '-' }}</td>
+            <td class="label divider">ประเภท</td>
+            <td>{{ $receipt->type_label }}</td>
         </tr>
     </table>
 
@@ -331,14 +332,14 @@
         <tbody>
             @php $i = 1; @endphp
 
-            @foreach ($inv?->details ?? [] as $d)
+            @foreach ($lines as $line)
                 <tr class="{{ $i % 2 === 0 ? 'row-alt' : '' }}">
                     <td class="text-center">{{ $i++ }}</td>
-                    <td>{{ $d->product->name_product ?? '-' }}</td>
-                    <td class="text-center">{{ $d->quantity }}</td>
-                    <td class="text-center">คิว</td>
-                    <td class="text-right">{{ number_format($d->price, 2) }}</td>
-                    <td class="text-right">{{ number_format($d->total, 2) }}</td>
+                    <td>{{ $line['name'] }}</td>
+                    <td class="text-center">{{ rtrim(rtrim(number_format($line['quantity'], 2), '0'), '.') }}</td>
+                    <td class="text-center">{{ $line['unit'] }}</td>
+                    <td class="text-right">{{ number_format($line['price'], 2) }}</td>
+                    <td class="text-right">{{ number_format($line['total'], 2) }}</td>
                 </tr>
             @endforeach
 
@@ -377,9 +378,10 @@
                     &nbsp;&nbsp;
                     <span class="check {{ $isCheque ? 'on' : '' }}"></span>เช็ค
                     <div style="margin-top: 5px;" class="muted">
-                        ธนาคาร ......................... เลขที่ .........................
+                        ธนาคาร {{ $proof?->bank_name ?: '.........................' }}
+                        เลขที่ {{ $proof?->reference_no ?: '.........................' }}
                         <br>
-                        ลงวันที่ .........................
+                        ลงวันที่ {{ $proof?->paid_at?->format('d/m/Y') ?? '.........................' }}
                     </div>
                 </div>
 
@@ -397,17 +399,19 @@
                         <td class="text-right">{{ number_format($subTotal, 2) }}</td>
                     </tr>
                     <tr>
-                        <td>หักส่วนลด</td>
-                        <td class="text-right">{{ number_format($discount, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td>ยอดหลังหักส่วนลด</td>
-                        <td class="text-right">{{ number_format($afterDiscount, 2) }}</td>
-                    </tr>
-                    <tr>
                         <td>ภาษีมูลค่าเพิ่ม {{ rtrim(rtrim(number_format($vatRate, 2), '0'), '.') }}%</td>
                         <td class="text-right">{{ number_format($vat, 2) }}</td>
                     </tr>
+                    @if ($deducted > 0)
+                        <tr>
+                            <td>รวมทั้งสิ้น</td>
+                            <td class="text-right">{{ number_format($gross, 2) }}</td>
+                        </tr>
+                        <tr>
+                            <td>หัก เงินรับล่วงหน้า</td>
+                            <td class="text-right">-{{ number_format($deducted, 2) }}</td>
+                        </tr>
+                    @endif
                     <tr class="grand">
                         <td>จำนวนเงินที่ได้รับ (บาท)</td>
                         <td class="text-right">{{ number_format($grandTotal, 2) }}</td>

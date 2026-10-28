@@ -7,13 +7,10 @@
 @endsection
 
 @php
-    $subTotal = $invoice->quotation->subtotal ?? 0;
-    $discount = $invoice->quotation->discount ?? 0;
-
-    $afterDiscount = max($subTotal - $discount, 0);
-    $vat = $afterDiscount * 0.07;
-
-    $grandTotal = $afterDiscount + $vat;
+    // ใบแจ้งหนี้ไม่มีส่วนลด — คิดจากรายการในใบนี้ + VAT
+    $subTotal   = $invoice->itemsSubtotal();
+    $vat        = $invoice->itemsVat();
+    $grandTotal = $invoice->itemsNetTotal();
 
     // สิทธิ์บันทึก/ลบการชำระ และออกใบเสร็จ
     $canManage = in_array(auth()->user()->role, ['admin', 'staff']);
@@ -23,6 +20,12 @@
 
     $showDelete = $canManage && $invoice->canEditPayments();
     $showForm   = $showDelete && $remaining > 0;
+
+    // เงินรับล่วงหน้าของแคมป์ที่หักในใบนี้ได้
+    $advanceAvailable = $invoice->availableAdvance();
+    $showAdvance      = $showForm && $invoice->canApplyAdvance();
+    $advanceMax       = min($remaining, $advanceAvailable);
+    $advanceApplied   = $invoice->advanceAppliedAmount();
 @endphp
 
 @section('content')
@@ -68,6 +71,11 @@
                             </button>
                         </form>
                     @endif
+                @elseif ($invoice->isSettledByAdvance())
+                    <span class="text-success">
+                        <i class="bi bi-check2-all me-1"></i>
+                        ชำระครบด้วยเงินรับล่วงหน้าแล้ว — ใบเสร็จรับเงินล่วงหน้าคือใบเสร็จของยอดนี้ ไม่ต้องออกใหม่
+                    </span>
                 @elseif ($paid > 0)
                     <span class="text-warning">
                         <i class="bi bi-hourglass-split me-1"></i>
@@ -122,8 +130,19 @@
                         <dt class="col-5 text-muted fw-normal">ลูกค้า</dt>
                         <dd class="col-7">{{ $invoice->customer->name_customer ?? '-' }}</dd>
 
+                        <dt class="col-5 text-muted fw-normal">แคมป์</dt>
+                        <dd class="col-7">
+                            @if ($invoice->camp)
+                                <a href="{{ route('camps.show', $invoice->camp) }}" class="text-decoration-none">
+                                    {{ $invoice->camp->code_camp }}
+                                </a>
+                            @else
+                                <span class="text-muted">-</span>
+                            @endif
+                        </dd>
+
                         <dt class="col-5 text-muted fw-normal">วันที่ออก</dt>
-                        <dd class="col-7">{{ $invoice->created_at?->format('d/m/Y') ?? '-' }}</dd>
+                        <dd class="col-7">{{ ($invoice->invoice_date ?? $invoice->created_at)?->format('d/m/Y') ?? '-' }}</dd>
 
                         <dt class="col-5 text-muted fw-normal">ใบเสนอราคา</dt>
                         <dd class="col-7">
@@ -204,10 +223,6 @@
                                     <th class="text-end">{{ number_format($subTotal, 2) }}</th>
                                 </tr>
                                 <tr>
-                                    <th colspan="4" class="text-end fw-normal text-muted">ส่วนลด</th>
-                                    <th class="text-end">{{ number_format($discount, 2) }}</th>
-                                </tr>
-                                <tr>
                                     <th colspan="4" class="text-end fw-normal text-muted">ภาษีมูลค่าเพิ่ม 7%</th>
                                     <th class="text-end">{{ number_format($vat, 2) }}</th>
                                 </tr>
@@ -231,6 +246,13 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body p-4">
                     <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">การชำระเงิน</h6>
+
+                    @if ($advanceApplied > 0)
+                        <div class="alert alert-warning small py-2">
+                            หักจากเงินรับล่วงหน้าแล้ว {{ number_format($advanceApplied, 2) }} บาท
+                            — ใบเสร็จของใบแจ้งหนี้นี้จะออกเฉพาะยอดที่จ่ายเพิ่ม
+                        </div>
+                    @endif
 
                     {{-- สรุปยอด --}}
                     <div class="row g-2 text-center mb-3">
@@ -292,16 +314,33 @@
                                         </td>
                                         <td class="text-end fw-semibold">{{ number_format($p->amount, 2) }}</td>
                                         <td class="text-center">
-                                            <a href="{{ route('payments.slip', $p) }}" target="_blank"
-                                               class="btn btn-sm btn-outline-secondary"
-                                               title="{{ $p->slip_original_name }}">
-                                                <i class="bi {{ $p->isPdfSlip() ? 'bi-file-earmark-pdf' : 'bi-file-earmark-image' }} me-1"></i>ดู
-                                            </a>
+                                            @if ($p->hasSlip())
+                                                <a href="{{ route('payments.slip', $p) }}" target="_blank"
+                                                   class="btn btn-sm btn-outline-secondary"
+                                                   title="{{ $p->slip_original_name }}">
+                                                    <i class="bi {{ $p->isPdfSlip() ? 'bi-file-earmark-pdf' : 'bi-file-earmark-image' }} me-1"></i>ดู
+                                                </a>
+                                            @elseif ($p->method === 'cash')
+                                                {{-- เงินสดไม่มีไฟล์: หลักฐานคือผู้รับเงินที่ระบบบันทึก --}}
+                                                <span class="badge bg-light text-dark border">
+                                                    <i class="bi bi-cash me-1"></i>รับเงินสดโดย {{ $p->recordedBy->name ?? '-' }}
+                                                </span>
+                                            @elseif ($p->advanceReceipt)
+                                                {{-- หักเงินล่วงหน้า: หลักฐานอยู่ที่ใบเสร็จรับเงินล่วงหน้า --}}
+                                                <a href="{{ route('receipts.show', $p->advanceReceipt->id_receipt) }}"
+                                                   class="btn btn-sm btn-outline-warning">
+                                                    {{ $p->advanceReceipt->code_rc }}
+                                                </a>
+                                            @else
+                                                <span class="text-muted">-</span>
+                                            @endif
                                         </td>
                                         @if ($showDelete)
                                             <td class="text-center">
                                                 <form method="POST" action="{{ route('payments.destroy', $p) }}"
-                                                      data-confirm="รายการชำระ {{ number_format($p->amount, 2) }} บาท และไฟล์หลักฐานจะถูกลบ"
+                                                      data-confirm="{{ $p->isAdvanceApplication()
+                                                          ? 'รายการหักเงินรับล่วงหน้า ' . number_format($p->amount, 2) . ' บาท จะถูกลบ และเงินล่วงหน้าจะกลับไปให้หักได้อีกครั้ง'
+                                                          : 'รายการชำระ ' . number_format($p->amount, 2) . ' บาท และไฟล์หลักฐานจะถูกลบ' }}"
                                                       data-confirm-title="ยืนยันการลบรายการชำระ"
                                                       data-confirm-variant="danger"
                                                       data-confirm-ok="ลบข้อมูล">
@@ -330,7 +369,38 @@
         {{-- ฟอร์มแนบหลักฐาน: แสดงเมื่อมีสิทธิ์ + ยังไม่ออกใบเสร็จ + ยังมียอดค้าง --}}
         @if ($showForm)
             <div class="col-lg-4">
-                <div class="card border-0 shadow-sm h-100">
+                {{-- หักเงินรับล่วงหน้าของแคมป์ (ลูกค้าจ่ายมาก่อนส่งของ) --}}
+                @if ($showAdvance)
+                    <div class="card border-warning shadow-sm mb-3">
+                        <div class="card-body p-4">
+                            <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">หักเงินรับล่วงหน้า</h6>
+
+                            <p class="small mb-2">
+                                แคมป์ {{ $invoice->camp->code_camp }} มีเงินรับล่วงหน้าคงเหลือ
+                                <strong>{{ number_format($advanceAvailable, 2) }}</strong> บาท
+                            </p>
+
+                            <form action="{{ route('payments.applyAdvance', $invoice->id_invoice) }}" method="POST"
+                                  data-confirm="ระบบจะหักเงินรับล่วงหน้าเข้าใบแจ้งหนี้นี้ ยอดค้างชำระจะลดลงตามยอดที่หัก"
+                                  data-confirm-title="ยืนยันการหักเงินรับล่วงหน้า"
+                                  data-confirm-ok="หักเงิน"
+                                  data-confirm-variant="warning">
+                                @csrf
+                                <div class="mb-3">
+                                    <label class="form-label">ยอดที่จะหัก (บาท)</label>
+                                    <input type="number" name="amount" class="form-control" step="0.01" min="0.01"
+                                           max="{{ $advanceMax }}" value="{{ old('amount', $advanceMax) }}" required>
+                                    <div class="form-text">หักได้สูงสุด {{ number_format($advanceMax, 2) }} บาท</div>
+                                </div>
+                                <button class="btn btn-warning w-100" type="submit">
+                                    <i class="bi bi-piggy-bank me-1"></i> หักเงินรับล่วงหน้า
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                @endif
+
+                <div class="card border-0 shadow-sm">
                     <div class="card-body p-4">
                         <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">บันทึกการชำระเงิน</h6>
 
@@ -345,7 +415,8 @@
                         @endif
 
                         <form action="{{ route('payments.store', $invoice->id_invoice) }}" method="POST"
-                              enctype="multipart/form-data">
+                              enctype="multipart/form-data"
+            data-confirm="ต้องการบันทึกการชำระเงินนี้หรือไม่ ตรวจสอบยอดเงินและหลักฐานให้ถูกต้องก่อนยืนยัน" data-confirm-title="ยืนยันการบันทึกการชำระเงิน" data-confirm-ok="บันทึก" data-confirm-variant="success">
                             @csrf
 
                             <div class="mb-3">
@@ -364,7 +435,7 @@
 
                             <div class="mb-3">
                                 <label class="form-label">วิธีชำระ <span class="text-danger">*</span></label>
-                                <select name="method" class="form-select" required>
+                                <select name="method" id="method" class="form-select" required>
                                     @foreach (\App\Models\Payment::METHODS as $key => $label)
                                         <option value="{{ $key }}" @selected(old('method', 'transfer') === $key)>
                                             {{ $label }}
@@ -385,14 +456,10 @@
                                        value="{{ old('reference_no') }}">
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">หลักฐานการชำระ <span class="text-danger">*</span></label>
-                                <input type="file" name="slip" class="form-control"
-                                       accept=".jpg,.jpeg,.png,.pdf" required>
-                                <div class="form-text">
-                                    สลิปโอน / รูปเช็ค / ใบรับเงินสดที่ลูกค้าเซ็น — JPG, PNG หรือ PDF ไม่เกิน 5 MB
-                                </div>
-                            </div>
+                            @include('partials.slip-input', [
+                                'requireSlip' => (bool) \App\Models\Setting::get('payment.require_slip', true),
+                                'method'      => old('method', 'transfer'),
+                            ])
 
                             <div class="mb-3">
                                 <label class="form-label">หมายเหตุ</label>

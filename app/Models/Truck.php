@@ -112,7 +112,16 @@ class Truck extends Model
     public function camps()
     {
         return $this->belongsToMany(Camp::class, 'camp_truck', 'id_truck', 'id_camp')
-                    ->withPivot('id_assignment', 'assigned_date', 'released_date', 'note')
+                    ->using(CampTruck::class)
+                    ->withPivot('id_assignment', 'id_driver', 'assigned_date', 'released_date', 'note')
                     ->withTimestamps();
+    }
+
+    /** รถคันนี้กำลังทำงานอยู่ที่แคมป์ไหนหรือไม่ */
+    public function scopeNotInActiveCamp($query)
+    {
+        return $query->whereNotIn('id_truck', CampTruck::query()
+            ->whereNull('released_date')
+            ->select('id_truck'));
     }
 }

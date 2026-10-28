@@ -68,9 +68,21 @@
             background: rgba(0, 0, 0, .05);
             color: #333;
         }
+                /* กล่องกราฟต้องมีความสูงคงที่ ไม่งั้น Chart.js จะยืดไม่หยุดตอน responsive */
+        .dashboard-page .chart-box {
+            position: relative;
+            height: 320px;
+        }
+        .dashboard-page .section-divider {
+            border: 0;
+            border-top: 1px solid var(--card-border);
+            margin: 2rem 0 1.5rem;
+        }
     </style>
 
     <div class="container py-3 dashboard-page">
+
+        <h6 class="mb-3 text-muted">ภาพรวมการปฏิบัติงาน</h6>
 
         {{-- ===== KPI ===== --}}
         <div class="row g-3">
@@ -116,10 +128,13 @@
 
             <div class="col-12 col-md-6 col-xl-3">
                 <div class="p-4 kpi-card h-100">
-                    <div class="text-muted kpi-label">ลูกค้าทั้งหมด</div>
-                    <div class="kpi-number mt-1">{{ number_format($customersTotal) }}</div>
-                    <div class="mt-3">
-                        <a href="{{ route('customers.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <div class="text-muted kpi-label">ยอดค้างรับจากลูกค้า</div>
+                    <div class="kpi-number mt-1 {{ $receivables['amount'] > 0 ? 'text-danger' : '' }}">
+                        {{ number_format($receivables['amount'], 2) }}
+                    </div>
+                    <div class="mt-3 d-flex align-items-center gap-2">
+                        <span class="badge badge-soft">ใบแจ้งหนี้ค้าง {{ $receivables['count'] }} ใบ</span>
+                        <a href="{{ route('invoices.index') }}" class="btn btn-outline-secondary btn-sm">
                             ดูทั้งหมด
                         </a>
                     </div>
@@ -131,7 +146,7 @@
         {{-- ===== ตาราง ===== --}}
         <div class="row g-3 mt-1">
 
-            <div class="col-12 col-xl-6">
+            <div class="col-12">
                 <div class="p-4 section-card h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">แคมป์ที่ดำเนินการอยู่</h6>
@@ -179,53 +194,12 @@
                 </div>
             </div>
 
-            <div class="col-12 col-xl-6">
-                <div class="p-4 section-card h-100">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="mb-0">รถที่เพิ่มล่าสุด</h6>
-                        <a href="{{ route('trucks.index') }}" class="btn btn-outline-secondary btn-sm">
-                            ดูทั้งหมด
-                        </a>
-                    </div>
-
-                    @if (count($recentTrucks) === 0)
-                        <p class="text-muted mb-0">ยังไม่มีข้อมูลรถ</p>
-                    @else
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>จังหวัด</th>
-                                        <th>ปี</th>
-                                        <th>สถานะ</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($recentTrucks as $t)
-                                        <tr>
-                                            <td>{{ $t->province_truck ?? '-' }}</td>
-                                            <td>{{ $t->year_truck ?? '-' }}</td>
-                                            <td>
-                                                @php
-                                                    $map = [
-                                                        'active'      => ['พร้อมใช้งาน', 'text-bg-dark'],
-                                                        'maintenance' => ['ซ่อมบำรุง', 'text-bg-secondary'],
-                                                        'retired'     => ['ปลดประจำการ', 'text-bg-light text-dark'],
-                                                    ];
-                                                    $label = $map[$t->status_truck ?? ''] ?? [$t->status_truck ?: '-', 'text-bg-light text-dark'];
-                                                @endphp
-                                                <span class="badge {{ $label[1] }}">{{ $label[0] }}</span>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endif
-                </div>
-            </div>
-
         </div>
+
+        {{-- ===== กราฟภาพรวม + ตัวกรองใต้กราฟ (ล่างสุด) ===== --}}
+        <hr class="section-divider">
+        @include('partials.dashboard-chart')
+        @include('partials.dashboard-filter')
 
     </div>
 @endsection
