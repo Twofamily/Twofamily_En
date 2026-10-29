@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\Permission;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -21,7 +22,7 @@ class User extends Authenticatable
     use TwoFactorAuthenticatable;
 
     /* ============================================================
-     |  ค่าคงที่ของสิทธิ์  (เพิ่มใหม่)
+     |  ค่าคงที่ของสิทธิ์
      |  ใช้แทนการพิมพ์ string ตรง ๆ กันพิมพ์ผิด
      |  เรียกใช้:  User::ROLE_ADMIN
      ============================================================ */
@@ -30,7 +31,7 @@ class User extends Authenticatable
     public const ROLE_VIEWER = 'viewer';
 
     /**
-     * รายการสิทธิ์ทั้งหมด + ชื่อภาษาไทย (เพิ่มใหม่)
+     * รายการสิทธิ์ทั้งหมด + ชื่อภาษาไทย
      * ใช้ทำ dropdown ในหน้าเพิ่ม/แก้ไขผู้ใช้
      */
     public static function roleList(): array
@@ -48,11 +49,16 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
+        'name',             // ประกอบจาก first_name + last_name ให้เองตอนบันทึก
+        'first_name',
+        'last_name',
         'email',
         'password',
-        'role',        // เพิ่มใหม่
-        'is_active',   // เพิ่มใหม่
+        'role',
+        'permissions',      // สิทธิ์รายหน้า (JSON)
+        'is_active',
+        'signature_path',   // path รูปลายเซ็น สัมพัทธ์จาก public/
+        'position',         // ตำแหน่งที่พิมพ์ใต้ชื่อในเอกสาร
     ];
 
     /**
@@ -86,12 +92,37 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
-            'is_active'         => 'boolean',   // เพิ่มใหม่
+            'is_active'         => 'boolean',
+            'permissions'       => 'array',
         ];
     }
 
     /* ============================================================
-     |  เมธอดช่วยตรวจสอบสิทธิ์  (เพิ่มใหม่)
+     |  ชื่อ / นามสกุล
+     |  name เป็นชื่อเต็มที่ระบบส่วนอื่นใช้ (Jetstream, PDF, หน้ารายการ)
+     |  แก้ชื่อ/นามสกุล → ประกอบ name ใหม่ · แก้ name ตรง ๆ (หน้าโปรไฟล์ Jetstream) → แยกกลับเป็นชื่อ/นามสกุล
+     ============================================================ */
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            if ($user->isDirty(['first_name', 'last_name']) && filled($user->first_name)) {
+                $user->name = trim($user->first_name . ' ' . $user->last_name);
+            } elseif ($user->isDirty('name')) {
+                [$user->first_name, $user->last_name] = self::splitName($user->name);
+            }
+        });
+    }
+
+    /** "สมหญิง ขยันงาน" → ['สมหญิง', 'ขยันงาน'] (คำแรก = ชื่อ ที่เหลือ = นามสกุล) */
+    public static function splitName(?string $name): array
+    {
+        $parts = preg_split('/\s+/u', trim((string) $name), 2);
+
+        return [$parts[0] ?? '', $parts[1] ?? null];
+    }
+
+    /* ============================================================
+     |  เมธอดช่วยตรวจสอบสิทธิ์
      |  ใช้ใน Blade เช่น  @if(auth()->user()->isAdmin())
      ============================================================ */
 
@@ -125,15 +156,103 @@ class User extends Authenticatable
     /**
      * มีสิทธิ์เพิ่ม/แก้ไข/ลบข้อมูลหรือไม่
      * ใช้ครอบปุ่มในหน้า Blade:  @if(auth()->user()->canEdit())
+     *
+     * ถ้าไม่ระบุหน้า จะดูจากหน้าปัจจุบันให้อัตโนมัติ
+     * ปุ่มที่ครอบ canEdit() ไว้แล้วจึงเคารพสิทธิ์รายหน้าทันทีโดยไม่ต้องแก้ view
+     * ระบุเองได้: canEdit('quotations')
      */
-    public function canEdit(): bool
+    public function canEdit(?string $module = null): bool
     {
-        return $this->hasRole(self::ROLE_ADMIN, self::ROLE_STAFF);
+        if (! $this->hasRole(self::ROLE_ADMIN, self::ROLE_STAFF)) {
+            return false;
+        }
+
+        $module ??= Permission::moduleFromRoute(request()->route()?->getName());
+
+        return $module ? $this->canEditModule($module) : true;
     }
 
     /** ชื่อสิทธิ์ภาษาไทย สำหรับแสดงในตาราง */
     public function getRoleNameAttribute(): string
     {
         return self::roleList()[$this->role] ?? 'ไม่ระบุ';
+    }
+
+    /* ============================================================
+     |  สิทธิ์รายหน้า
+     ============================================================ */
+
+    /**
+     * ระดับสิทธิ์จริงของหน้านั้น (0 = ไม่มี, 1 = ดู, 2 = แก้ไข)
+     * = ค่าที่ต่ำกว่าระหว่างเพดานของ role กับค่าที่ตั้งรายคน
+     */
+    public function permissionLevel(string $module): int
+    {
+        if ($this->isAdmin()) {
+            return Permission::LEVELS[Permission::EDIT];
+        }
+
+        $cap    = Permission::toInt(Permission::defaultFor($this->role));
+        $custom = $this->permissions[$module] ?? null;
+
+        // ยังไม่เคยตั้งหน้านี้ → ใช้ตาม role
+        if ($custom === null) {
+            return $cap;
+        }
+
+        return min($cap, Permission::toInt($custom));
+    }
+
+    /** เข้าดูหน้านี้ได้หรือไม่  ใช้ซ่อนเมนู: canViewModule('quotations') */
+    public function canViewModule(string $module): bool
+    {
+        return $this->permissionLevel($module) >= Permission::LEVELS[Permission::VIEW];
+    }
+
+    /** แก้ไขข้อมูลในหน้านี้ได้หรือไม่ */
+    public function canEditModule(string $module): bool
+    {
+        return $this->permissionLevel($module) >= Permission::LEVELS[Permission::EDIT];
+    }
+
+    /* ============================================================
+     |  ลายเซ็นอิเล็กทรอนิกส์
+     ============================================================ */
+
+    /**
+     * มีไฟล์ลายเซ็นที่ใช้งานได้จริงหรือไม่
+     * เช็คถึงระดับไฟล์ เพราะ path ในฐานข้อมูลอาจชี้ไปหาไฟล์ที่ถูกลบไปแล้ว
+     */
+    public function hasSignature(): bool
+    {
+        return $this->signature_path
+            && file_exists(public_path($this->signature_path));
+    }
+
+    /**
+     * path เต็มของไฟล์ลายเซ็น สำหรับ dompdf
+     * คืน null ถ้าไม่มีไฟล์ เพื่อให้ Blade ข้ามการแสดงรูปไปเลย
+     *
+     * หมายเหตุ: dompdf อ่าน URL ไม่ได้ ต้องใช้ path ในเครื่องเท่านั้น
+     * จึงใช้ public_path() ไม่ใช่ asset()
+     */
+    /**
+     * path ลายเซ็นที่ dompdf วาดได้จริง (null = ไม่แสดงรูป แต่ PDF ยังออกได้)
+     * PNG ต้องใช้ PHP GD บนเว็บเซิร์ฟเวอร์ · JPG ไม่ต้องใช้
+     */
+    public function signatureForPdf(): ?string
+    {
+        if (! $this->hasSignature()) {
+            return null;
+        }
+
+        $isJpeg = (bool) preg_match('/\.jpe?g$/i', $this->signature_path);
+
+        return ($isJpeg || extension_loaded('gd')) ? public_path($this->signature_path) : null;
+    }
+
+    public function getSignatureFullPathAttribute(): ?string
+    {
+        return $this->hasSignature() ? public_path($this->signature_path) : null;
     }
 }

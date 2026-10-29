@@ -7,54 +7,59 @@
 @endsection
 
 @section('content')
+    @php
+        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
+        $canEdit = auth()->user()->canEdit('quotations');
+    @endphp
     <div class="container py-3">
 
-        @if (session('ok'))
-            <div class="alert alert-success shadow-sm">
-                {{ session('ok') }}
-            </div>
-        @endif
+        <x-search-bar :action="route('quotations.index')"
+                      placeholder="ค้นหาเลขที่ใบเสนอราคา / ชื่อลูกค้า / สถานะ เช่น อนุมัติ"
+                      :search="$search" :per-page="$perPage"
+                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่ออก"
+                      :statuses="\App\Models\Quotation::STATUS_LABELS" :status="$status"
+                      :ranges="$ranges" />
 
-        <div class="d-flex justify-content-end mb-3">
-            <a href="{{ route('quotations.create') }}" class="btn btn-dark">
-                + สร้างใบเสนอราคา
-            </a>
+        {{-- ==================== ปุ่มสร้าง ==================== --}}
+        <div class="d-flex justify-content-end align-items-center mb-3">
+            @if ($canEdit)
+                <button type="button" class="btn btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#createQuotationModal">
+                    <i class="bi bi-plus-lg me-1"></i>
+                    สร้างใบเสนอราคา
+                </button>
+            @endif
         </div>
 
+        {{-- ==================== ตาราง ==================== --}}
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
+                        <th style="width:60px;" class="text-center">ลำดับ</th>
                         <th>เลขที่ใบเสนอราคา</th>
                         <th>ลูกค้า</th>
                         <th>วันที่ออก</th>
                         <th class="text-end">ยอดสุทธิ</th>
                         <th class="text-center">สถานะ</th>
-                        <th class="text-center">จัดการ</th>
+                        <th class="text-center" style="width:240px;">จัดการ</th>
                     </tr>
                 </thead>
 
                 <tbody>
                     @forelse ($quotations as $q)
                         <tr>
-
-                            <td>
-                                <strong>
-                                    QT{{ str_pad($q->id_quot, 5, '0', STR_PAD_LEFT) }}
-                                </strong>
+                            {{-- ลำดับต่อเนื่องข้ามหน้า เช่น หน้า 2 ที่ 10 ต่อหน้า จะเริ่มที่ 11 --}}
+                            <td class="text-center text-muted">
+                                {{ $quotations->firstItem() + $loop->index }}
                             </td>
 
-                            <td>
-                                {{ $q->customer->name_customer ?? '-' }}
-                            </td>
+                            <td><strong>{{ $q->code_quot }}</strong></td>
 
-                            <td>
-                                {{ \Carbon\Carbon::parse($q->date_quot)->format('d/m/Y') }}
-                            </td>
+                            <td>{{ $q->customer->name_customer ?? '-' }}</td>
 
-                            <td class="text-end">
-                                {{ number_format($q->total_amount, 2) }}
-                            </td>
+                            <td>{{ \Carbon\Carbon::parse($q->date_quot)->format('d/m/Y') }}</td>
+
+                            <td class="text-end">{{ number_format($q->total_amount, 2) }}</td>
 
                             <td class="text-center">
                                 @if ($q->status == 'draft')
@@ -69,29 +74,60 @@
                             </td>
 
                             <td class="text-center">
-                                <div class="btn-group">
+                                {{-- เอกสารไม่มีการลบ — ยกเลิกแทน (เลขที่ไม่หาย) --}}
+                                <x-row-actions :show="route('quotations.show', $q)" :label="$q->code_quot">
+                                    @if ($canEdit && $q->status === 'draft')
+                                        <x-row-actions.link :href="route('quotations.show', [$q, 'edit' => 1])" icon="bi-pencil-square">แก้ไข</x-row-actions.link>
+                                    @endif
 
-                                    <!-- ดู -->
-                                    <a href="{{ route('quotations.show', $q) }}" class="btn btn-sm btn-outline-primary">
-                                        ดู
-                                    </a>
+                                    {{-- อนุมัติ (เฉพาะสถานะร่าง · เฉพาะ admin · ห้ามอนุมัติใบของตัวเอง) --}}
+                                    @if ($canEdit && $q->status === 'draft')
+                                        @php $approveBlock = $q->approveBlocker(auth()->user()); @endphp
+                                        @if (! $approveBlock)
+                                            <x-row-actions.form :action="route('quotations.approve', $q)" method="PATCH"
+                                                                icon="bi-check-lg" variant="success"
+                                                                :confirm="'ใบเสนอราคา ' . $q->code_quot . ' จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้'"
+                                                                confirm-title="ยืนยันการอนุมัติ" confirm-ok="อนุมัติ">
+                                                อนุมัติ
+                                            </x-row-actions.form>
+                                        @else
+                                            <li>
+                                                <span class="dropdown-item disabled row-actions-disabled" aria-disabled="true">
+                                                    <i class="bi bi-check-lg" aria-hidden="true"></i>
+                                                    <span>อนุมัติ <small class="d-block">{{ $approveBlock }}</small></span>
+                                                </span>
+                                            </li>
+                                        @endif
+                                    @endif
 
-                                    <form method="POST" action="{{ route('quotations.destroy', $item) }}" class="d-inline"
-                                        data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
-                                        data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
-                                        data-confirm-ok="ลบข้อมูล">
-                                        @csrf @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
-                                    </form>
-
-                                </div>
+                                    {{-- ยกเลิก (สถานะร่างหรืออนุมัติแล้ว) --}}
+                                    @if ($canEdit && in_array($q->status, ['draft', 'approved']))
+                                        <x-row-actions.form :action="route('quotations.cancel', $q)" method="PATCH"
+                                                            icon="bi-slash-circle" variant="warning"
+                                                            :confirm="'ใบเสนอราคา ' . $q->code_quot . ' จะถูกยกเลิก'"
+                                                            confirm-title="ยืนยันการยกเลิก" confirm-ok="ยกเลิกใบเสนอราคา">
+                                            ยกเลิกใบเสนอราคา
+                                        </x-row-actions.form>
+                                    @endif
+                                </x-row-actions>
                             </td>
-
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">
-                                — ยังไม่มีใบเสนอราคา —
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+
+                                @if ($search !== '' || $dateFrom || $dateTo)
+                                    ไม่พบใบเสนอราคาที่ตรงกับเงื่อนไขที่ค้นหา
+                                    <div class="mt-2">
+                                        <a href="{{ route('quotations.index') }}"
+                                            class="btn btn-sm btn-outline-secondary">
+                                            ล้างเงื่อนไขการค้นหา
+                                        </a>
+                                    </div>
+                                @else
+                                    ยังไม่มีใบเสนอราคา
+                                @endif
                             </td>
                         </tr>
                     @endforelse
@@ -99,9 +135,11 @@
             </table>
         </div>
 
-        <div class="mt-3">
-            {{ $quotations->links() }}
-        </div>
+        {{-- ==================== สรุปจำนวน + ปุ่มเปลี่ยนหน้า ==================== --}}
+        @include('partials.pagination-footer', ['paginator' => $quotations])
 
     </div>
+    @if ($canEdit)
+        @include('quotations._form-modal', ['mode' => 'create'])
+    @endif
 @endsection

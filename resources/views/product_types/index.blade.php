@@ -7,57 +7,57 @@
 @endsection
 
 @section('content')
+    @php
+        $canEdit = auth()->user()->canEdit('product_types');
+    @endphp
     <div class="container py-3">
-        {{-- แสดงข้อความแจ้งเตือนเมื่อบันทึก/ลบสำเร็จ --}}
-        @if (session('ok'))
-            <div class="alert alert-success">{{ session('ok') }}</div>
-        @endif
 
-        <div class="d-flex justify-content-end mb-3">
-            <a href="{{ route('product_types.create') }}" class="btn btn-dark">
-                + เพิ่มประเภทสินค้า
-            </a>
+        <div class="mb-2">
+            <label class="form-label fw-bold">ค้นหา</label>
         </div>
 
+        <x-search-bar :action="route('product_types.index')" placeholder="ชื่อประเภทสินค้า" :search="$search" :per-page="$perPage" />
 
-        {{-- ตารางแสดงข้อมูล --}}
+        <div class="d-flex justify-content-end align-items-center mb-3">
+            @if ($canEdit)
+            <a href="{{ route('product_types.create') }}" class="btn btn-dark text-nowrap">
+                <i class="bi bi-plus-lg me-1"></i>
+                เพิ่มประเภทสินค้า
+            </a>
+            @endif
+        </div>
+
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>ชื่อประเภทสินค้า</th>
-                        <th style="width:120px;">จัดการ</th>
+                        <th class="text-center" style="width:80px;">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($types as $t)
                         <tr>
                             <td>{{ $t->name_product_type }}</td>
-                            <td>
-                                <a href="{{ route('product_types.edit', $t) }}"
-                                    class="btn btn-sm btn-outline-primary">แก้ไข</a>
 
-                                <form method="POST" action="{{ route('product_types.destroy', $item) }}" class="d-inline"
-                                    data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
-                                    data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
-                                    data-confirm-ok="ลบข้อมูล">
-                                    @csrf @method('DELETE')
-                                    <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
-                                </form>
+                            <td class="text-center">
+                                <x-row-actions :edit="$canEdit ? route('product_types.edit', $t) : null"
+                                               :delete="$canEdit ? (route('product_types.destroy', $t)) : null"
+                                               :label="$t->name_product_type" />
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="2" class="text-center text-muted">— ไม่พบข้อมูล —</td>
+                            <td colspan="2" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                ไม่พบข้อมูล
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
 
-        {{-- แสดง pagination --}}
-        <div class="mt-3">
-            {{ $types->links() }}
-        </div>
+        @include('partials.pagination-footer', ['paginator' => $types])
     </div>
 @endsection

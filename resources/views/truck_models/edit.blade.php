@@ -19,7 +19,8 @@
             </div>
         @endif
 
-                <form method="POST" action="{{ route('truck_models.update', $model) }}" autocomplete="off">
+                <form method="POST" action="{{ route('truck_models.update', $model) }}" autocomplete="off"
+            data-confirm="ต้องการบันทึกการแก้ไขรุ่นรถบรรทุกนี้หรือไม่" data-confirm-title="ยืนยันการแก้ไขข้อมูล" data-confirm-ok="บันทึกการแก้ไข" data-confirm-variant="primary">
             @csrf @method('PUT')
             @include('truck_models._form', ['model' => $model, 'brands' => $brands])
 

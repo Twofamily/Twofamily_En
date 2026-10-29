@@ -2,93 +2,136 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\TruckStoreRequest;
+use App\Http\Requests\TruckUpdateRequest;
 use App\Models\Truck;
 use App\Models\TruckBrand;
 use App\Models\TruckMaintenance;
+use App\Models\TruckModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Http\Requests\TruckStoreRequest;
-use App\Http\Requests\TruckUpdateRequest;
+use Illuminate\Support\Facades\Storage;
 
 class TruckController extends Controller
 {
+    /** แท็บในหน้ารถบรรทุก => [ชื่อ, ไอคอน, สิทธิ์ที่ต้องมี] */
+    private const TABS = [
+        'trucks' => ['label' => 'รถบรรทุก', 'icon' => 'bi-truck-front', 'module' => 'trucks'],
+        'models' => ['label' => 'รุ่นรถ',    'icon' => 'bi-card-list',   'module' => 'truck_models'],
+        'brands' => ['label' => 'ยี่ห้อ',     'icon' => 'bi-award',       'module' => 'truck_brands'],
+    ];
+
+    /**
+     * หน้ารถบรรทุก มี 3 แท็บ (?tab=)
+     *   trucks : รถบรรทุกในบริษัท (ค่าเริ่มต้น)
+     *   models : รุ่นรถ — เห็นเฉพาะคนที่มีสิทธิ์ดูหน้ารุ่นรถ
+     *   brands : ยี่ห้อ — เห็นเฉพาะคนที่มีสิทธิ์ดูหน้ายี่ห้อ
+     *
+     * ปุ่มเพิ่มของทุกแท็บเปิดเป็น modal ในหน้านี้ ไม่ย้ายหน้า
+     * query เฉพาะแท็บที่เปิดอยู่ แท็บอื่นนับแค่จำนวนไว้โชว์บนป้าย
+     */
     public function index(Request $request)
     {
-        $q = $request->q;
-        $status = $request->status;
+        $user = $request->user();
 
-        $query = Truck::with(['brand', 'model']);
+        $tabs = collect(self::TABS)
+            ->filter(fn ($t) => $user?->canViewModule($t['module']))
+            ->all();
 
-        if ($q) {
-            $query->where(function ($x) use ($q) {
-                $x->where('id_truck', 'like', "%$q%")
-                    ->orWhereHas('brand', function ($b) use ($q) {
-                        $b->where('name_brand', 'like', "%$q%");
-                    })
-                    ->orWhereHas('model', function ($m) use ($q) {
-                        $m->where('name_model', 'like', "%$q%");
-                    });
-            });
-        }
+        $tab = array_key_exists((string) $request->query('tab'), $tabs) ? $request->query('tab') : 'trucks';
 
-        if ($status) {
-            $query->where('status_truck', $status);
-        }
+        $counts = [
+            'trucks' => Truck::count(),
+            'models' => TruckModel::count(),
+            'brands' => TruckBrand::count(),
+        ];
 
-        $trucks = $query->orderByDesc('created_at')->paginate(10);
+        $data = match ($tab) {
+            'models' => app(TruckModelController::class)->listData($request),
+            'brands' => app(TruckBrandController::class)->listData($request),
+            default  => $this->truckListData($request),
+        };
 
-        return view('trucks.index', compact('trucks', 'q', 'status'));
+        // dropdown ใน modal เพิ่มรถ (ยี่ห้อ → รุ่น → สเปค) และ modal เพิ่มรุ่น
+        $brandOptions = match ($tab) {
+            'trucks' => TruckBrand::with('models')->orderBy('name_brand')->get(),
+            'models' => TruckBrand::orderBy('name_brand')->get(),
+            default  => collect(),
+        };
+
+        return view('trucks.index', $data + compact('tab', 'tabs', 'counts', 'brandOptions'));
     }
 
+    /** ข้อมูลตารางรถบรรทุก (แท็บแรก) */
+    private function truckListData(Request $request): array
+    {
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
+
+        // พิมพ์ "ซ่อม" / "พร้อม" / "ปลด" ก็ค้นตามสถานะได้
+        $statuses = $this->statusesMatching($search, Truck::STATUS_LABELS);
+
+        // dropdown เลือกสถานะ + ช่วงปีที่ซื้อ
+        $status = $this->statusFilter($request, array_keys(Truck::STATUS_LABELS));
+        $ranges = $this->numberRanges($request, [
+            'year' => [
+                'label'   => 'ปีที่ซื้อ',
+                'unit'    => null,
+                'options' => Truck::whereNotNull('year_truck')->distinct()->orderBy('year_truck')->pluck('year_truck'),
+            ],
+        ]);
+
+        // ช่องค้นหาช่องเดียว: ทะเบียน จังหวัด ปี ยี่ห้อ รุ่น และสถานะ
+        $trucks = Truck::with(['brand', 'model'])
+            ->when($search !== '', function ($query) use ($search, $statuses) {
+                $query->where(function ($sub) use ($search, $statuses) {
+                    $sub->where('id_truck', 'like', "%{$search}%")
+                        ->orWhere('province_truck', 'like', "%{$search}%")
+                        ->orWhere('year_truck', 'like', "%{$search}%")
+                        ->orWhereHas('brand', fn ($b) => $b->where('name_brand', 'like', "%{$search}%"))
+                        ->orWhereHas('model', fn ($m) => $m->where('name_model', 'like', "%{$search}%"));
+                    if ($statuses) {
+                        $sub->orWhereIn('status_truck', $statuses);
+                    }
+                });
+            })
+            ->when($status, fn ($query) => $query->where('status_truck', $status))
+            ->tap(fn ($query) => $this->applyNumberRange($query, 'year_truck', $ranges['year']))
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return compact('trucks', 'search', 'perPage', 'status', 'ranges');
+    }
+
+    /** ฟอร์มเพิ่มรถย้ายไปเป็น modal ในหน้ารายการแล้ว — เปิด URL เดิมก็เด้ง modal ให้ */
     public function create()
     {
-        $truck = new Truck();
-        $brands = TruckBrand::with('models')->orderBy('name_brand')->get();
-        return view('trucks.create', compact('truck', 'brands'));
+        return redirect()->route('trucks.index', ['open' => 'truck']);
     }
 
     public function store(TruckStoreRequest $request)
-{
-    $data = $request->validated();
+    {
+        $data = $request->validated();
 
-    DB::transaction(function () use ($data, $request) {
-        $truck = Truck::create($data);
-
-        if ($data['status_truck'] === 'maintenance') {
-            TruckMaintenance::create([
-                'id_truck'        => $truck->id_truck,
-                'title'           => $request->title,
-                'detail'          => $request->detail,
-                'garage'          => $request->garage,
-                'cost'            => $request->cost,
-                'start_date'      => $request->start_date,
-                'expected_return' => $request->expected_return,
-            ]);
+        if ($request->hasFile('image')) {
+            $data['image'] = $request->file('image')->store('trucks', 'public');
         }
-    });
 
-    return redirect()->route('trucks.index')->with('ok', 'เพิ่มรถเรียบร้อย');
-}
+        DB::transaction(function () use ($data, $request) {
+            $truck = Truck::create($data);
 
-    public function edit($id)
-    {
-        $truck = Truck::findOrFail($id);
-        $brands = TruckBrand::with('models')->orderBy('name_brand')->get();
-        return view('trucks.edit', compact('truck', 'brands'));
-    }
+            if ($data['status_truck'] === 'maintenance') {
+                TruckMaintenance::create(array_merge(
+                    ['id_truck' => $truck->id_truck],
+                    $this->extractMaintenanceData($request->all())
+                ));
+            }
+        });
 
-    public function update(TruckUpdateRequest $request, Truck $truck)
-    {
-        $truck->fill($request->validated());
-        $truck->save();
-
-        return redirect()->route('trucks.index')->with('ok', 'อัปเดตรถเรียบร้อย');
-    }
-
-    public function destroy(Truck $truck)
-    {
-        $truck->delete();
-        return redirect()->route('trucks.index')->with('ok', 'ลบข้อมูลรถแล้ว');
+        return redirect()
+            ->route('trucks.index')
+            ->with('ok', 'เพิ่มรถเรียบร้อย');
     }
 
     public function show(Truck $truck)
@@ -98,18 +141,50 @@ class TruckController extends Controller
         return view('trucks.show', compact('truck'));
     }
 
+    /** แก้ไขรถทำในหน้าต่าง (modal) ของแท็บรถบรรทุก */
+    public function edit(Truck $truck)
+    {
+        return redirect()->route('trucks.index', ['edit' => $truck->id_truck]);
+    }
+
+    public function update(TruckUpdateRequest $request, Truck $truck)
+    {
+        $data = $request->validated();
+
+        if ($request->hasFile('image')) {
+            $this->deleteImageIfExists($truck->image);
+            $data['image'] = $request->file('image')->store('trucks', 'public');
+        }
+
+        $truck->update($data);
+
+        return redirect()
+            ->route('trucks.index', $request->only('page', 'search', 'status', 'per_page'))
+            ->with('ok', 'อัปเดตรถเรียบร้อย');
+    }
+
+    public function destroy(Truck $truck)
+    {
+        DB::transaction(function () use ($truck) {
+            $this->deleteImageIfExists($truck->image);
+            $truck->delete();
+        });
+
+        return redirect()
+            ->route('trucks.index')
+            ->with('ok', 'ลบข้อมูลรถแล้ว');
+    }
+
     public function updateStatus(Request $request, Truck $truck)
     {
         $data = $request->validate([
             'status_truck'    => ['required', 'in:active,maintenance,retired'],
-
             'title'           => ['required_if:status_truck,maintenance', 'nullable', 'string', 'max:255'],
             'detail'          => ['nullable', 'string', 'max:2000'],
             'garage'          => ['nullable', 'string', 'max:255'],
             'cost'            => ['nullable', 'numeric', 'min:0'],
             'start_date'      => ['required_if:status_truck,maintenance', 'nullable', 'date'],
             'expected_return' => ['nullable', 'date', 'after_or_equal:start_date'],
-
             'retire_reason'   => ['required_if:status_truck,retired', 'nullable', 'string', 'max:500'],
         ], [
             'title.required_if'              => 'กรุณาระบุว่าซ่อมอะไร',
@@ -120,11 +195,10 @@ class TruckController extends Controller
         ]);
 
         if ($truck->status_truck === $data['status_truck']) {
-            return back()->with('info', 'สถานะไม่มีการเปลี่ยนแปลง');
+            return back()->with('ok', 'สถานะไม่มีการเปลี่ยนแปลง');
         }
 
         DB::transaction(function () use ($truck, $data) {
-
             if ($truck->status_truck === 'maintenance') {
                 $truck->maintenances()
                     ->whereNull('finished_date')
@@ -132,15 +206,10 @@ class TruckController extends Controller
             }
 
             if ($data['status_truck'] === 'maintenance') {
-                TruckMaintenance::create([
-                    'id_truck'        => $truck->id_truck,
-                    'title'           => $data['title'],
-                    'detail'          => $data['detail'] ?? null,
-                    'garage'          => $data['garage'] ?? null,
-                    'cost'            => $data['cost'] ?? null,
-                    'start_date'      => $data['start_date'],
-                    'expected_return' => $data['expected_return'] ?? null,
-                ]);
+                TruckMaintenance::create(array_merge(
+                    ['id_truck' => $truck->id_truck],
+                    $this->extractMaintenanceData($data)
+                ));
             }
 
             if ($data['status_truck'] === 'retired') {
@@ -161,8 +230,10 @@ class TruckController extends Controller
 
     public function finishMaintenance(Request $request, TruckMaintenance $maintenance)
     {
+        $startDate = $maintenance->start_date ? $maintenance->start_date->toDateString() : now()->toDateString();
+
         $data = $request->validate([
-            'finished_date' => ['required', 'date', 'after_or_equal:' . $maintenance->start_date->toDateString()],
+            'finished_date' => ['required', 'date', 'after_or_equal:' . $startDate],
             'cost'          => ['nullable', 'numeric', 'min:0'],
         ], [
             'finished_date.after_or_equal' => 'วันที่ซ่อมเสร็จต้องไม่ก่อนวันที่เริ่มซ่อม',
@@ -178,5 +249,24 @@ class TruckController extends Controller
         });
 
         return back()->with('ok', 'ปิดงานซ่อมแล้ว รถกลับมาพร้อมใช้งาน');
+    }
+
+    private function deleteImageIfExists(?string $path): void
+    {
+        if ($path && Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
+    }
+
+    private function extractMaintenanceData(array $input): array
+    {
+        return [
+            'title'           => $input['title'] ?? null,
+            'detail'          => $input['detail'] ?? null,
+            'garage'          => $input['garage'] ?? null,
+            'cost'            => $input['cost'] ?? null,
+            'start_date'      => $input['start_date'] ?? now()->toDateString(),
+            'expected_return' => $input['expected_return'] ?? null,
+        ];
     }
 }

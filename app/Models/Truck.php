@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class Truck extends Model
 {
@@ -15,7 +16,7 @@ class Truck extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-        protected $fillable = [
+    protected $fillable = [
         'id_truck',
         'truck_brand_id',
         'truck_model_id',
@@ -26,9 +27,10 @@ class Truck extends Model
         'fuelfactory_truck',
         'cubic_capacity',
         'status_truck',
+        'image',
     ];
 
-        protected $casts = [
+    protected $casts = [
         'fuel_rate'      => 'decimal:2',
         'cubic_capacity' => 'decimal:2',
         'year_truck'     => 'integer',
@@ -43,6 +45,16 @@ class Truck extends Model
     public function getRouteKeyName()
     {
         return 'id_truck';
+    }
+
+    /**
+     * ดึง URL รูปภาพรถบรรทุก (ถ้าไม่มีรูปจะส่งคืน null หรือเปลี่ยนเป็น URL รูป Placeholder ได้)
+     */
+    protected function imageUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->image ? Storage::url($this->image) : null,
+        );
     }
 
     protected function statusLabel(): Attribute
@@ -68,7 +80,6 @@ class Truck extends Model
     {
         return $query->where('status_truck', 'active');
     }
-
 
     public function brand()
     {
@@ -101,7 +112,16 @@ class Truck extends Model
     public function camps()
     {
         return $this->belongsToMany(Camp::class, 'camp_truck', 'id_truck', 'id_camp')
-                    ->withPivot('id_assignment', 'assigned_date', 'released_date', 'note')
+                    ->using(CampTruck::class)
+                    ->withPivot('id_assignment', 'id_driver', 'assigned_date', 'released_date', 'note')
                     ->withTimestamps();
+    }
+
+    /** รถคันนี้กำลังทำงานอยู่ที่แคมป์ไหนหรือไม่ */
+    public function scopeNotInActiveCamp($query)
+    {
+        return $query->whereNotIn('id_truck', CampTruck::query()
+            ->whereNull('released_date')
+            ->select('id_truck'));
     }
 }

@@ -11,6 +11,16 @@
                 <p class="mb-0 text-secondary" id="confirmModalBody">
                     คุณต้องการดำเนินการต่อหรือไม่
                 </p>
+
+                {{-- ช่องเหตุผล: แสดงเฉพาะฟอร์มที่มี data-confirm-reason (เช่น ยกเลิกเอกสาร) --}}
+                <div class="mt-3 d-none" id="confirmModalReasonWrap">
+                    <label for="confirmModalReason" class="form-label fw-semibold">
+                        เหตุผล <span class="text-danger">*</span>
+                    </label>
+                    <textarea class="form-control" id="confirmModalReason" rows="2" maxlength="200"
+                              placeholder="เช่น ออกเอกสารผิดลูกค้า / จำนวนไม่ถูกต้อง"></textarea>
+                    <div class="invalid-feedback">กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร</div>
+                </div>
             </div>
 
             <div class="modal-footer border-0 pt-0">

@@ -13,7 +13,8 @@ class AdminUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'admin@admin.com'],
             [
-                'name'      => 'ผู้ดูแลระบบ',
+                'first_name' => 'ผู้ดูแล',
+                'last_name'  => 'ระบบ',
                 'password'  => Hash::make('admin1234'),
                 'role'      => 'admin',
                 'is_active' => 1,

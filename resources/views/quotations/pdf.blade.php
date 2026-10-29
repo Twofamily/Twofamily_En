@@ -3,139 +3,310 @@
 
 <head>
     <meta charset="utf-8">
+    <title>ใบเสนอราคา {{ $quotation->code_quot}}</title>
 
     <style>
         @font-face {
             font-family: 'sarabun';
+            font-weight: normal;
             src: url("{{ public_path('fonts/Sarabun-Regular.ttf') }}") format('truetype');
+        }
+
+        @if (file_exists(public_path('fonts/Sarabun-Bold.ttf')))
+        @font-face {
+            font-family: 'sarabun';
+            font-weight: bold;
+            src: url("{{ public_path('fonts/Sarabun-Bold.ttf') }}") format('truetype');
+        }
+        @endif
+
+        @page {
+            margin: 28px 36px 40px 36px;
         }
 
         body {
             font-family: 'sarabun';
-            font-size: 14px;
+            font-size: 13px;
+            color: #222;
+            line-height: 1.35;
         }
 
-        .text-right {
-            text-align: right;
-        }
-
-        .text-center {
-            text-align: center;
-        }
-
-        .title {
-            font-size: 20px;
-            font-weight: bold;
-        }
-
-        .sub-title {
-            font-size: 16px;
-        }
-
-        .line {
-            border-bottom: 1px solid #000;
-            margin: 10px 0;
-        }
-
-        .table {
-            width: 100%;
+        table {
             border-collapse: collapse;
         }
 
-        .table th,
-        .table td {
-            border: 1px solid #999;
-            padding: 6px;
+        .text-right  { text-align: right; }
+        .text-center { text-align: center; }
+        .muted       { color: #666; }
+        .small       { font-size: 11.5px; }
+
+        /* ---------- หัวเอกสาร ---------- */
+        .company-name {
+            font-size: 19px;
+            font-weight: bold;
+            color: #4a3526;
         }
 
-        .small {
+        .doc-box {
+            border: 1.5px solid #4a3526;
+            width: 100%;
+        }
+
+        .doc-box .doc-title {
+            background-color: #4a3526;
+            color: #fff;
+            text-align: center;
+            padding: 6px 0 4px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .doc-box .doc-title span {
             font-size: 12px;
+            font-weight: normal;
+        }
+
+        .doc-box td {
+            padding: 3px 8px;
+        }
+
+        .rule {
+            border-bottom: 2px solid #4a3526;
+            margin: 10px 0 12px 0;
+        }
+
+        /* ---------- ข้อมูลลูกค้า ---------- */
+        .info {
+            width: 100%;
+            border: 1px solid #bfb3a8;
+        }
+
+        .info td {
+            padding: 4px 8px;
+            vertical-align: top;
+        }
+
+        .info .label {
+            width: 70px;
+            color: #666;
+        }
+
+        .info .head {
+            background-color: #efe9e3;
+            font-weight: bold;
+            border-bottom: 1px solid #bfb3a8;
+        }
+
+        /* ---------- ตารางรายการ ---------- */
+        .items {
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        .items th {
+            background-color: #4a3526;
+            color: #fff;
+            font-weight: bold;
+            padding: 6px 5px;
+            border: 1px solid #4a3526;
+        }
+
+        .items td {
+            padding: 5px;
+            border-left: 1px solid #bfb3a8;
+            border-right: 1px solid #bfb3a8;
+        }
+
+        .items tbody tr:last-child td {
+            border-bottom: 1px solid #bfb3a8;
+        }
+
+        .items .row-alt td {
+            background-color: #faf7f4;
+        }
+
+        /* ---------- สรุปยอด ---------- */
+        .summary {
+            width: 100%;
+        }
+
+        .summary td {
+            padding: 4px 8px;
+            border-bottom: 1px solid #e3dbd3;
+        }
+
+        .summary .grand td {
+            background-color: #4a3526;
+            color: #fff;
+            font-weight: bold;
+            font-size: 14px;
+            border-bottom: none;
+        }
+
+        .baht-text {
+            background-color: #efe9e3;
+            border: 1px solid #bfb3a8;
+            padding: 5px 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .note {
+            border: 1px solid #bfb3a8;
+            padding: 6px 8px;
+            min-height: 70px;
+        }
+
+        /* ---------- ส่วนลงชื่อท้ายเอกสาร ---------- */
+        .signature-table {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .signature-cell {
+            text-align: center;
+            vertical-align: top;
+            padding: 0 10px;
+        }
+
+        .signature-line {
+            margin-top: 35px;
+            border-bottom: 1px dashed #333;
+            display: inline-block;
+            min-width: 170px;
+            padding-bottom: 2px;
+            font-weight: bold;
+        }
+
+        /* ---------- ท้ายหน้า ---------- */
+        .footer {
+            position: fixed;
+            bottom: -24px;
+            left: 0;
+            right: 0;
+            font-size: 10.5px;
+            color: #888;
+            border-top: 1px solid #ddd;
+            padding-top: 3px;
         }
     </style>
 </head>
 
 <body>
 
+    <div class="footer">
+        <table width="100%">
+            <tr>
+                <td>{{ $settings['company.name'] ?? $settings['company_name'] ?? 'บริษัท ทูแฟมิลี่ เอ็นจิเนียริ่ง จำกัด' }}</td>
+                <td class="text-right">ใบเสนอราคาเลขที่ {{ $quotation->code_quot }}</td>
+            </tr>
+        </table>
+    </div>
+
+    {{-- ===== หัวเอกสาร: ข้อมูลบริษัท (ซ้าย) / กล่องเลขที่เอกสาร (ขวา) ===== --}}
     <table width="100%">
         <tr>
-            <td>
-                <div class="title">ใบเสนอราคา</div>
-                <div class="sub-title">Quotation</div>
+            <td width="62%" style="vertical-align: top;">
+                @if (file_exists(public_path('images/logo.png')))
+                    <img src="{{ public_path('images/logo.png') }}" style="height: 60px; margin-bottom: 4px;"><br>
+                @endif
+                
+                {{-- เปลี่ยนมาดึงจาก $settings array แทนการใช้ helper setting() --}}
+                <div class="company-name">
+                    {{ $settings['company.name'] ?? $settings['company_name'] ?? 'บริษัท ทูแฟมิลี่ เอ็นจิเนียริ่ง จำกัด' }}
+                </div>
+                <div class="small">
+                    {{ $settings['company.address'] ?? $settings['company_address'] ?? '-' }}<br>
+                    โทร {{ $settings['company.phone'] ?? $settings['company_phone'] ?? '-' }}<br>
+                    เลขประจำตัวผู้เสียภาษี {{ $settings['company.tax_id'] ?? $settings['tax_id'] ?? '-' }}
+                </div>
             </td>
 
-            <<td class="text-right small">
-                เลขที่: QT{{ str_pad($quotation->id_quot, 5, '0', STR_PAD_LEFT) }}<br>
-
-                วันที่: {{ \Carbon\Carbon::parse($quotation->date_quot)->format('d/m/Y') }}<br>
-
-                ใช้ได้ถึง:
-                {{ \Carbon\Carbon::parse($quotation->date_quot)->addDays((int) (setting('credit_term') ?? 14))->format('d/m/Y') }}
-                </td>
+            <td width="38%" style="vertical-align: top;">
+                <table class="doc-box small">
+                    <tr>
+                        <td colspan="2" class="doc-title">
+                            ใบเสนอราคา<br><span>QUOTATION</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="muted" style="padding-top: 6px;">เลขที่</td>
+                        <td class="text-right" style="padding-top: 6px;"><b>{{ $quotation->code_quot }}</b></td>
+                    </tr>
+                    <tr>
+                        <td class="muted">วันที่</td>
+                        <td class="text-right">{{ \Carbon\Carbon::parse($quotation->date_quot)->format('d/m/Y') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="muted" style="padding-bottom: 6px;">ยืนราคาถึง</td>
+                        <td class="text-right" style="padding-bottom: 6px;">
+                            {{ $quotation->end_quot
+                                ? \Carbon\Carbon::parse($quotation->end_quot)->format('d/m/Y')
+                                : '-' }}
+                        </td>
+                    </tr>
+                </table>
+            </td>
         </tr>
     </table>
 
-    <div class="line"></div>
+    <div class="rule"></div>
 
-    <table width="100%" class="small">
+    {{-- ===== ข้อมูลลูกค้า ===== --}}
+    <table class="info small">
         <tr>
-            <td width="60%">
-                <b>ลูกค้า:</b> {{ $quotation->customer->name_customer }}<br>
-                <b>ที่อยู่:</b> {{ $quotation->customer->address_detail }} {{ $quotation->customer->subdistrict }}
-                {{ $quotation->customer->district }} {{ $quotation->customer->province }}
-                {{ $quotation->customer->zipcode }}<br>
-                <b>ติดต่อ:</b> {{ $quotation->customer->phone_customer }}
+            <td colspan="2" class="head">เสนอราคาให้ (ลูกค้า)</td>
+        </tr>
+        <tr>
+            <td class="label">ชื่อ</td>
+            <td><b>{{ $quotation->customer->name_customer }}</b></td>
+        </tr>
+        <tr>
+            <td class="label">ที่อยู่</td>
+            <td>
+                {{-- ป้องกัน Error หากไม่มี helper customer_address --}}
+                @if(function_exists('customer_address'))
+                    {{ customer_address($quotation->customer) }}
+                @else
+                    {{ $quotation->customer->address_customer ?? '-' }}
+                @endif
             </td>
-
-            <td width="40%">
-                <b>ผู้ออก:</b> {{ setting('company_name') }}<br>
-
-                <b>ที่อยู่:</b> {{ setting('company_address') }}<br>
-
-                <b>ติดต่อ:</b> {{ setting('company_phone') }}<br>
-
-                <b>เลขผู้เสียภาษี:</b> {{ setting('tax_id') ?? '-' }}
-            </td>
+        </tr>
+        <tr>
+            <td class="label">โทร</td>
+            <td>{{ $quotation->customer->phone_customer ?: '-' }}</td>
         </tr>
     </table>
 
-    <div class="line"></div>
-
-    <table class="table small">
+    {{-- ===== ตารางรายการ ===== --}}
+    <table class="items small">
         <thead>
             <tr>
-                <th width="5%">ลำดับ</th>
-                <th width="45%">รายละเอียด</th>
+                <th width="6%">ลำดับ</th>
+                <th width="44%">รายการ</th>
                 <th width="10%">จำนวน</th>
                 <th width="10%">หน่วย</th>
-                <th width="15%">ราคาต่อหน่วย</th>
-                <th width="15%">รวม</th>
+                <th width="15%">ราคา/หน่วย</th>
+                <th width="15%">จำนวนเงิน</th>
             </tr>
         </thead>
 
         <tbody>
-            @php
-                $sum = 0;
-                $i = 1;
-            @endphp
+            @php $i = 1; @endphp
 
             @foreach ($quotation->details as $d)
-                @php
-                    $total = $d->quantity * $d->price_per_unit;
-                    $sum += $total;
-                @endphp
-
-                <tr>
+                <tr class="{{ $i % 2 === 0 ? 'row-alt' : '' }}">
                     <td class="text-center">{{ $i++ }}</td>
                     <td>{{ $d->product->name_product }}</td>
                     <td class="text-center">{{ $d->quantity }}</td>
                     <td class="text-center">คิว</td>
                     <td class="text-right">{{ number_format($d->price_per_unit, 2) }}</td>
-                    <td class="text-right">{{ number_format($total, 2) }}</td>
+                    <td class="text-right">{{ number_format($d->total_price, 2) }}</td>
                 </tr>
             @endforeach
 
             @for ($i; $i <= 8; $i++)
-                <tr>
+                <tr class="{{ $i % 2 === 0 ? 'row-alt' : '' }}">
                     <td>&nbsp;</td>
                     <td></td>
                     <td></td>
@@ -144,58 +315,77 @@
                     <td></td>
                 </tr>
             @endfor
-
         </tbody>
     </table>
 
-    <br>
+    {{-- ===== ส่วนท้าย: สรุปยอด + พิมพ์ชื่อลงชื่อ ===== --}}
+    <div style="page-break-inside: avoid;">
 
-    <table width="100%" class="small">
+    <table width="100%" class="small" style="margin-top: 10px;">
         <tr>
-            <td width="60%">
-                <b>หมายเหตุ:</b><br>
-                {!! nl2br(e(setting('quotation_note'))) !!}
+            <td width="55%" style="vertical-align: top; padding-right: 12px;">
+                <div class="note">
+                    <b>หมายเหตุ / เงื่อนไข</b><br>
+                    {!! nl2br(e($settings['quotation_note'] ?? '')) !!}
+                </div>
             </td>
 
-            <td width="40%">
-                <table width="100%">
+            <td width="45%" style="vertical-align: top;">
+                <table class="summary">
                     <tr>
-                        <td>รวม (บาท)</td>
-                        <td class="text-right">{{ number_format($sum, 2) }}</td>
+                        <td>รวมเป็นเงิน</td>
+                        <td class="text-right">{{ number_format($quotation->subtotal, 2) }}</td>
                     </tr>
+                    @if ((float) $quotation->discount > 0)
+                        <tr>
+                            <td>หักส่วนลด</td>
+                            <td class="text-right">{{ number_format($quotation->discount, 2) }}</td>
+                        </tr>
+                        <tr>
+                            <td>ยอดหลังหักส่วนลด</td>
+                            <td class="text-right">{{ number_format($quotation->after_discount ?? ($quotation->subtotal - $quotation->discount), 2) }}</td>
+                        </tr>
+                    @endif
                     <tr>
-                        <td>ส่วนลด (บาท)</td>
-                        <td class="text-right">{{ number_format($quotation->discount, 2) }}</td>
+                        <td>ภาษีมูลค่าเพิ่ม {{ rtrim(rtrim(number_format($quotation->vat_rate, 2), '0'), '.') }}%</td>
+                        <td class="text-right">{{ number_format($quotation->vat_amount, 2) }}</td>
                     </tr>
-                    <tr>
-                        <td><b>สุทธิ (บาท)</b></td>
-                        <td class="text-right">
-                            <b>{{ number_format($sum - $quotation->discount, 2) }}</b>
-                        </td>
+                    <tr class="grand">
+                        <td>จำนวนเงินสุทธิ (บาท)</td>
+                        <td class="text-right">{{ number_format($quotation->total_amount, 2) }}</td>
                     </tr>
                 </table>
             </td>
         </tr>
     </table>
 
-    <div class="line"></div>
+    @if (function_exists('baht_text'))
+        <div class="baht-text small" style="margin-top: 8px;">
+            ({{ baht_text($quotation->total_amount) }})
+        </div>
+    @endif
 
-    <table width="100%" class="small">
-        <tr>
-            <td class="text-center">
-                ___________________________<br>
-                ผู้จัดทำ
-            </td>
-            <td class="text-center">
-                ___________________________<br>
-                ผู้อนุมัติ
-            </td>
-            <td class="text-center">
-                ___________________________<br>
-                ผู้รับใบเสนอราคา
-            </td>
-        </tr>
-    </table>
+    {{-- ===== ช่องลงชื่อ: แบบเดียวกับเอกสารอื่นทุกใบ (pdf/partials/signatures) ===== --}}
+    @include('pdf.partials.signatures', ['slots' => [
+        [
+            'party' => 'customer',
+            'label' => 'ผู้รับใบเสนอราคา',
+        ],
+        [
+            'party' => 'company',
+            'label' => 'ผู้จัดทำ',
+            'user'  => $quotation->issuer,
+            'date'  => $quotation->issued_at ?? $quotation->date_quot,
+        ],
+        [
+            'party' => 'company',
+            'label' => 'ผู้อนุมัติ',
+            'user'  => $quotation->approver,      // ยังไม่อนุมัติ = ว่าง ให้เซ็นมือ
+            'date'  => $quotation->approved_at,
+        ],
+    ]])
+
+    </div>{{-- /keep-together --}}
 
 </body>
 

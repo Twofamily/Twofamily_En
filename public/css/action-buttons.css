@@ -1,0 +1,158 @@
+/*
+ * สไตล์ปุ่มจัดการ (ดู / แก้ไข / ลบ) แบบไอคอน
+ * ใช้ร่วมกันทุกหน้าที่มีตารางข้อมูล
+ * เรียกใช้ผ่าน layout.blade.php
+ */
+
+/* กลุ่มปุ่มจัดการ */
+.action-buttons {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+/* คอลัมน์ "จัดการ" ในตาราง */
+.action-col {
+    width: 190px;
+    min-width: 190px;
+}
+
+/* ปุ่มสี่เหลี่ยมมุมโค้ง ขนาดเท่ากันทุกปุ่ม */
+.action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 45px;
+    height: 45px;
+    padding: 0;
+    border-radius: 10px;
+    background-color: #fff;
+    transition:
+        transform 0.15s ease-in-out,
+        box-shadow 0.15s ease-in-out,
+        background-color 0.15s ease-in-out;
+}
+
+.action-button i {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.action-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.12);
+}
+
+.action-button:focus {
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+/* ปุ่มดูข้อมูล (ใช้สีฟ้าอ่อน ซึ่ง Bootstrap ไม่มี outline ให้) */
+.action-view {
+    color: #0dcaf0;
+    border: 1px solid #0dcaf0;
+}
+
+.action-view:hover {
+    color: #fff;
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+}
+
+/* ทำให้ฟอร์มปุ่มลบไม่ดันระยะขอบ */
+.delete-form {
+    display: inline-flex;
+    margin: 0;
+}
+/* ==========================================================
+ * ปุ่มจัดการแบบจุดสามจุด (x-row-actions)
+ * ใช้แทนปุ่มไอคอนเรียงกันด้านบน — ตารางแคบลง ไม่ล้นจอมือถือ
+ * ========================================================== */
+
+/* คอลัมน์ "จัดการ" เหลือแค่ปุ่มเดียว */
+.action-col {
+    width: 80px;
+    min-width: 80px;
+}
+
+.row-actions {
+    display: inline-block;
+}
+
+.row-actions-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid #e5e5e5;
+    background-color: #fff;
+    color: #404040;
+    transition: background-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+
+.row-actions-toggle:hover,
+.row-actions-toggle[aria-expanded="true"] {
+    background-color: #f5f5f5;
+    border-color: #d4d4d4;
+    color: #171717;
+}
+
+.row-actions-toggle:focus-visible {
+    box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .2);
+}
+
+.row-actions .dropdown-menu {
+    min-width: 11rem;
+    padding: .35rem;
+    border: 1px solid rgba(0, 0, 0, .08);
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .12);
+}
+
+.row-actions .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .5rem .75rem;
+    border-radius: 8px;
+    text-align: start;
+}
+
+.row-actions .dropdown-item i {
+    width: 1.1rem;
+    font-size: 1rem;
+    text-align: center;
+}
+
+.row-actions .dropdown-item.text-danger:hover,
+.row-actions .dropdown-item.text-danger:focus {
+    background-color: rgba(220, 53, 69, .08);
+    color: #b02a37 !important;
+}
+
+.row-actions .dropdown-item.text-success:hover { background-color: rgba(25, 135, 84, .08); }
+.row-actions .dropdown-item.text-warning:hover { background-color: rgba(255, 193, 7, .12); }
+
+.row-actions .row-actions-disabled {
+    align-items: flex-start;
+}
+
+.row-actions .row-actions-disabled small {
+    font-size: .75rem;
+    white-space: normal;
+    max-width: 14rem;
+}
+
+.row-actions .dropdown-divider {
+    margin: .3rem .25rem;
+}
+
+/* สีเหลืองของ Bootstrap อ่านยากบนพื้นขาว */
+.row-actions .dropdown-item.text-warning {
+    color: #997404 !important;
+}

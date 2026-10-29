@@ -8,7 +8,8 @@
 
 @section('content')
     <div class="container py-4">
-        <form method="POST" action="{{ route('truck_brands.update', $brand) }}" autocomplete="off">
+        <form method="POST" action="{{ route('truck_brands.update', $brand) }}" autocomplete="off"
+            data-confirm="ต้องการบันทึกการแก้ไขยี่ห้อรถบรรทุกนี้หรือไม่" data-confirm-title="ยืนยันการแก้ไขข้อมูล" data-confirm-ok="บันทึกการแก้ไข" data-confirm-variant="primary">
             @csrf @method('PUT')
             @include('truck_brands._form', ['brand' => $brand])
 

@@ -2,152 +2,236 @@
 
 @section('namepage')
     <div class="container">
-        <h3>ใบเสนอราคา QT{{ str_pad($quotation->id_quot, 5, '0', STR_PAD_LEFT) }}</h3>
+        <h3>ใบเสนอราคา {{ $quotation->code_quot }}</h3>
     </div>
 @endsection
 
 @php
-    $subTotal = $quotation->details->sum('total_price');
-    $discount = $quotation->discount ?? 0;
-    $grandTotal = max($subTotal - $discount, 0);
+    $canEdit = auth()->user()->canEdit('quotations');
+
+    // บริษัทไม่มีส่วนลดแล้ว: ยอดสุทธิ = รวมเป็นเงิน + VAT
+    // (ใบเก่าที่เคยมีส่วนลด ยังแสดงบรรทัดส่วนลดให้ยอดตรงกับเอกสารที่ออกไปแล้ว)
+    $subTotal      = $quotation->details->sum('total_price');
+    $discount      = (float) ($quotation->discount ?? 0);
+    $afterDiscount = max($subTotal - $discount, 0);
+    $vat           = round($afterDiscount * 0.07, 2);
+    $grandTotal    = $afterDiscount + $vat;
+
+    $so = $quotation->salesOrder;
+
+    $statusMap = [
+        'draft'    => ['label' => 'ร่าง',        'badge' => 'secondary'],
+        'approved' => ['label' => 'อนุมัติแล้ว', 'badge' => 'success'],
+        'rejected' => ['label' => 'ยกเลิก',      'badge' => 'danger'],
+    ];
+    $status = $statusMap[$quotation->status] ?? ['label' => $quotation->status, 'badge' => 'secondary'];
 @endphp
 
 @section('content')
     <div class="container py-3">
-        <div id="quotation">
 
-            <div class="text-center mb-4">
-                <h2>ใบเสนอราคา (Quotation)</h2>
-                <p>บริษัท Two Family Engineering Co., Ltd.</p>
-                <p>
-                    โทร: 02-123-4567 |
-                    ที่อยู่: 189 หมู่ที่ 14 ตำบลสูงเนิน อำเภอสูงเนิน
-                    จ.นครราชสีมา 30170
-                </p>
-            </div>
+        {{-- ==================== ส่วนหัว (ภาพที่ 1) ==================== --}}
+        <div class="text-center mb-4">
+            <h2>ใบเสนอราคา (Quotation)</h2>
+            @include('partials.company-line')
+        </div>
 
-            <div class="mb-4">
-                <h5>ข้อมูลลูกค้า</h5>
-                <p>
-                    <strong>ชื่อลูกค้า:</strong>
-                    {{ $quotation->customer->name_customer ?? '-' }}
-                </p>
-                <p>
-                    <strong>วันที่ออก:</strong>
-                    {{ \Carbon\Carbon::parse($quotation->date_quot)->format('d/m/Y') }}
-                </p>
+        {{-- ==================== แถบสถานะ + ปุ่มจัดการ ==================== --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
 
-                <p>
-                    <strong>สถานะ:</strong>
-                    @if ($quotation->status == 'draft')
-                        <span class="badge bg-secondary">ร่าง</span>
-                    @elseif($quotation->status == 'approved')
-                        <span class="badge bg-success">อนุมัติแล้ว</span>
-                    @elseif($quotation->status == 'rejected')
-                        <span class="badge bg-danger">ยกเลิก</span>
+                {{-- ซ้าย: สถานะ + ขั้นตอนถัดไป --}}
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    @if ($quotation->status === 'draft')
+                        <span class="text-secondary fw-semibold">
+                            <i class="bi bi-pencil-square me-2"></i>ฉบับร่าง รอตรวจสอบและอนุมัติ
+                        </span>
+                        @php $approveBlock = $quotation->approveBlocker(auth()->user()); @endphp
+                        @if (! $approveBlock)
+                            <form method="POST" action="{{ route('quotations.approve', $quotation) }}" class="d-inline"
+                                data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้"
+                                data-confirm-title="ยืนยันการอนุมัติ" data-confirm-variant="success" data-confirm-ok="อนุมัติ">
+                                @csrf @method('PATCH')
+                                <button class="btn btn-success" type="submit">อนุมัติ</button>
+                            </form>
+                        @else
+                            {{-- อนุมัติไม่ได้: บอกเหตุผล (เช่น เป็นผู้จัดทำเอง / ไม่ใช่ผู้ดูแลระบบ) --}}
+                            <span class="small text-muted">
+                                <i class="bi bi-lock me-1"></i>{{ $approveBlock }}
+                            </span>
+                        @endif
+
+                    @elseif ($quotation->status === 'approved' && !$so)
+                        <span class="text-primary fw-semibold">
+                            <i class="bi bi-arrow-right-circle me-2"></i>พร้อมออกใบสั่งขาย
+                        </span>
+                        <a href="{{ route('sales_orders.create', ['quotation' => $quotation->id_quot]) }}"
+                            class="btn btn-primary">
+                            ออกใบสั่งขายจากใบเสนอราคานี้
+                        </a>
+
+                    @elseif ($quotation->status === 'approved' && $so)
+                        <span class="text-success fw-semibold">
+                            <i class="bi bi-check-circle me-2"></i>ออกใบสั่งขายแล้ว
+                        </span>
+                        <a href="{{ route('sales_orders.show', $so->id_so) }}" class="btn btn-outline-primary">
+                            {{ $so->code_so }}
+                        </a>
+
+                    @elseif ($quotation->status === 'rejected')
+                        <span class="text-danger fw-semibold">
+                            <i class="bi bi-x-circle me-2"></i>ใบเสนอราคานี้ถูกยกเลิกแล้ว
+                        </span>
                     @endif
-                </p>
-            </div>
+                </div>
 
-            <div class="table-responsive mb-4">
-                <table class="table table-bordered align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width:5%">ลำดับ</th>
-                            <th>รายการ</th>
-                            <th class="text-center" style="width:15%">จำนวน</th>
-                            <th class="text-end" style="width:20%">ราคาต่อหน่วย</th>
-                            <th class="text-end" style="width:20%">รวม</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($quotation->details as $i => $d)
-                            <tr>
-                                <td class="text-center">{{ $i + 1 }}</td>
-                                <td>{{ $d->product->name_product ?? '-' }}</td>
-                                <td class="text-center">{{ $d->quantity }}</td>
-                                <td class="text-end">
-                                    {{ number_format($d->price_per_unit, 2) }}
-                                </td>
-                                <td class="text-end">
-                                    {{ number_format($d->total_price, 2) }}
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-
-                    <tfoot>
-                        <tr>
-                            <th colspan="4" class="text-end">รวมก่อนส่วนลด</th>
-                            <th class="text-end">
-                                {{ number_format($subTotal, 2) }}
-                            </th>
-                        </tr>
-
-                        <tr>
-                            <th colspan="4" class="text-end">ส่วนลด</th>
-                            <th class="text-end">
-                                {{ number_format($discount, 2) }}
-                            </th>
-                        </tr>
-
-                        <tr class="table-primary fw-bold">
-                            <th colspan="4" class="text-end">ยอดสุทธิ</th>
-                            <th class="text-end">
-                                {{ number_format($grandTotal, 2) }}
-                            </th>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <div class="text-center mb-5">
-
-                <a href="{{ route('quotations.index') }}" class="btn btn-outline-secondary">
-                    ย้อนกลับ
-                </a>
-
-                <a href="{{ route('quotation.pdf', $quotation->id_quot) }}" target="_blank" class="btn btn-danger">
-                    ดาวน์โหลด PDF
-                </a>
-
-                @if ($quotation->status == 'draft')
-                    <a href="{{ route('quotations.edit', $quotation->id_quot) }}" class="btn btn-warning">
-                        แก้ไข
+                {{-- ขวา: ปุ่มจัดการ --}}
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{{ route('quotation.pdf', $quotation->id_quot) }}" target="_blank"
+                        class="btn btn-outline-secondary">
+                        <i class="bi bi-printer me-1"></i>พิมพ์
                     </a>
-                @endif
 
-                @if ($quotation->status == 'draft')
-                    <form action="{{ route('quotations.approve', $quotation->id_quot) }}" method="POST"
-                        style="display:inline;">
-                        @csrf
-                        <button class="btn btn-success">
-                            อนุมัติ
+                    @if ($canEdit && $quotation->status === 'draft')
+                        <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editQuotationModal">
+                            <i class="bi bi-pencil-square me-1"></i>แก้ไข
                         </button>
-                    </form>
-                @endif
+                    @endif
 
-                @if ($quotation->status == 'draft')
-                    <form method="POST" action="{{ route('quotations.destroy', $item) }}" class="d-inline"
-                        data-confirm="ข้อมูล [ชื่อรายการ] จะถูกลบถาวร ไม่สามารถกู้คืนได้"
-                        data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger" data-confirm-ok="ลบข้อมูล">
-                        @csrf @method('DELETE')
-                        <button class="btn btn-sm btn-outline-danger" type="submit">ลบ</button>
-                    </form>
-                @endif
+                    {{-- เอกสารไม่มีการลบ — ยกเลิกแทน (เลขที่ไม่หาย) --}}
+                    @if ($canEdit && in_array($quotation->status, ['draft', 'approved']) && ! $so)
+                        <form method="POST" action="{{ route('quotations.cancel', $quotation) }}" class="d-inline"
+                            data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกยกเลิก"
+                            data-confirm-title="ยืนยันการยกเลิก" data-confirm-variant="warning"
+                            data-confirm-ok="ยกเลิกใบเสนอราคา">
+                            @csrf @method('PATCH')
+                            <button class="btn btn-outline-danger" type="submit">ยกเลิก</button>
+                        </form>
+                    @endif
 
-                @if ($quotation->status == 'approved')
-                    <form action="{{ route('invoices.createFromQuotation', $quotation->id_quot) }}" method="POST"
-                        style="display:inline;">
-                        @csrf
-                        <button class="btn btn-primary">
-                            สร้างใบแจ้งหนี้
-                        </button>
-                    </form>
-                @endif
+                </div>
 
+            </div>
+        </div>
+
+        {{-- ==================== เนื้อหา 2 คอลัมน์ (ภาพที่ 2) ==================== --}}
+        <div class="row g-4 mb-4">
+
+            {{-- ซ้าย: ข้อมูลทั่วไป --}}
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-4">
+                        <h5 class="fw-semibold text-secondary border-bottom pb-3 mb-3">ข้อมูลทั่วไป</h5>
+
+                        <dl class="row mb-0">
+                            <dt class="col-5 fw-normal text-muted mb-3">เลขที่</dt>
+                            <dd class="col-7 mb-3">{{ $quotation->code_quot }}</dd>
+
+                            <dt class="col-5 fw-normal text-muted mb-3">ลูกค้า</dt>
+                            <dd class="col-7 mb-3">{{ $quotation->customer->name_customer ?? '-' }}</dd>
+
+                            <dt class="col-5 fw-normal text-muted mb-3">วันที่ออก</dt>
+                            <dd class="col-7 mb-3">
+                                {{ \Carbon\Carbon::parse($quotation->date_quot)->format('d/m/Y') }}
+                            </dd>
+
+                            <dt class="col-5 fw-normal text-muted mb-3">สถานะ</dt>
+                            <dd class="col-7 mb-3">
+                                <span class="badge bg-{{ $status['badge'] }}">{{ $status['label'] }}</span>
+                            </dd>
+
+                            <dt class="col-5 fw-normal text-muted mb-3">ใบสั่งขาย</dt>
+                            <dd class="col-7 mb-3">
+                                @if ($so)
+                                    <a href="{{ route('sales_orders.show', $so->id_so) }}"
+                                        class="text-decoration-none">{{ $so->code_so }}</a>
+                                @else
+                                    -
+                                @endif
+                            </dd>
+
+                            <dt class="col-5 fw-normal text-muted">แคมป์งาน</dt>
+                            <dd class="col-7 mb-0">
+                                @if ($so?->camp)
+                                    <a href="{{ route('camps.show', $so->camp->id_camp) }}"
+                                        class="text-decoration-none">{{ $so->camp->code_camp }}</a>
+                                    <div class="small text-muted">{{ $so->camp->name_camp }}</div>
+                                @else
+                                    <span class="text-muted">ยังไม่ได้เปิด</span>
+                                @endif
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            {{-- ขวา: รายการสินค้า --}}
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-4">
+                        <h5 class="fw-semibold text-secondary border-bottom pb-3 mb-3">รายการสินค้าที่เสนอราคา</h5>
+
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="text-center" style="width:8%">ลำดับ</th>
+                                        <th>สินค้า</th>
+                                        <th class="text-end" style="width:15%">จำนวน</th>
+                                        <th class="text-end" style="width:18%">ราคา/หน่วย</th>
+                                        <th class="text-end" style="width:18%">รวม</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($quotation->details as $i => $d)
+                                        <tr>
+                                            <td class="text-center">{{ $i + 1 }}</td>
+                                            <td class="fw-semibold">{{ $d->product->name_product ?? '-' }}</td>
+                                            <td class="text-end">{{ number_format($d->quantity, 2) }}</td>
+                                            <td class="text-end">{{ number_format($d->price_per_unit, 2) }}</td>
+                                            <td class="text-end">{{ number_format($d->total_price, 2) }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted py-3">ไม่มีรายการสินค้า</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="4" class="text-end text-muted">รวมเป็นเงิน</td>
+                                        <td class="text-end fw-bold">{{ number_format($subTotal, 2) }}</td>
+                                    </tr>
+                                    @if ($discount > 0)
+                                        <tr>
+                                            <td colspan="4" class="text-end text-muted">ส่วนลด (เอกสารเดิม)</td>
+                                            <td class="text-end fw-bold">{{ number_format($discount, 2) }}</td>
+                                        </tr>
+                                    @endif
+                                    <tr>
+                                        <td colspan="4" class="text-end text-muted">ภาษีมูลค่าเพิ่ม 7%</td>
+                                        <td class="text-end fw-bold">{{ number_format($vat, 2) }}</td>
+                                    </tr>
+                                    <tr class="table-primary">
+                                        <td colspan="4" class="text-end fw-bold">ยอดสุทธิ</td>
+                                        <td class="text-end fw-bold">{{ number_format($grandTotal, 2) }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
+
+        {{-- ==================== ย้อนกลับ ==================== --}}
+        <a href="{{ route('quotations.index') }}" class="btn btn-outline-secondary">
+            ย้อนกลับ
+        </a>
+
     </div>
+    @if ($canEdit && $quotation->status === 'draft')
+        @include('quotations._form-modal', ['mode' => 'edit', 'quotation' => $quotation])
+    @endif
 @endsection

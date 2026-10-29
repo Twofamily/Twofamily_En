@@ -1,32 +1,38 @@
 @extends('layout')
 
 @section('namepage')
-    ตั้งค่า
+    ตั้งค่าระบบ
 @endsection
 
 @section('content')
-    <div class="row g-3">
 
-        <div class="col-md-4">
-            <a href="{{ route('settings.documents') }}" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body text-center">
-                        <h5>ตั้งค่าเอกสาร</h5>
-                    </div>
-                </div>
-            </a>
+    {{-- แท็บ: แต่ละแท็บเป็นหน้าแยก (URL ของตัวเอง) และบันทึกแยกกัน --}}
+    <ul class="nav nav-tabs mb-4">
+        @foreach ($groups as $key => $info)
+            <li class="nav-item">
+                <a href="{{ route('settings.index', $key) }}"
+                    class="nav-link {{ $key === $group ? 'active fw-semibold' : 'text-secondary' }}">
+                    <i class="bi {{ $info['icon'] }} me-2"></i>{{ $info['label'] }}
+                </a>
+            </li>
+        @endforeach
+    </ul>
+
+    <form method="POST" action="{{ route('settings.update', $group) }}" enctype="multipart/form-data"
+            data-confirm="ต้องการบันทึกการตั้งค่าระบบหรือไม่ การเปลี่ยนแปลงจะมีผลกับเอกสารทุกฉบับที่ออกหลังจากนี้" data-confirm-title="ยืนยันการบันทึกการตั้งค่า" data-confirm-ok="บันทึก" data-confirm-variant="primary">
+        @csrf
+        @method('PUT')
+
+        <div class="form-text mb-3"><span class="req-star">*</span> = จำเป็นต้องกรอก (ใช้แสดงในเอกสาร PDF)</div>
+
+        @include("settings.groups.{$group}")
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-dark">
+                <i class="bi bi-save me-2"></i>บันทึก
+            </button>
+            <a href="{{ route('settings.index', $group) }}" class="btn btn-outline-secondary">ยกเลิก</a>
         </div>
+    </form>
 
-        {{-- เพิ่มใหม่ : จัดการผู้ใช้งาน --}}
-        <div class="col-md-4">
-            <a href="{{ route('users.index') }}" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body text-center">
-                        <h5>จัดการผู้ใช้งาน</h5>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-    </div>
 @endsection

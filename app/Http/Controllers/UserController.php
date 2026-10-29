@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\Permission;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -14,20 +15,34 @@ class UserController extends Controller
      ============================================================ */
     public function index(Request $request)
     {
-        $q = $request->input('q');
+        $perPage = $this->perPage($request);
+        $search  = $this->searchTerm($request);
+
+        // พิมพ์ "ผู้ดูแล" / "พนักงาน" / "ดูอย่างเดียว" ก็ค้นตามบทบาทได้
+        $roles = $this->statusesMatching($search, User::roleList());
+
+        // dropdown สถานะบัญชี + สิทธิ์การใช้งาน
+        $statusLabels = ['active' => 'ใช้งานอยู่', 'suspended' => 'ระงับการใช้งาน'];
+        $status = $this->statusFilter($request, array_keys($statusLabels));
+        $role   = $this->statusFilter($request, array_keys(User::roleList()), 'role');
 
         $users = User::query()
-            ->when($q, function ($query) use ($q) {
-                $query->where(function ($sub) use ($q) {
-                    $sub->where('name', 'like', "%{$q}%")
-                        ->orWhere('email', 'like', "%{$q}%");
+            ->when($status, fn ($query) => $query->where('is_active', $status === 'active'))
+            ->when($role, fn ($query) => $query->where('role', $role))
+            ->when($search !== '', function ($query) use ($search, $roles) {
+                $query->where(function ($sub) use ($search, $roles) {
+                    $sub->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                    if ($roles) {
+                        $sub->orWhereIn('role', $roles);
+                    }
                 });
             })
             ->orderBy('name')
-            ->paginate(10)
-            ->withQueryString();   // ให้คำค้นหาติดไปกับ pagination
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('users.index', compact('users', 'q'));
+        return view('users.index', compact('users', 'search', 'perPage', 'status', 'statusLabels', 'role'));
     }
 
     /* ============================================================
@@ -35,36 +50,40 @@ class UserController extends Controller
      ============================================================ */
     public function create()
     {
-        return view('users.create', [
-            'roles' => User::roleList(),
-        ]);
+        // เพิ่มผู้ใช้ทำในหน้าต่าง (modal) ของหน้ารายการ
+        return redirect()->route('users.index', ['modal' => 'create']);
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name'      => ['required', 'string', 'max:255'],
-            'email'     => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role'      => ['required', Rule::in(array_keys(User::roleList()))],
-            'password'  => ['required', 'confirmed', Password::min(8)],
+        $data = $request->validateWithBag('createUser', [
+            'first_name'    => ['required', 'string', 'max:100'],
+            'last_name'     => ['required', 'string', 'max:100'],
+            'email'         => ['required', 'email', 'max:255', 'unique:users,email'],
+            'role'          => ['required', Rule::in(array_keys(User::roleList()))],
+            'password'      => ['required', 'confirmed', Password::min(8)],
+            'permissions'   => ['nullable', 'array'],
+            'permissions.*' => [Rule::in(array_keys(Permission::LEVELS))],
         ], [
-            'name.required'      => 'กรุณากรอกชื่อ-นามสกุล',
-            'email.required'     => 'กรุณากรอกอีเมล',
-            'email.email'        => 'รูปแบบอีเมลไม่ถูกต้อง',
-            'email.unique'       => 'อีเมลนี้ถูกใช้งานแล้ว',
-            'role.required'      => 'กรุณาเลือกสิทธิ์การใช้งาน',
-            'password.required'  => 'กรุณากรอกรหัสผ่าน',
-            'password.confirmed' => 'รหัสผ่านยืนยันไม่ตรงกัน',
-            'password.min'       => 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
+            'first_name.required' => 'กรุณากรอกชื่อ',
+            'last_name.required'  => 'กรุณากรอกนามสกุล',
+            'email.required'    => 'กรุณากรอกอีเมล',
+            'email.email'       => 'รูปแบบอีเมลไม่ถูกต้อง',
+            'email.unique'      => 'อีเมลนี้ถูกใช้งานแล้ว',
+            'role.required'     => 'กรุณาเลือกสิทธิ์การใช้งาน',
+            'password.required' => 'กรุณากรอกรหัสผ่าน',
+            'password.confirmed'=> 'รหัสผ่านยืนยันไม่ตรงกัน',
+            'password.min'      => 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
+            'permissions.*.in'  => 'ค่าสิทธิ์รายหน้าไม่ถูกต้อง',
         ]);
 
-        // checkbox ที่ไม่ติ๊กจะไม่ถูกส่งมาใน request ต้องกำหนดค่าเอง
-        $data['is_active'] = $request->boolean('is_active');
+        $data['is_active']   = $request->boolean('is_active');
+        $data['permissions'] = $this->permissionsFromRequest($request, $data['role']);
 
-        // password ถูกเข้ารหัสอัตโนมัติจาก casts ใน User.php
         User::create($data);
 
-        return redirect()->route('users.index')
+        return redirect()
+            ->route('users.index')
             ->with('ok', 'เพิ่มผู้ใช้งานเรียบร้อยแล้ว');
     }
 
@@ -73,40 +92,91 @@ class UserController extends Controller
      ============================================================ */
     public function edit(User $user)
     {
-        return view('users.edit', [
-            'user'  => $user,
-            'roles' => User::roleList(),
-        ]);
+        // แก้ไขผู้ใช้ทำในหน้าต่าง (modal) ของหน้ารายการ
+        return redirect()->route('users.index', ['edit' => $user->getKey()]);
     }
 
     public function update(Request $request, User $user)
     {
-        $data = $request->validate([
-            'name'  => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'role'  => ['required', Rule::in(array_keys(User::roleList()))],
+        $data = $request->validateWithBag('updateUser', [
+            'first_name'    => ['required', 'string', 'max:100'],
+            'last_name'     => ['required', 'string', 'max:100'],
+            'email'         => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->getKey())],
+            'role'          => ['required', Rule::in(array_keys(User::roleList()))],
+            'permissions'   => ['nullable', 'array'],
+            'permissions.*' => [Rule::in(array_keys(Permission::LEVELS))],
         ], [
-            'name.required'  => 'กรุณากรอกชื่อ-นามสกุล',
-            'email.required' => 'กรุณากรอกอีเมล',
-            'email.email'    => 'รูปแบบอีเมลไม่ถูกต้อง',
-            'email.unique'   => 'อีเมลนี้ถูกใช้งานแล้ว',
-            'role.required'  => 'กรุณาเลือกสิทธิ์การใช้งาน',
+            'first_name.required' => 'กรุณากรอกชื่อ',
+            'last_name.required'  => 'กรุณากรอกนามสกุล',
+            'email.required'   => 'กรุณากรอกอีเมล',
+            'email.email'      => 'รูปแบบอีเมลไม่ถูกต้อง',
+            'email.unique'     => 'อีเมลนี้ถูกใช้งานแล้ว',
+            'role.required'    => 'กรุณาเลือกสิทธิ์การใช้งาน',
+            'permissions.*.in' => 'ค่าสิทธิ์รายหน้าไม่ถูกต้อง',
         ]);
 
-        // ป้องกันลดสิทธิ์ตนเองจนระบบไม่เหลือผู้ดูแล
-        if ($user->id === auth()->id()
+        if ($user->getKey() === auth()->id()
             && $data['role'] !== User::ROLE_ADMIN
             && $this->countActiveAdmins() <= 1) {
 
             return back()->withInput()->withErrors([
                 'role' => 'ไม่สามารถลดสิทธิ์ตนเองได้ เนื่องจากเป็นผู้ดูแลระบบคนสุดท้าย',
-            ]);
+            ], 'updateUser');
+        }
+
+        // ฟอร์มที่ไม่มีตารางสิทธิ์ส่งมา → คงค่าเดิมไว้ ไม่ล้างทิ้ง
+        if ($request->has('permissions') || $data['role'] === User::ROLE_ADMIN) {
+            $data['permissions'] = $this->permissionsFromRequest($request, $data['role']);
+        } else {
+            unset($data['permissions']);
         }
 
         $user->update($data);
 
-        return redirect()->route('users.index')
+        return redirect()
+            ->route('users.index')
             ->with('ok', 'แก้ไขข้อมูลผู้ใช้งานเรียบร้อยแล้ว');
+    }
+
+    /* ============================================================
+     |  ลายเซ็นอิเล็กทรอนิกส์ (แสดงในกรอบลายเซ็นของ PDF ทุกเอกสาร)
+     |  เก็บไฟล์ไว้ใน public/signatures เพราะ dompdf อ่านได้เฉพาะไฟล์ในเครื่อง
+     ============================================================ */
+    public function updateSignature(Request $request, User $user)
+    {
+        $data = $request->validateWithBag('updateSignature', [
+            'position'         => ['nullable', 'string', 'max:100'],
+            'signature'        => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:1024'],
+            'remove_signature' => ['nullable', 'boolean'],
+        ], [
+            'signature.image' => 'ไฟล์ลายเซ็นต้องเป็นรูปภาพ',
+            'signature.mimes' => 'ไฟล์ลายเซ็นต้องเป็น PNG หรือ JPG',
+            'signature.max'   => 'ไฟล์ลายเซ็นต้องไม่เกิน 1 MB',
+        ]);
+
+        $update = ['position' => $data['position'] ?? null];
+        $old    = $user->signature_path;
+
+        if ($request->hasFile('signature')) {
+            $file = $request->file('signature');
+            $name = 'user-' . $user->getKey() . '-' . now()->format('YmdHis') . '.' . strtolower($file->getClientOriginalExtension());
+            $file->move(public_path('signatures'), $name);
+            $update['signature_path'] = 'signatures/' . $name;
+        } elseif ($request->boolean('remove_signature')) {
+            $update['signature_path'] = null;
+        }
+
+        $user->update($update);
+
+        // ลบไฟล์เดิมเมื่อเปลี่ยน/ลบลายเซ็น (เฉพาะไฟล์ในโฟลเดอร์ signatures)
+        if ($old && array_key_exists('signature_path', $update) && $old !== $update['signature_path']
+            && str_starts_with($old, 'signatures/') && is_file(public_path($old))) {
+            @unlink(public_path($old));
+        }
+
+        return redirect()
+            ->route('users.index')
+            ->with('ok', 'บันทึกลายเซ็นของ ' . $user->name . ' เรียบร้อยแล้ว');
     }
 
     /* ============================================================
@@ -114,7 +184,7 @@ class UserController extends Controller
      ============================================================ */
     public function resetPassword(Request $request, User $user)
     {
-        $request->validate([
+        $request->validateWithBag('updatePassword', [
             'password' => ['required', 'confirmed', Password::min(8)],
         ], [
             'password.required'  => 'กรุณากรอกรหัสผ่านใหม่',
@@ -124,7 +194,8 @@ class UserController extends Controller
 
         $user->update(['password' => $request->password]);
 
-        return redirect()->route('users.index')
+        return redirect()
+            ->route('users.index')
             ->with('ok', "รีเซ็ตรหัสผ่านของ {$user->name} เรียบร้อยแล้ว");
     }
 
@@ -133,12 +204,10 @@ class UserController extends Controller
      ============================================================ */
     public function toggleStatus(User $user)
     {
-        // ห้ามระงับบัญชีตนเอง เพราะจะล็อกตัวเองออกจากระบบทันที
-        if ($user->id === auth()->id()) {
+        if ($user->getKey() === auth()->id()) {
             return back()->with('error', 'ไม่สามารถระงับบัญชีของตนเองได้');
         }
 
-        // ห้ามระงับผู้ดูแลระบบคนสุดท้าย
         if ($user->isAdmin() && $user->is_active && $this->countActiveAdmins() <= 1) {
             return back()->with('error', 'ไม่สามารถระงับผู้ดูแลระบบคนสุดท้ายได้');
         }
@@ -155,7 +224,7 @@ class UserController extends Controller
      ============================================================ */
     public function destroy(User $user)
     {
-        if ($user->id === auth()->id()) {
+        if ($user->getKey() === auth()->id()) {
             return back()->with('error', 'ไม่สามารถลบบัญชีของตนเองได้');
         }
 
@@ -166,18 +235,31 @@ class UserController extends Controller
         $name = $user->name;
         $user->delete();
 
-        return redirect()->route('users.index')
+        return redirect()
+            ->route('users.index')
             ->with('ok', "ลบผู้ใช้งาน {$name} เรียบร้อยแล้ว");
     }
 
     /* ============================================================
      |  นับผู้ดูแลระบบที่ยังใช้งานอยู่
-     |  ใช้ตรวจสอบก่อนลบ / ระงับ / ลดสิทธิ์
      ============================================================ */
     private function countActiveAdmins(): int
     {
         return User::where('role', User::ROLE_ADMIN)
             ->where('is_active', true)
             ->count();
+    }
+
+    /* ============================================================
+     |  แปลงค่าสิทธิ์รายหน้าจากฟอร์มก่อนบันทึก
+     |  admin เข้าได้ทุกหน้าอยู่แล้ว จึงเก็บเป็น null
+     ============================================================ */
+    private function permissionsFromRequest(Request $request, string $role): ?array
+    {
+        if ($role === User::ROLE_ADMIN || ! $request->has('permissions')) {
+            return null;
+        }
+
+        return Permission::clean($request->input('permissions', []));
     }
 }
