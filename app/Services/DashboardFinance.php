@@ -3,8 +3,6 @@
 namespace App\Services;
 
 use App\Models\Camp;
-use App\Models\Payment;
-use App\Models\Receipt;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -17,11 +15,11 @@ use Illuminate\Support\Facades\Schema;
  *   ต้นทุน   = ค่าน้ำมัน (fuel_records.cost_fuel_total) + ค่าซ่อม (truck_maintenances.cost)
  *   กำไรขั้นต้น = รายได้ − ต้นทุน  (ยังไม่รวมค่าแรงคนขับ / ราคาทุนวัสดุ เพราะระบบยังไม่เก็บ)
  *
- * ตัวเลขที่เป็น "เงินจริง" (เงินเข้า ลูกหนี้ เงินรับล่วงหน้า) รวม VAT เพราะเป็นยอดที่ลูกค้าจ่ายจริง
+ * ตัวเลขที่เป็น "เงินจริง" (เงินเข้า ลูกหนี้) รวม VAT เพราะเป็นยอดที่ลูกค้าจ่ายจริง
  *
  * ตัวเลขแบ่งเป็น 2 แบบ
  *   - ตามช่วงที่เลือก : รายได้ ต้นทุน กำไร เงินเข้า กำไรรายแคมป์ ต้นทุนรายรถ
- *   - ณ วันนี้        : ลูกหนี้ค้างรับ อายุหนี้ เงินรับล่วงหน้าคงเหลือ งานในมือ
+ *   - ณ วันนี้        : ลูกหนี้ค้างรับ อายุหนี้ งานในมือ
  */
 class DashboardFinance
 {
@@ -100,11 +98,9 @@ class DashboardFinance
             ->whereBetween('start_date', $range)
             ->sum('cost');
 
-        // เงินที่เข้าบริษัทจริง = หลักฐานการชำระทุกแบบ ยกเว้นรายการ "หักเงินรับล่วงหน้า"
-        // (รายการนั้นเป็นแค่การโยกเงินก้อนเดิม ถ้านับด้วยจะนับเงินซ้ำ)
+        // เงินที่เข้าบริษัทจริง = หลักฐานการชำระทุกแบบ (ตามใบแจ้งหนี้ + ขายสด)
         $cashIn = (float) DB::table('payments')
-            ->where('method', '!=', Payment::METHOD_ADVANCE)
-            // หลักฐานของใบเสร็จ (ล่วงหน้า / ขายสด) ที่ยกเลิกแล้ว ไม่นับเป็นเงินเข้า
+            // หลักฐานของใบเสร็จขายสดที่ยกเลิกแล้ว ไม่นับเป็นเงินเข้า
             ->whereNotExists(fn ($q) => $q->from('receipts as rc')
                 ->whereColumn('rc.id_receipt', 'payments.id_receipt')
                 ->whereNotNull('rc.cancelled_at'))
@@ -244,7 +240,7 @@ class DashboardFinance
 
     /**
      * ใบแจ้งหนี้ที่ยังมียอดค้าง (ณ วันนี้) พร้อมอายุหนี้
-     * ยอดค้าง = ยอดใบแจ้งหนี้ − ทุกรายการชำระ (รวมรายการหักเงินล่วงหน้า เพราะลดหนี้จริง)
+     * ยอดค้าง = ยอดใบแจ้งหนี้ − ทุกรายการชำระ
      * ตรงกับ Invoice::remainingAmount()
      */
     private function receivableRows()
@@ -373,53 +369,6 @@ class DashboardFinance
             'rows'     => $rows->take($limit),
             'more'     => max($rows->count() - $limit, 0),
             'avgPerKm' => $avgPerKm,
-        ];
-    }
-
-    // ==================== เงินรับล่วงหน้า ====================
-
-    /**
-     * เงินที่ลูกค้าจ่ายล่วงหน้ามาแล้ว แต่ยังไม่ได้หักกับใบแจ้งหนี้ (ณ วันนี้)
-     * = ภาระที่บริษัทยังต้องส่งงานให้ลูกค้า ไม่ใช่รายได้
-     */
-    public function advanceBalance(int $limit = 5): array
-    {
-        $applied = DB::table('payments')
-            ->where('method', Payment::METHOD_ADVANCE)
-            ->whereNotNull('id_advance_receipt')
-            ->groupBy('id_advance_receipt')
-            ->select('id_advance_receipt', DB::raw('SUM(amount) as used'));
-
-        $rows = DB::table('receipts as r')
-            ->leftJoinSub($applied, 'a', 'a.id_advance_receipt', '=', 'r.id_receipt')
-            ->leftJoin('camps as c', 'c.id_camp', '=', 'r.id_camp')
-            ->where('r.receipt_type', Receipt::TYPE_ADVANCE)
-            ->whereNull('r.cancelled_at')
-            ->groupBy('r.id_camp', 'c.code_camp', 'c.name_camp')
-            ->get([
-                'r.id_camp',
-                'c.code_camp',
-                'c.name_camp',
-                DB::raw('SUM(r.total) as received'),
-                DB::raw('SUM(COALESCE(a.used, 0)) as used'),
-            ])
-            ->map(fn ($r) => [
-                'id_camp'  => $r->id_camp,
-                'code'     => $r->code_camp ?? '-',
-                'name'     => $r->name_camp ?? 'ไม่ระบุแคมป์',
-                'received' => round((float) $r->received, 2),
-                'used'     => round((float) $r->used, 2),
-                'balance'  => round(max((float) $r->received - (float) $r->used, 0), 2),
-            ]);
-
-        $withBalance = $rows->where('balance', '>', 0)->sortByDesc('balance')->values();
-
-        return [
-            'received' => round($rows->sum('received'), 2),
-            'used'     => round($rows->sum('used'), 2),
-            'balance'  => round($rows->sum('balance'), 2),
-            'rows'     => $withBalance->take($limit),
-            'camps'    => $withBalance->count(),
         ];
     }
 

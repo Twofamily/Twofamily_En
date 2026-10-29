@@ -365,44 +365,25 @@
         </div>
     @endif
 
-    {{-- ===== ลายเซ็นปรับเป็น พิมพ์ชื่อพนักงานไว้ตรงกลางเส้น (แบบใบเสร็จมาตรฐาน) ===== --}}
-    <table class="signature-table small">
-        <tr>
-            <!-- ช่องซ้าย: ลูกค้า -->
-            <td width="33%" class="signature-cell">
-                <div>ในนาม <strong>ลูกค้า</strong></div>
-                <div class="signature-line" style="font-weight: normal; color: #777;">
-                    &nbsp;
-                </div>
-                <div class="muted" style="margin-top: 4px;">ผู้รับใบเสนอราคา</div>
-                <div class="muted" style="font-size: 10.5px; margin-top: 2px;">วันที่ ...../...../..........</div>
-            </td>
-
-            <!-- ช่องกลาง: ผู้จัดทำ (พิมพ์ชื่อพนักงานจากระบบ) -->
-            <td width="33%" class="signature-cell">
-                <div>ในนาม <strong>ผู้จัดทำ</strong></div>
-                <div class="signature-line">
-                    {{ $quotation->issuer->name ?? '.....................................' }}
-                </div>
-                <div class="muted" style="margin-top: 4px;">ผู้จัดทำเอกสาร</div>
-                <div class="muted" style="font-size: 10.5px; margin-top: 2px;">
-                    วันที่ {{ $quotation->issued_at ? \Carbon\Carbon::parse($quotation->issued_at)->format('d/m/Y') : '-' }}
-                </div>
-            </td>
-
-            <!-- ช่องขวา: ผู้อนุมัติ (พิมพ์ชื่อพนักงานจากระบบ) -->
-            <td width="34%" class="signature-cell">
-                <div>ในนาม <strong>{{ $settings['company.name'] ?? $settings['company_name'] ?? 'บริษัท' }}</strong></div>
-                <div class="signature-line">
-                    {{ $quotation->approver->name ?? '.....................................' }}
-                </div>
-                <div class="muted" style="margin-top: 4px;">ผู้อนุมัติ</div>
-                <div class="muted" style="font-size: 10.5px; margin-top: 2px;">
-                    วันที่ {{ $quotation->approved_at ? \Carbon\Carbon::parse($quotation->approved_at)->format('d/m/Y') : '-' }}
-                </div>
-            </td>
-        </tr>
-    </table>
+    {{-- ===== ช่องลงชื่อ: แบบเดียวกับเอกสารอื่นทุกใบ (pdf/partials/signatures) ===== --}}
+    @include('pdf.partials.signatures', ['slots' => [
+        [
+            'party' => 'customer',
+            'label' => 'ผู้รับใบเสนอราคา',
+        ],
+        [
+            'party' => 'company',
+            'label' => 'ผู้จัดทำ',
+            'user'  => $quotation->issuer,
+            'date'  => $quotation->issued_at ?? $quotation->date_quot,
+        ],
+        [
+            'party' => 'company',
+            'label' => 'ผู้อนุมัติ',
+            'user'  => $quotation->approver,      // ยังไม่อนุมัติ = ว่าง ให้เซ็นมือ
+            'date'  => $quotation->approved_at,
+        ],
+    ]])
 
     </div>{{-- /keep-together --}}
 

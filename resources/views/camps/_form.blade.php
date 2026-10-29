@@ -37,7 +37,6 @@
             background-color: #eef5ff !important;
         }
 
-        /* แถบปุ่มบันทึกติดขอบล่าง กดได้ตลอดไม่ต้องเลื่อนลงสุดฟอร์ม */
         .form-actions {
             position: sticky;
             bottom: 0;
@@ -74,9 +73,7 @@
     </style>
 
     <div class="container py-3">
-        {{-- ปุ่มกลับ แบบเดียวกับหน้าดูแคมป์ --}}
-        <a href="{{ $isEdit ? route('camps.show', $camp) : route('camps.index') }}"
-           class="btn btn-sm btn-light mb-3">
+        <a href="{{ $isEdit ? route('camps.show', $camp) : route('camps.index') }}" class="btn btn-sm btn-light mb-3">
             <i class="bi bi-arrow-left me-1"></i>{{ $isEdit ? 'กลับหน้าแคมป์' : 'กลับหน้ารายการ' }}
         </a>
 
@@ -100,21 +97,18 @@
             </div>
         @endif
 
-        <form
-            id="campForm"
-            method="POST"
-            action="{{ $isEdit
-                ? route('camps.update', ['camp' => $camp->getRouteKey()])
-                : route('camps.store') }}"
-            data-confirm="{{ $isEdit ? 'ต้องการบันทึกการแก้ไขข้อมูลแคมป์นี้หรือไม่' : 'ต้องการเพิ่มแคมป์งานนี้หรือไม่' }}" data-confirm-title="{{ $isEdit ? 'ยืนยันการแก้ไขข้อมูล' : 'ยืนยันการบันทึกข้อมูล' }}" data-confirm-ok="บันทึก" data-confirm-variant="primary">
+        <form id="campForm" method="POST"
+            action="{{ $isEdit ? route('camps.update', ['camp' => $camp->getRouteKey()]) : route('camps.store') }}"
+            data-confirm="{{ $isEdit ? 'ต้องการบันทึกการแก้ไขข้อมูลแคมป์นี้หรือไม่' : 'ต้องการเพิ่มแคมป์งานนี้หรือไม่' }}"
+            data-confirm-title="{{ $isEdit ? 'ยืนยันการแก้ไขข้อมูล' : 'ยืนยันการบันทึกข้อมูล' }}" data-confirm-ok="บันทึก"
+            data-confirm-variant="primary">
             @csrf
 
             @if ($isEdit)
                 @method('PUT')
             @endif
 
-            {{-- เปิดแคมป์ใหม่จากใบสั่งขาย: บันทึกแล้วระบบจะผูกใบสั่งขายเข้าแคมป์นี้ให้ --}}
-            @if (! empty($salesOrder))
+            @if (!empty($salesOrder))
                 <input type="hidden" name="id_so" value="{{ $salesOrder->id_so }}">
                 <div class="alert alert-primary d-flex align-items-center gap-2">
                     <i class="bi bi-link-45deg fs-5"></i>
@@ -122,20 +116,21 @@
                         เปิดแคมป์ใหม่จากใบสั่งขาย <strong>{{ $salesOrder->code_so }}</strong>
                         ({{ $salesOrder->customer->name_customer ?? '-' }}
                         · {{ number_format($salesOrder->total_amount, 2) }} บาท)
-                        <div class="small">บันทึกแล้วใบสั่งขายจะอยู่ในแคมป์นี้ ถ้าลูกค้าสั่งเพิ่มภายหลัง เปิดใบสั่งขายใหม่แล้วกด "เพิ่มเข้าแคมป์เดิม"</div>
+                        <div class="small">บันทึกแล้วใบสั่งขายจะอยู่ในแคมป์นี้ ถ้าลูกค้าสั่งเพิ่มภายหลัง
+                            เปิดใบสั่งขายใหม่แล้วกด "เพิ่มเข้าแคมป์เดิม"</div>
                     </div>
                 </div>
             @endif
 
-            {{-- เปิดแคมป์ใหม่ (ยังไม่ได้เลือกใบสั่งขาย): แนะนำให้เปิดจากใบสั่งขาย ระบบจะเติมลูกค้าและผูกสัญญาให้ --}}
-            @if (! $isEdit && empty($salesOrder) && ($openableOrders ?? collect())->isNotEmpty())
+            @if (!$isEdit && empty($salesOrder) && ($openableOrders ?? collect())->isNotEmpty())
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-body p-3 d-flex flex-wrap align-items-center gap-2">
                         <i class="bi bi-lightning-charge text-warning fs-5"></i>
                         <span class="fw-semibold">เปิดแคมป์จากใบสั่งขาย</span>
                         <span class="text-muted small">— ระบบเติมลูกค้าและผูกรายการตามสัญญาให้</span>
                         <select class="form-select form-select-sm w-auto ms-lg-auto" id="pick_sales_order">
-                            <option value="">— เลือกใบสั่งขายที่ยืนยันแล้ว ({{ $openableOrders->count() }}) —</option>
+                            <option value="">— เลือกใบสั่งขายที่ยืนยันแล้ว ({{ $openableOrders->count() }}) —
+                            </option>
                             @foreach ($openableOrders as $so)
                                 <option value="{{ route('camps.create', ['sales_order' => $so->id_so]) }}">
                                     {{ $so->code_so }} · {{ $so->customer->name_customer ?? '-' }}
@@ -163,20 +158,14 @@
                                     </span>
                                 </label>
 
-                                <select
-                                    id="id_quot"
-                                    name="id_quot"
-                                    class="form-select @error('id_quot') is-invalid @enderror"
-                                >
+                                <select id="id_quot" name="id_quot"
+                                    class="form-select @error('id_quot') is-invalid @enderror">
                                     <option value="">
                                         — ไม่อ้างอิงใบเสนอราคา —
                                     </option>
 
                                     @foreach ($quotations ?? [] as $quotation)
-                                        <option
-                                            value="{{ $quotation->id_quot }}"
-                                            @selected(old('id_quot', $camp->id_quot ?? '') == $quotation->id_quot)
-                                        >
+                                        <option value="{{ $quotation->id_quot }}" @selected(old('id_quot', $camp->id_quot ?? '') == $quotation->id_quot)>
                                             {{ $quotation->code_quot }}
                                             — {{ $quotation->customer->name_customer ?? '-' }}
                                             ({{ number_format($quotation->total_amount, 2) }} บาท)
@@ -186,7 +175,6 @@
 
                                 <div class="form-text">
                                     แสดงเฉพาะใบเสนอราคาที่อนุมัติแล้ว
-                                    เมื่อเลือกแล้วระบบจะเติมลูกค้าให้อัตโนมัติ
                                 </div>
 
                                 @error('id_quot')
@@ -201,22 +189,14 @@
                                     ลูกค้า
                                 </label>
 
-                                <select
-                                    id="id_customer"
-                                    name="id_customer"
-                                    class="form-select @error('id_customer') is-invalid @enderror"
-                                    required
-                                    data-required-msg="กรุณาเลือกลูกค้า"
-                                    data-searchable
-                                    data-placeholder="พิมพ์ชื่อลูกค้าเพื่อค้นหา..."
-                                >
+                                <select id="id_customer" name="id_customer"
+                                    class="form-select @error('id_customer') is-invalid @enderror" required
+                                    data-required-msg="กรุณาเลือกลูกค้า" data-searchable
+                                    data-placeholder="พิมพ์ชื่อลูกค้าเพื่อค้นหา...">
                                     <option value="">— เลือกลูกค้า —</option>
 
                                     @foreach ($customers as $customer)
-                                        <option
-                                            value="{{ $customer->id_customer }}"
-                                            @selected(old('id_customer', $camp->id_customer ?? '') == $customer->id_customer)
-                                        >
+                                        <option value="{{ $customer->id_customer }}" @selected(old('id_customer', $camp->id_customer ?? '') == $customer->id_customer)>
                                             {{ $customer->name_customer }}
                                         </option>
                                     @endforeach
@@ -234,17 +214,11 @@
                                     ชื่อแคมป์
                                 </label>
 
-                                <input
-                                    type="text"
-                                    id="name_camp"
-                                    name="name_camp"
+                                <input type="text" id="name_camp" name="name_camp"
                                     value="{{ old('name_camp', $camp->name_camp ?? '') }}"
                                     class="form-control @error('name_camp') is-invalid @enderror"
-                                    placeholder="เช่น แคมป์บ้านไผ่ เฟส 2"
-                                    maxlength="255"
-                                    required
-                                    data-required-msg="กรุณาใส่ชื่อแคมป์"
-                                >
+                                    placeholder="เช่น แคมป์บ้านไผ่ เฟส 2" maxlength="255" required
+                                    data-required-msg="กรุณากรอกชื่อแคมป์">
 
                                 @error('name_camp')
                                     <div class="invalid-feedback">
@@ -253,48 +227,36 @@
                                 @enderror
                             </div>
 
-                            {{-- แคมป์ใหม่เริ่มที่ "เตรียมงาน" เสมอ — เปลี่ยนสถานะจากแถบ "ทำงานต่อ" ในหน้าแคมป์ --}}
                             @if ($isEdit)
-                            <div class="mb-3">
-                                <label for="status_camp" class="form-label">
-                                    สถานะ
-                                </label>
+                                <div class="mb-3">
+                                    <label for="status_camp" class="form-label">
+                                        สถานะ
+                                    </label>
 
-                                @php
-                                    $selectedStatus = old(
-                                        'status_camp',
-                                        $camp->status_camp ?? 'preparing'
-                                    );
-                                @endphp
+                                    @php
+                                        $selectedStatus = old('status_camp', $camp->status_camp ?? 'preparing');
+                                    @endphp
 
-                                <select
-                                    id="status_camp"
-                                    name="status_camp"
-                                    class="form-select @error('status_camp') is-invalid @enderror"
-                                    required
-                                >
-                                    @foreach (\App\Models\Camp::STATUS_LABELS as $value => $label)
-                                        <option
-                                            value="{{ $value }}"
-                                            @selected($selectedStatus === $value)
-                                        >
-                                            {{ $label }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                    <select id="status_camp" name="status_camp"
+                                        class="form-select @error('status_camp') is-invalid @enderror" required>
+                                        @foreach (\App\Models\Camp::STATUS_LABELS as $value => $label)
+                                            <option value="{{ $value }}" @selected($selectedStatus === $value)>
+                                                {{ $label }}
+                                            </option>
+                                        @endforeach
+                                    </select>
 
-                                @error('status_camp')
-                                    <div class="invalid-feedback">
-                                        {{ $message }}
-                                    </div>
-                                @enderror
-                            </div>
+                                    @error('status_camp')
+                                        <div class="invalid-feedback">
+                                            {{ $message }}
+                                        </div>
+                                    @enderror
+                                </div>
                             @else
                                 <input type="hidden" name="status_camp" value="preparing">
                                 <div class="small text-muted">
                                     <i class="bi bi-info-circle me-1"></i>
                                     สถานะเริ่มต้น <span class="badge bg-info">เตรียมงาน</span>
-                                    — เปลี่ยนเป็น "กำลังดำเนินงาน" ให้เองเมื่อออกใบส่งของใบแรก
                                 </div>
                             @endif
                         </div>
@@ -311,14 +273,10 @@
                                     บ้านเลขที่ / หมู่ / รายละเอียดที่อยู่
                                 </label>
 
-                                <input
-                                    type="text"
-                                    id="address_detail"
-                                    name="address_detail"
+                                <input type="text" id="address_detail" name="address_detail"
                                     value="{{ old('address_detail', $camp->address_detail ?? '') }}"
                                     class="form-control @error('address_detail') is-invalid @enderror"
-                                    placeholder="เช่น 123/45 หมู่ 6"
-                                >
+                                    placeholder="เช่น 123/45 หมู่ 6">
 
                                 <div class="form-text">
                                     ระบบเติมข้อมูลที่หาได้จากแผนที่
@@ -338,12 +296,8 @@
                                         จังหวัด
                                     </label>
 
-                                    <select
-                                        id="province"
-                                        name="province"
-                                        class="form-select @error('province') is-invalid @enderror"
-                                        required
-                                    >
+                                    <select id="province" name="province"
+                                        class="form-select @error('province') is-invalid @enderror" required>
                                         <option value="">— เลือกจังหวัด —</option>
                                     </select>
 
@@ -359,13 +313,8 @@
                                         อำเภอ / เขต
                                     </label>
 
-                                    <select
-                                        id="district"
-                                        name="district"
-                                        class="form-select @error('district') is-invalid @enderror"
-                                        disabled
-                                        required
-                                    >
+                                    <select id="district" name="district"
+                                        class="form-select @error('district') is-invalid @enderror" disabled required>
                                         <option value="">— เลือกอำเภอ / เขต —</option>
                                     </select>
 
@@ -381,13 +330,8 @@
                                         ตำบล / แขวง
                                     </label>
 
-                                    <select
-                                        id="subdistrict"
-                                        name="subdistrict"
-                                        class="form-select @error('subdistrict') is-invalid @enderror"
-                                        disabled
-                                        required
-                                    >
+                                    <select id="subdistrict" name="subdistrict"
+                                        class="form-select @error('subdistrict') is-invalid @enderror" disabled required>
                                         <option value="">— เลือกตำบล / แขวง —</option>
                                     </select>
 
@@ -403,17 +347,10 @@
                                         รหัสไปรษณีย์
                                     </label>
 
-                                    <input
-                                        type="text"
-                                        id="zipcode"
-                                        name="zipcode"
+                                    <input type="text" id="zipcode" name="zipcode"
                                         value="{{ old('zipcode', $camp->zipcode ?? '') }}"
-                                        class="form-control @error('zipcode') is-invalid @enderror"
-                                        maxlength="5"
-                                        inputmode="numeric"
-                                        pattern="[0-9]{5}"
-                                        placeholder="เช่น 40000"
-                                    >
+                                        class="form-control @error('zipcode') is-invalid @enderror" maxlength="5"
+                                        inputmode="numeric" pattern="[0-9]{5}" placeholder="เช่น 40000">
 
                                     @error('zipcode')
                                         <div class="invalid-feedback">
@@ -427,15 +364,9 @@
                                         ละติจูด
                                     </label>
 
-                                    <input
-                                        type="number"
-                                        step="0.0000001"
-                                        id="latitude"
-                                        name="latitude"
+                                    <input type="number" step="0.0000001" id="latitude" name="latitude"
                                         value="{{ old('latitude', $camp->latitude ?? '') }}"
-                                        class="form-control bg-light @error('latitude') is-invalid @enderror"
-                                        readonly
-                                    >
+                                        class="form-control bg-light @error('latitude') is-invalid @enderror" readonly>
 
                                     @error('latitude')
                                         <div class="invalid-feedback">
@@ -449,15 +380,9 @@
                                         ลองจิจูด
                                     </label>
 
-                                    <input
-                                        type="number"
-                                        step="0.0000001"
-                                        id="longitude"
-                                        name="longitude"
+                                    <input type="number" step="0.0000001" id="longitude" name="longitude"
                                         value="{{ old('longitude', $camp->longitude ?? '') }}"
-                                        class="form-control bg-light @error('longitude') is-invalid @enderror"
-                                        readonly
-                                    >
+                                        class="form-control bg-light @error('longitude') is-invalid @enderror" readonly>
 
                                     @error('longitude')
                                         <div class="invalid-feedback">
@@ -467,11 +392,7 @@
                                 </div>
                             </div>
 
-                            <div
-                                id="address_notice"
-                                class="alert alert-warning mt-3 d-none"
-                                role="status"
-                            ></div>
+                            <div id="address_notice" class="alert alert-warning mt-3 d-none" role="status"></div>
 
                         </div>
                     </div>
@@ -488,13 +409,10 @@
                                         ชื่อผู้ติดต่อหน้างาน
                                     </label>
 
-                                    <input
-                                        type="text"
-                                        id="contact_name"
-                                        name="contact_name"
+                                    <input type="text" id="contact_name" name="contact_name"
                                         value="{{ old('contact_name', $camp->contact_name ?? '') }}"
                                         class="form-control @error('contact_name') is-invalid @enderror"
-                                    >
+                                        placeholder="เช่น สุพิชญา">
 
                                     @error('contact_name')
                                         <div class="invalid-feedback">
@@ -508,17 +426,11 @@
                                         เบอร์โทร (10 หลัก)
                                     </label>
 
-                                    <input
-                                        type="text"
-                                        id="contact_phone"
-                                        name="contact_phone"
+                                    <input type="text" id="contact_phone" name="contact_phone"
                                         value="{{ old('contact_phone', $camp->contact_phone ?? '') }}"
-                                        class="form-control @error('contact_phone') is-invalid @enderror"
-                                        maxlength="10"
-                                        pattern="[0-9]{10}"
-                                        inputmode="numeric" data-digits-only
-                                        placeholder="เช่น 0812345678"
-                                    >
+                                        class="form-control @error('contact_phone') is-invalid @enderror" maxlength="10"
+                                        pattern="[0-9]{10}" inputmode="numeric" data-digits-only
+                                        placeholder="เช่น 0812345678">
 
                                     @error('contact_phone')
                                         <div class="invalid-feedback">
@@ -532,12 +444,7 @@
                                         หมายเหตุ
                                     </label>
 
-                                    <textarea
-                                        id="note"
-                                        name="note"
-                                        rows="3"
-                                        class="form-control @error('note') is-invalid @enderror"
-                                    >{{ old('note', $camp->note ?? '') }}</textarea>
+                                    <textarea id="note" name="note" rows="3" class="form-control @error('note') is-invalid @enderror">{{ old('note', $camp->note ?? '') }}</textarea>
 
                                     @error('note')
                                         <div class="invalid-feedback">
@@ -562,13 +469,8 @@
                                     ค้นหาสถานที่
                                 </label>
 
-                                <input
-                                    type="text"
-                                    id="place_search"
-                                    class="form-control"
-                                    placeholder="ค้นหาชื่อแคมป์ บริษัท หมู่บ้าน หรือสถานที่"
-                                    autocomplete="off"
-                                >
+                                <input type="text" id="place_search" class="form-control"
+                                    placeholder="ค้นหาชื่อแคมป์ บริษัท หมู่บ้าน หรือสถานที่" autocomplete="off">
 
                                 <div class="form-text">
                                     เลือกจากรายการที่ Google แนะนำ
@@ -577,27 +479,15 @@
                             </div>
 
                             <div class="d-flex gap-2 flex-wrap mb-3">
-                                <button
-                                    type="button"
-                                    class="btn btn-outline-dark btn-sm"
-                                    id="searchFromAddress"
-                                >
+                                <button type="button" class="btn btn-outline-dark btn-sm" id="searchFromAddress">
                                     ค้นหาจากที่อยู่
                                 </button>
 
-                                <button
-                                    type="button"
-                                    class="btn btn-outline-primary btn-sm"
-                                    id="useCurrentLocation"
-                                >
+                                <button type="button" class="btn btn-outline-primary btn-sm" id="useCurrentLocation">
                                     ใช้ตำแหน่งปัจจุบัน
                                 </button>
 
-                                <button
-                                    type="button"
-                                    class="btn btn-outline-secondary btn-sm"
-                                    id="clearPin"
-                                >
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="clearPin">
                                     ล้างหมุด
                                 </button>
                             </div>
@@ -609,17 +499,9 @@
                                 ข้อมูลที่อยู่จะปรับตามตำแหน่งใหม่
                             </div>
 
-                            <div
-                                id="map_status"
-                                class="alert alert-info mt-3 d-none"
-                                role="status"
-                            ></div>
+                            <div id="map_status" class="alert alert-info mt-3 d-none" role="status"></div>
 
-                            <div
-                                id="map_error"
-                                class="alert alert-danger mt-3 d-none"
-                                role="alert"
-                            ></div>
+                            <div id="map_error" class="alert alert-danger mt-3 d-none" role="alert"></div>
                         </div>
                     </div>
                 </div>
@@ -630,7 +512,7 @@
                     {{ $isEdit ? 'แก้ไขแคมป์ ' . $camp->code_camp : 'เลขที่แคมป์จะออกให้อัตโนมัติเมื่อบันทึก' }}
                 </span>
                 <a href="{{ $isEdit ? route('camps.show', $camp) : route('camps.index') }}"
-                   class="btn btn-outline-secondary">
+                    class="btn btn-outline-secondary">
                     ยกเลิก
                 </a>
 
@@ -640,15 +522,12 @@
             </div>
         </form>
 
-        {{-- เพิ่ม / ถอนรถประจำแคมป์ — ทำได้เฉพาะหน้าแก้ไข (หน้าดูข้อมูลเป็น read-only)
-             อยู่นอก <form> หลัก เพราะแต่ละปุ่มส่งฟอร์มของตัวเอง --}}
         @if ($isEdit)
             @include('camps._trucks')
         @endif
     </div>
 
     <script>
-        // เลือกใบสั่งขาย → เปิดหน้าสร้างแคมป์ใหม่ที่เติมข้อมูลจากใบสั่งขายนั้น
         document.getElementById('pick_sales_order')?.addEventListener('change', (e) => {
             if (e.target.value) window.location = e.target.value;
         });
@@ -666,9 +545,8 @@
 
             const quotationMap = @json(
                 ($quotations ?? collect())->mapWithKeys(fn($q) => [
-                    $q->id_quot => ['id_customer' => $q->id_customer],
-                ])
-            );
+                        $q->id_quot => ['id_customer' => $q->id_customer],
+                    ]));
 
             const oldProvince = @json(old('province', $camp->province ?? ''));
             const oldDistrict = @json(old('district', $camp->district ?? ''));
@@ -702,18 +580,16 @@
             let placesService = null;
             let autocomplete = null;
 
-            // ป้องกันผลค้นหาครั้งเก่าทับตำแหน่งที่เลือกใหม่
             let requestVersion = 0;
 
-            quotationSelect.addEventListener('change', function () {
+            quotationSelect.addEventListener('change', function() {
                 const info = quotationMap[this.value];
                 if (!info) return;
                 customerSelect.value = String(info.id_customer);
-                // แจ้งช่องค้นหาลูกค้า (searchable-select) ให้แสดงชื่อที่เลือกด้วย
-                customerSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                customerSelect.dispatchEvent(new Event('change', {
+                    bubbles: true
+                }));
             });
-
-            /* ---------- แจ้งเตือน ---------- */
 
             function showStatus(message) {
                 errorElement.textContent = '';
@@ -744,7 +620,6 @@
                 addressNotice.classList.toggle('d-none', !message);
             }
 
-            /* ---------- ข้อมูลจังหวัด อำเภอ ตำบล ---------- */
 
             function normalizeThaiAddress(value) {
                 const name = String(value ?? '')
@@ -757,11 +632,11 @@
                     .replace(/\s+/g, '');
 
                 if ([
-                    'กรุงเทพ',
-                    'กรุงเทพฯ',
-                    'กรุงเทพมหานคร',
-                    'Bangkok'
-                ].includes(name)) {
+                        'กรุงเทพ',
+                        'กรุงเทพฯ',
+                        'กรุงเทพมหานคร',
+                        'Bangkok'
+                    ].includes(name)) {
                     return 'กรุงเทพมหานคร';
                 }
 
@@ -772,8 +647,7 @@
                 const items =
                     province?.district ??
                     province?.districts ??
-                    province?.amphure ??
-                    [];
+                    province?.amphure ?? [];
 
                 return Array.isArray(items) ? items : [];
             }
@@ -784,20 +658,19 @@
                     district?.sub_districts ??
                     district?.subdistrict ??
                     district?.subdistricts ??
-                    district?.tambon ??
-                    [];
+                    district?.tambon ?? [];
 
                 return Array.isArray(items) ? items : [];
             }
 
             function getName(item) {
-                const name = item?.name_th
-                    ?? (
-                        typeof item?.name === 'object'
-                            ? item?.name?.th
-                            : item?.name
-                    )
-                    ?? '';
+                const name = item?.name_th ??
+                    (
+                        typeof item?.name === 'object' ?
+                        item?.name?.th :
+                        item?.name
+                    ) ??
+                    '';
 
                 return String(name).trim();
             }
@@ -906,15 +779,15 @@
                     subdistrictSelect.options.length <= 1;
             }
 
-            provinceSelect.addEventListener('change', function () {
+            provinceSelect.addEventListener('change', function() {
                 populateDistricts(this.value);
             });
 
-            districtSelect.addEventListener('change', function () {
+            districtSelect.addEventListener('change', function() {
                 populateSubdistricts(provinceSelect.value, this.value);
             });
 
-            subdistrictSelect.addEventListener('change', function () {
+            subdistrictSelect.addEventListener('change', function() {
                 zipcodeInput.value =
                     this.selectedOptions[0]?.dataset.zip || '';
             });
@@ -942,9 +815,9 @@
                         clearTimeout(timer);
                     }
 
-                    const rows = Array.isArray(payload)
-                        ? payload
-                        : payload?.data;
+                    const rows = Array.isArray(payload) ?
+                        payload :
+                        payload?.data;
 
                     if (!Array.isArray(rows) || !rows.length) {
                         throw new Error('รูปแบบข้อมูลจังหวัดไม่ถูกต้อง');
@@ -970,7 +843,6 @@
 
                     provinceSelect.disabled = false;
 
-                    // คืนค่าเดิมเฉพาะการโหลดครั้งแรก
                     if (!restoredOldAddress) {
                         restoredOldAddress = true;
 
@@ -997,12 +869,10 @@
                 }
             }
 
-            /* ---------- แยกข้อมูลที่อยู่จาก Google ---------- */
 
             function componentNames(components, types) {
                 const names = [];
 
-                // ลำดับ types คือความสำคัญในการจับคู่
                 for (const type of types) {
                     for (const component of components) {
                         if (!component.types?.includes(type)) continue;
@@ -1037,34 +907,30 @@
 
                 const districts = componentNames(
                     components,
-                    isBangkok
-                        ? [
-                            'sublocality_level_1',
-                            'administrative_area_level_2',
-                            'locality'
-                        ]
-                        : [
-                            'administrative_area_level_2',
-                            'locality',
-                            'sublocality_level_1'
-                        ]
+                    isBangkok ? [
+                        'sublocality_level_1',
+                        'administrative_area_level_2',
+                        'locality'
+                    ] : [
+                        'administrative_area_level_2',
+                        'locality',
+                        'sublocality_level_1'
+                    ]
                 );
 
                 const subdistricts = componentNames(
                     components,
-                    isBangkok
-                        ? [
-                            'sublocality_level_2',
-                            'administrative_area_level_3',
-                            'sublocality'
-                        ]
-                        : [
-                            'sublocality_level_1',
-                            'administrative_area_level_3',
-                            'sublocality_level_2',
-                            'sublocality',
-                            'locality'
-                        ]
+                    isBangkok ? [
+                        'sublocality_level_2',
+                        'administrative_area_level_3',
+                        'sublocality'
+                    ] : [
+                        'sublocality_level_1',
+                        'administrative_area_level_3',
+                        'sublocality_level_2',
+                        'sublocality',
+                        'locality'
+                    ]
                 );
 
                 const streetNumber =
@@ -1075,8 +941,6 @@
 
                 let detail = '';
 
-                // ใช้ส่วนต้นของที่อยู่ก่อนตำบล/อำเภอ/จังหวัด
-                // เพื่อเก็บบ้านเลขที่และหมู่ หาก Google ส่งมาใน formatted_address
                 const boundaries = [
                     ...subdistricts,
                     ...districts,
@@ -1094,7 +958,6 @@
                         .replace(/[\s,]+$/, '')
                         .trim();
 
-                    // ไม่ใช้ Plus Code เป็นบ้านเลขที่
                     if (/^[A-Z0-9]{4,8}\+[A-Z0-9]{2,3}(?:\s|$)/i.test(detail)) {
                         detail = '';
                     }
@@ -1135,7 +998,6 @@
                         addressDetailInput.value = address.detail;
                     }
 
-                    // ล้างเขตการปกครองเดิมเพื่อไม่ให้ค้างจากหมุดก่อนหน้า
                     provinceSelect.value = '';
                     populateDistricts('');
                     zipcodeInput.value = address.zipcode;
@@ -1175,7 +1037,6 @@
                         address.subdistricts
                     );
 
-                // ใช้รหัสจากตำบลก่อน หากไม่มีจึงใช้รหัสที่ Google ส่งมา
                 if (!zipcodeInput.value && address.zipcode) {
                     zipcodeInput.value = address.zipcode;
                 }
@@ -1201,18 +1062,16 @@
                 }
             }
 
-            /* ---------- หมุดและพิกัด ---------- */
-
             function positionLat(position) {
-                return typeof position.lat === 'function'
-                    ? position.lat()
-                    : position.lat;
+                return typeof position.lat === 'function' ?
+                    position.lat() :
+                    position.lat;
             }
 
             function positionLng(position) {
-                return typeof position.lng === 'function'
-                    ? position.lng()
-                    : position.lng;
+                return typeof position.lng === 'function' ?
+                    position.lng() :
+                    position.lng;
             }
 
             function updateCoordinates(position) {
@@ -1334,9 +1193,9 @@
                 clearAddressForNewPosition();
 
                 placeSearchInput.value =
-                    place.name && place.formatted_address
-                        ? `${place.name}, ${place.formatted_address}`
-                        : (place.formatted_address || place.name || '');
+                    place.name && place.formatted_address ?
+                    `${place.name}, ${place.formatted_address}` :
+                    (place.formatted_address || place.name || '');
 
                 showStatus('กำลังเติมข้อมูลที่อยู่...');
 
@@ -1353,8 +1212,6 @@
                     'กรุณาตรวจสอบก่อนบันทึก'
                 );
             }
-
-            /* ---------- ค้นหาจากที่อยู่ที่กรอก ---------- */
 
             async function searchFromAddress() {
                 if (!geocoder) {
@@ -1373,12 +1230,12 @@
 
                 const parts = [
                     addressDetailInput.value.trim(),
-                    subdistrictSelect.value
-                        ? `${isBangkok ? 'แขวง' : 'ตำบล'}${subdistrictSelect.value}`
-                        : '',
-                    districtSelect.value
-                        ? `${isBangkok ? 'เขต' : 'อำเภอ'}${districtSelect.value}`
-                        : '',
+                    subdistrictSelect.value ?
+                    `${isBangkok ? 'แขวง' : 'ตำบล'}${subdistrictSelect.value}` :
+                    '',
+                    districtSelect.value ?
+                    `${isBangkok ? 'เขต' : 'อำเภอ'}${districtSelect.value}` :
+                    '',
                     provinceSelect.value,
                     zipcodeInput.value.trim(),
                     'ประเทศไทย'
@@ -1413,7 +1270,6 @@
                     placeSearchInput.value =
                         result.formatted_address || '';
 
-                    // เก็บบ้านเลขที่/หมู่ที่ผู้ใช้กรอกไว้
                     await applyAddressToFields(
                         result.address_components || [],
                         result.formatted_address || '',
@@ -1457,8 +1313,6 @@
                 clearMessages();
                 showAddressNotice('');
             }
-
-            /* ---------- ตำแหน่งปัจจุบัน ---------- */
 
             function useCurrentLocation() {
                 if (!map || !geocoder) {
@@ -1508,8 +1362,7 @@
                         );
 
                         console.error('Geolocation error:', error);
-                    },
-                    {
+                    }, {
                         enableHighAccuracy: true,
                         timeout: 10000,
                         maximumAge: 0
@@ -1529,9 +1382,7 @@
                 useCurrentLocation
             );
 
-            /* ---------- เริ่มต้น Google Maps ---------- */
-
-            window.initCampGoogleMap = function () {
+            window.initCampGoogleMap = function() {
                 const existingLatitude =
                     Number.parseFloat(latitudeInput.value);
 
@@ -1542,16 +1393,14 @@
                     Number.isFinite(existingLatitude) &&
                     Number.isFinite(existingLongitude);
 
-                const initialPosition = hasExistingPosition
-                    ? {
+                const initialPosition = hasExistingPosition ? {
                         lat: existingLatitude,
                         lng: existingLongitude
-                    }
-                    : defaultPosition;
+                    } :
+                    defaultPosition;
 
                 map = new google.maps.Map(
-                    document.getElementById('map'),
-                    {
+                    document.getElementById('map'), {
                         center: initialPosition,
                         zoom: hasExistingPosition ? 16 : 11,
                         mapTypeControl: false,
@@ -1568,8 +1417,7 @@
 
                 autocomplete =
                     new google.maps.places.Autocomplete(
-                        placeSearchInput,
-                        {
+                        placeSearchInput, {
                             componentRestrictions: {
                                 country: 'th'
                             },
@@ -1601,7 +1449,6 @@
 
                     const token = ++requestVersion;
 
-                    // ปักหมุดทันที แล้วจึงโหลดข้อมูลสถานที่
                     setMarker(event.latLng, 17);
                     clearAddressForNewPosition();
                     placeSearchInput.value = '';
@@ -1610,8 +1457,7 @@
                     if (event.placeId) {
                         event.stop();
 
-                        placesService.getDetails(
-                            {
+                        placesService.getDetails({
                                 placeId: event.placeId,
                                 fields: [
                                     'place_id',
@@ -1643,20 +1489,17 @@
                 });
 
                 if (hasExistingPosition) {
-                    // หน้าแก้ไขใช้ค่าที่บันทึกไว้ ไม่เขียนทับที่อยู่เดิม
                     setMarker(initialPosition);
                 }
             };
 
-            window.gm_authFailure = function () {
+            window.gm_authFailure = function() {
                 showError(
                     'Google Maps โหลดไม่ได้ ' +
                     'กรุณาตรวจสอบ API Key, Billing และ Website restrictions'
                 );
             };
 
-            // โหลดรายการที่อยู่แยกจากแผนที่
-            // แม้แผนที่โหลดไม่ได้ ผู้ใช้ยังเลือกจังหวัดได้
             loadThaiAddressData().catch(error => {
                 showAddressNotice(
                     'โหลดรายการจังหวัด อำเภอ และตำบลไม่สำเร็จ ' +
@@ -1669,10 +1512,9 @@
     </script>
 
     @if (config('services.google_maps.key'))
-        <script
-            async
-            src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&libraries=places&callback=initCampGoogleMap&loading=async&language=th&region=TH"
-        ></script>
+        <script async
+            src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&libraries=places&callback=initCampGoogleMap&loading=async&language=th&region=TH">
+        </script>
     @else
         <script>
             document.getElementById('map_error').textContent =

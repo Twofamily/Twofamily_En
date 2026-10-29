@@ -9,12 +9,7 @@
 @section('content')
 <div class="container py-3">
 
-    @if (session('ok'))
-        <div class="alert alert-success">{{ session('ok') }}</div>
-    @endif
-    @if (session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
+    {{-- ข้อความแจ้งเตือน (ok / error) แสดงจาก layout แล้ว ไม่ต้องใส่ซ้ำที่นี่ --}}
 
     {{-- ส่วนหัวเอกสาร (แบบเดียวกับใบเสนอราคา) --}}
     <div class="text-center mb-4">
@@ -65,6 +60,10 @@
                             </button>
                         </form>
                     @endif
+                @elseif ($salesOrder->status === 'draft' && $salesOrder->isDirect())
+                    <span class="text-warning-emphasis">
+                        <i class="bi bi-hourglass-split me-1"></i> ใบสั่งตรง — รอผู้ดูแลระบบตรวจราคาและยืนยัน จึงจะเข้าแคมป์ได้
+                    </span>
                 @elseif ($salesOrder->status === 'draft')
                     <span class="text-muted">
                         <i class="bi bi-pencil me-1"></i> ยังเป็นร่าง — ยืนยันก่อนจึงจะเข้าแคมป์ได้
@@ -86,23 +85,35 @@
                     <i class="bi bi-printer me-1"></i> พิมพ์
                 </a>
 
-                @if ($salesOrder->canEdit())
-                    <a href="{{ route('sales_orders.edit', $salesOrder->id_so) }}"
-                       class="btn btn-sm btn-outline-dark">แก้ไข</a>
+                @if ($salesOrder->canEdit() && auth()->user()->canEdit('sales_orders'))
+                    <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#editSalesOrderModal">
+                        <i class="bi bi-pencil-square me-1"></i>แก้ไข
+                    </button>
                 @endif
 
                 @if ($salesOrder->canConfirm())
-                    <form method="POST" action="{{ route('sales_orders.confirm', $salesOrder) }}"
-                          style="display:inline;"
-                          data-confirm="ใบสั่งขาย {{ $salesOrder->code_so }} จะถูกยืนยัน หลังจากนี้จะแก้ไขรายการไม่ได้ และสามารถเปิดแคมป์ใหม่ หรือเพิ่มเข้าแคมป์เดิมได้"
-                          data-confirm-title="ยืนยันใบสั่งขาย"
-                          data-confirm-variant="success"
-                          data-confirm-ok="ยืนยัน">
-                        @csrf @method('PATCH')
-                        <button class="btn btn-sm btn-success" type="submit">
-                            ยืนยันใบสั่งขาย
-                        </button>
-                    </form>
+                    @php $confirmBlocker = $salesOrder->confirmBlocker(auth()->user()); @endphp
+
+                    @if ($confirmBlocker)
+                        {{-- ใบสั่งตรง: พนักงานกดไม่ได้ ต้องรอผู้ดูแลระบบ --}}
+                        <span class="small text-muted align-self-center">
+                            <i class="bi bi-lock me-1"></i>{{ $confirmBlocker }}
+                        </span>
+                    @else
+                        <form method="POST" action="{{ route('sales_orders.confirm', $salesOrder) }}"
+                              style="display:inline;"
+                              data-confirm="{{ $salesOrder->isDirect()
+                                  ? 'ใบสั่งตรง ' . $salesOrder->code_so . ' ไม่มีใบเสนอราคา — กรุณาตรวจราคาทุกรายการก่อนยืนยัน หลังจากนี้จะแก้ไขรายการไม่ได้'
+                                  : 'ใบสั่งขาย ' . $salesOrder->code_so . ' จะถูกยืนยัน หลังจากนี้จะแก้ไขรายการไม่ได้ และสามารถเปิดแคมป์ใหม่ หรือเพิ่มเข้าแคมป์เดิมได้' }}"
+                              data-confirm-title="{{ $salesOrder->isDirect() ? 'ตรวจราคาและยืนยันใบสั่งตรง' : 'ยืนยันใบสั่งขาย' }}"
+                              data-confirm-variant="success"
+                              data-confirm-ok="ยืนยัน">
+                            @csrf @method('PATCH')
+                            <button class="btn btn-sm btn-success" type="submit">
+                                ยืนยันใบสั่งขาย
+                            </button>
+                        </form>
+                    @endif
                 @endif
 
                 @if ($salesOrder->status === 'confirmed' && ! $salesOrder->camp)
@@ -276,4 +287,7 @@
         <a href="{{ route('sales_orders.index') }}" class="btn btn-outline-secondary">ย้อนกลับ</a>
     </div>
 </div>
+    @if ($salesOrder->canEdit() && auth()->user()->canEdit('sales_orders'))
+        @include('sales_orders._edit-modal')
+    @endif
 @endsection

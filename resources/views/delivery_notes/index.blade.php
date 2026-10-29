@@ -26,11 +26,11 @@
 
         {{-- ==================== ปุ่มสร้าง ==================== --}}
         <div class="d-flex justify-content-end align-items-center mb-3">
-            @if ($canEdit)
-            <a href="{{ route('delivery_notes.create') }}" class="btn btn-dark text-nowrap">
-                <i class="bi bi-plus-lg me-1"></i>
-                สร้างใบส่งของ
-            </a>
+            @if ($canEdit && $canCreate)
+                <button type="button" class="btn btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#createDeliveryNoteModal">
+                    <i class="bi bi-plus-lg me-1"></i>
+                    สร้างใบส่งของ
+                </button>
             @endif
         </div>
 
@@ -140,4 +140,15 @@
         @include('partials.pagination-footer', ['paginator' => $deliveryNotes])
 
     </div>
+    {{-- ==================== หน้าต่างสร้างใบส่งของ ==================== --}}
+    @if ($canEdit && $canCreate)
+        @include('delivery_notes._create-modal')
+
+        @if ($errors->createDeliveryNote->any() || request('modal') === 'create')
+            <script>
+                document.addEventListener('DOMContentLoaded', () =>
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('createDeliveryNoteModal')).show());
+            </script>
+        @endif
+    @endif
 @endsection

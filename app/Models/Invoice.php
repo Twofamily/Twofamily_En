@@ -4,11 +4,12 @@ namespace App\Models;
 
 use App\Models\Concerns\Cancellable;
 use App\Models\Concerns\HasDocumentCode;
+use App\Models\Concerns\RecordsCreator;
 use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
-    use HasDocumentCode, Cancellable;
+    use HasDocumentCode, Cancellable, RecordsCreator;
 
     /** ยกเลิกเอกสาร = ใส่ cancelled_at (SoftDeletes) ไม่ลบแถวทิ้ง */
     public const DELETED_AT = 'cancelled_at';
@@ -16,6 +17,7 @@ class Invoice extends Model
     protected $primaryKey = 'id_invoice';
 
     protected $fillable = [
+        'created_by_user_id',
         'code_inv',
         'id_quotation',
         'id_customer',
@@ -105,7 +107,7 @@ class Invoice extends Model
         return $this->belongsTo(Quotation::class, 'id_quotation', 'id_quot');
     }
 
-    /** แคมป์ของใบแจ้งหนี้ (ใช้หักเงินรับล่วงหน้าของแคมป์ และสรุปยอดรายแคมป์) */
+    /** แคมป์ของใบแจ้งหนี้ (ใช้สรุปยอดรายแคมป์) */
     public function camp()
     {
         return $this->belongsTo(Camp::class, 'id_camp', 'id_camp');
@@ -157,7 +159,7 @@ class Invoice extends Model
     /* ---------- ยกเลิก ---------- */
 
     /**
-     * ยกเลิกได้เมื่อยังไม่มีรายการชำระ (รวมรายการหักเงินล่วงหน้า) และยังไม่ออกใบเสร็จ
+     * ยกเลิกได้เมื่อยังไม่มีรายการชำระ และยังไม่ออกใบเสร็จ
      * คืนข้อความเหตุผลถ้ายกเลิกไม่ได้ / null ถ้ายกเลิกได้
      */
     public function cancelBlocker(): ?string
@@ -204,23 +206,6 @@ class Invoice extends Model
         return $sum / 100;
     }
 
-    /** ยอดที่หักจากเงินรับล่วงหน้า */
-    public function advanceAppliedAmount(): float
-    {
-        $sum = $this->relationLoaded('payments')
-            ? $this->payments->filter(fn ($p) => $p->isAdvanceApplication())
-                             ->sum(fn ($p) => $this->toSatang($p->amount))
-            : $this->toSatang($this->payments()->where('method', Payment::METHOD_ADVANCE)->sum('amount'));
-
-        return $sum / 100;
-    }
-
-    /** ยอดที่ลูกค้าจ่ายเป็นเงินจริงในรอบนี้ (ไม่รวมที่หักจากเงินล่วงหน้า) = ยอดบนใบเสร็จ */
-    public function cashPaidAmount(): float
-    {
-        return ($this->toSatang($this->paidAmount()) - $this->toSatang($this->advanceAppliedAmount())) / 100;
-    }
-
     public function remainingAmount(): float
     {
         $remain = $this->toSatang($this->total) - $this->toSatang($this->paidAmount());
@@ -247,35 +232,12 @@ class Invoice extends Model
     }
 
     // เงื่อนไขหลัก: มีหลักฐานอย่างน้อย 1 รายการ + ยอดครบ + ยังไม่เคยออกใบเสร็จ
-    // + ต้องมีเงินจ่ายจริงในรอบนี้ (ถ้าหักเงินล่วงหน้าครบทั้งใบ ใบเสร็จล่วงหน้าคือใบเสร็จของเงินก้อนนั้นแล้ว)
     public function canIssueReceipt(): bool
     {
         return ! $this->isCancelled()
             && $this->hasPayments()
             && $this->isFullyPaid()
-            && ! $this->hasReceipt()
-            && $this->cashPaidAmount() > 0;
-    }
-
-    /** ชำระครบด้วยเงินรับล่วงหน้าทั้งหมด ไม่ต้องออกใบเสร็จใหม่ */
-    public function isSettledByAdvance(): bool
-    {
-        return $this->isFullyPaid() && $this->hasPayments() && $this->cashPaidAmount() <= 0;
-    }
-
-    /** เงินล่วงหน้าของแคมป์ที่ยังหักได้ */
-    public function availableAdvance(): float
-    {
-        return $this->camp ? $this->camp->advanceBalance() : 0;
-    }
-
-    /** หักเงินรับล่วงหน้าได้ = ยังไม่ออกใบเสร็จ + ยังมียอดค้าง + แคมป์มีเงินล่วงหน้าเหลือ */
-    public function canApplyAdvance(): bool
-    {
-        return ! $this->isCancelled()
-            && ! $this->hasReceipt()
-            && $this->remainingAmount() > 0
-            && $this->availableAdvance() > 0;
+            && ! $this->hasReceipt();
     }
 
     // เพิ่ม/ลบรายการชำระได้เฉพาะตอนที่ยังไม่ออกใบเสร็จ

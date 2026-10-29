@@ -98,17 +98,16 @@ class ProductController extends Controller
             ->with('ok', 'เพิ่มสินค้าเรียบร้อย');
     }
 
+    /** แก้ไขสินค้าทำในหน้าต่าง (modal) ของหน้ารายการ */
     public function edit(Product $product)
     {
-        return view('products.edit', [
-            'product' => $product,
-            'types'   => ProductType::orderBy('name_product_type')->get(),
-        ]);
+        return redirect()->route('products.index', ['edit' => $product->getKey()]);
     }
 
     public function update(Request $request, Product $product)
     {
-        $data = $this->validateProduct($request);
+        $data = $this->validateProduct($request, 'updateProduct');
+        unset($data['new_type']);
 
         if ($request->hasFile('image')) {
             $data['image'] = $this->handleImageUpload($request, $product->image);
@@ -117,7 +116,7 @@ class ProductController extends Controller
         $product->update($data);
 
         return redirect()
-            ->route('products.index')
+            ->route('products.index', $request->only('page', 'search', 'type', 'per_page'))
             ->with('ok', 'แก้ไขข้อมูลเรียบร้อย');
     }
 
@@ -134,9 +133,9 @@ class ProductController extends Controller
             ->with('ok', 'ลบสินค้าเรียบร้อย');
     }
 
-    private function validateProduct(Request $request): array
+    private function validateProduct(Request $request, string $bag = 'default'): array
     {
-        return $request->validate([
+        return $request->validateWithBag($bag, [
             'name_product'    => ['required', 'string', 'max:45'],
             'detail_product'  => ['nullable', 'string', 'max:255'],
             'unit_price'      => ['required', 'numeric', 'min:0', 'max:9999999999', 'decimal:0,2'],

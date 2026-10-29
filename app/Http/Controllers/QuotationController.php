@@ -50,20 +50,25 @@ class QuotationController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('quotations.index', compact('quotations', 'perPage', 'search', 'dateFrom', 'dateTo', 'status', 'ranges'));
+        // หน้าต่างสร้างใบเสนอราคา (เปิดจากปุ่มในหน้านี้)
+        $customers = Customer::orderBy('name_customer')->get();
+        $products  = Product::orderBy('name_product')->get();
+
+        return view('quotations.index', compact(
+            'quotations', 'perPage', 'search', 'dateFrom', 'dateTo', 'status', 'ranges', 'customers', 'products'
+        ));
     }
 
+    /** สร้างใบเสนอราคาในหน้าต่าง (modal) ของหน้ารายการ */
     public function create()
     {
-        return view('quotations.create', [
-            'customers' => Customer::all(),
-            'products'  => Product::all(),
-        ]);
+        return redirect()->route('quotations.index', ['modal' => 'create']);
     }
 
     public function store(Request $request)
     {
-        $this->validateQuotation($request);$money = $this->calculateTotals($request->items);
+        $this->validateQuotation($request, 'createQuotation');
+        $money = $this->calculateTotals($request->items);
 
         $quotation = DB::transaction(function () use ($request, $money) {$quotation = Quotation::create([
                 'id_customer'       => $request->id_customer,
@@ -92,9 +97,15 @@ class QuotationController extends Controller
     public function show(Quotation $quotation)
     {
         $quotation->load('customer', 'details.product', 'salesOrder.camp', 'issuer', 'approver');
-        return view('quotations.show', compact('quotation'));
+
+        // หน้าต่างแก้ไข (เฉพาะใบร่าง)
+        $customers = $quotation->status === 'draft' ? Customer::orderBy('name_customer')->get() : collect();
+        $products  = $quotation->status === 'draft' ? Product::orderBy('name_product')->get() : collect();
+
+        return view('quotations.show', compact('quotation', 'customers', 'products'));
     }
 
+    /** แก้ไขใบเสนอราคาในหน้าต่าง (modal) ของหน้าดูใบเสนอราคา */
     public function edit(Quotation $quotation)
     {
         if ($quotation->status !== 'draft') {
@@ -103,13 +114,7 @@ class QuotationController extends Controller
                 ->with('error', 'ใบเสนอราคานี้ไม่อยู่ในสถานะร่าง ไม่สามารถแก้ไขได้');
         }
 
-        $quotation->load('details.product', 'customer');
-
-        return view('quotations.edit', [
-            'quotation' => $quotation,
-            'customers' => Customer::all(),
-            'products'  => Product::all(),
-        ]);
+        return redirect()->route('quotations.show', [$quotation, 'edit' => 1]);
     }
 
     public function update(Request $request, Quotation$quotation)
@@ -120,7 +125,8 @@ class QuotationController extends Controller
                 ->with('error', 'ใบเสนอราคานี้ไม่อยู่ในสถานะร่าง ไม่สามารถแก้ไขได้');
         }
 
-        $this->validateQuotation($request);$money = $this->calculateTotals($request->items);
+        $this->validateQuotation($request, 'updateQuotation');
+        $money = $this->calculateTotals($request->items);
 
         DB::transaction(function () use ($request,$quotation, $money) {$quotation->update([
                 'id_customer'  => $request->id_customer,
@@ -139,36 +145,23 @@ class QuotationController extends Controller
             ->with('ok', 'อัปเดตใบเสนอราคาเรียบร้อย');
     }
 
-    public function destroy($id)
-    {
-        $quotation = Quotation::findOrFail($id);
-
-        if ($quotation->hasSalesOrder()) {
-            return back()->with('error', 'ใบเสนอราคานี้ออกใบสั่งขายไปแล้ว ไม่สามารถลบได้');
-        }
-
-        DB::transaction(function () use ($quotation) {
-            $quotation->details()->delete();$quotation->delete();
-        });
-
-        return redirect()->route('quotations.index')
-            ->with('ok', 'ลบใบเสนอราคาสำเร็จ');
-    }
-
     public function approve($id)
     {
         $q = Quotation::findOrFail($id);
 
-        if ($q->status !== 'draft') {
-            return back()->with('error', 'ใบเสนอราคานี้ไม่อยู่ในสถานะร่าง ไม่สามารถอนุมัติได้');
+        // ผู้อนุมัติต้องเป็น admin และไม่ใช่ผู้จัดทำใบนี้ (ดูกฎใน Quotation::approveBlocker)
+        if ($reason = $q->approveBlocker(auth()->user())) {
+            return back()->with('error', 'อนุมัติไม่ได้: ' . $reason);
         }
 
         if ($q->details()->count() === 0) {
             return back()->with('error', 'ไม่มีรายการสินค้า ไม่สามารถอนุมัติได้');
         }
 
-        $q->status              = 'approved';$q->approved_by_user_id = auth()->id();
-        $q->approved_at         = now();$q->save();
+        $q->status              = 'approved';
+        $q->approved_by_user_id = auth()->id();
+        $q->approved_at         = now();
+        $q->save();
 
         return back()->with('ok', 'อนุมัติใบเสนอราคาเรียบร้อย');
     }
@@ -185,9 +178,10 @@ class QuotationController extends Controller
             return back()->with('error', 'ไม่สามารถยกเลิกได้');
         }
 
-        $q->status = 'rejected';$q->save();
+        $q->status = 'rejected';
+        $q->save();
 
-        return back()->with('ok', 'ยกเลิกใบเสนอราคาแล้ว');
+        return back()->with('ok', 'ยกเลิกใบเสนอราคาแล้ว (เอกสารยังอยู่ในระบบ เลขที่ไม่หาย)');
     }
 
     public function downloadPDF(Quotation $quotation)
@@ -203,9 +197,9 @@ class QuotationController extends Controller
 
     /* ==================== Private helpers ==================== */
 
-    private function validateQuotation(Request $request): void
+    private function validateQuotation(Request $request, string $bag): void
     {
-        $request->validate([
+        $request->validateWithBag($bag, [
             'id_customer'        => ['required', 'exists:customers,id_customer'],
             'items'              => ['required', 'array', 'min:1'],
             'items.*.id_product' => ['required', 'exists:products,id_product'],

@@ -28,9 +28,11 @@ class TruckModelController extends Controller
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
 
-        // สถานะรุ่น: ใช้งาน / ปิดใช้งาน
-        $statusLabels = ['active' => 'ใช้งาน', 'inactive' => 'ปิดใช้งาน'];
-        $status = $this->statusFilter($request, array_keys($statusLabels));
+        // dropdown จำนวนล้อ: ตัวเลือก = จำนวนล้อที่มีอยู่จริงในตาราง เช่น [6 => '6 ล้อ', 10 => '10 ล้อ']
+        $wheelLabels = TruckModel::whereNotNull('wheels')->distinct()->orderBy('wheels')->pluck('wheels')
+            ->mapWithKeys(fn ($w) => [$w => "{$w} ล้อ"])
+            ->all();
+        $wheels = $this->statusFilter($request, array_map('strval', array_keys($wheelLabels)), 'wheels');
 
         // ค้นหาแบบช่วงของคอลัมน์ ปี / ล้อ / คิว / กม.ต่อลิตร
         // ตัวเลือก dropdown = ค่าที่มีอยู่จริงในตาราง (ไม่ต้องพิมพ์เอง)
@@ -47,7 +49,7 @@ class TruckModelController extends Controller
         // trucks: ใช้แสดงรายชื่อรถในหน้าต่าง "ดู" ของแต่ละรุ่น
         $models = TruckModel::with(['brand', 'trucks:id_truck,truck_model_id,status_truck'])
             ->withCount('trucks')
-            ->when($status, fn ($query) => $query->where('is_active', $status === 'active'))
+            ->when($wheels !== null, fn ($query) => $query->where('wheels', (int) $wheels))
             ->tap(fn ($query) => $this->applyNumberRange($query, 'model_year', $ranges['year']))
             ->tap(fn ($query) => $this->applyNumberRange($query, 'wheels', $ranges['wheels']))
             ->tap(fn ($query) => $this->applyNumberRange($query, 'cubic_capacity', $ranges['cubic']))
@@ -64,7 +66,7 @@ class TruckModelController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return compact('models', 'search', 'perPage', 'status', 'statusLabels', 'ranges');
+        return compact('models', 'search', 'perPage', 'wheels', 'wheelLabels', 'ranges');
     }
 
     /** ฟอร์มเพิ่มรุ่นย้ายไปเป็น modal ในแท็บรุ่นรถแล้ว */
@@ -91,8 +93,13 @@ class TruckModelController extends Controller
             ->with('ok', 'เพิ่มรุ่นรถเรียบร้อย');
     }
 
-    public function edit(TruckModel $truck_model)
+    /** ฟอร์มแก้ไขรุ่นย้ายไปเป็น modal ในแท็บรุ่นรถแล้ว — เปิด URL เดิมก็เด้ง modal ให้ */
+    public function edit(Request $request, TruckModel $truck_model)
     {
+        if ($request->user()?->canViewModule('trucks')) {
+            return redirect()->route('trucks.index', ['tab' => 'models', 'edit' => $truck_model->getKey()]);
+        }
+
         $model  = $truck_model;
         $brands = TruckBrand::orderBy('name_brand')->get();
 
@@ -101,12 +108,16 @@ class TruckModelController extends Controller
 
     public function update(Request $request, TruckModel $truck_model)
     {
-        $data = $this->validateData($request, $truck_model->getKey());
+        // error ของ modal แก้ไขแยกไว้ใน bag "updateModel" ไม่ปนกับ modal เพิ่ม
+        $data = $this->validateData($request, $truck_model->getKey(), 'updateModel');
 
         $truck_model->update($data);
 
+        // กลับไปหน้าเดิม พร้อมคำค้นหา / ตัวกรอง / เลขหน้าที่ใช้อยู่
+        $keep = array_filter($request->only('page', 'search', 'wheels', 'per_page'), fn ($v) => $v !== null && $v !== '');
+
         return redirect()
-            ->route('trucks.index', ['tab' => 'models'])
+            ->route('trucks.index', ['tab' => 'models'] + $keep)
             ->with('ok', 'แก้ไขรุ่นรถเรียบร้อย');
     }
 
@@ -122,7 +133,7 @@ class TruckModelController extends Controller
         return back()->with('ok', 'ลบรุ่นรถเรียบร้อยแล้ว');
     }
 
-    private function validateData(Request $request, mixed $ignoreId = null): array
+    private function validateData(Request $request, mixed $ignoreId = null, string $errorBag = 'default'): array
     {
         $yearMax = (int) now()->year + 1;
         $brandKey = (new TruckBrand())->getKeyName();
@@ -132,7 +143,7 @@ class TruckModelController extends Controller
             'is_active'  => $request->boolean('is_active'),
         ]);
 
-        return $request->validate([
+        return $request->validateWithBag($errorBag, [
             'truck_brand_id' => ['required', Rule::exists('truck_brands', $brandKey)],
 
             'name_model' => [
@@ -166,14 +177,14 @@ class TruckModelController extends Controller
             'model_year.required'     => 'กรุณาระบุปีรุ่น',
             'fuel_rate.required'      => 'กรุณาระบุอัตราสิ้นเปลือง',
             'truck_type.required'     => 'กรุณาเลือกประเภทรถ',
-            'wheels.required'         => 'กรุณาใส่จำนวนล้อ',
-            'cubic_capacity.required' => 'กรุณาใส่ความจุกระบะ',
-            'load_capacity.required'  => 'กรุณาใส่น้ำหนักบรรทุก',
-            'curb_weight.required'    => 'กรุณาใส่น้ำหนักรถเปล่า',
-            'tank_capacity.required'  => 'กรุณาใส่ความจุถังน้ำมัน',
-            'engine_cc.required'      => 'กรุณาใส่ขนาดเครื่องยนต์',
-            'horsepower.required'     => 'กรุณาใส่แรงม้า',
-            'fuel_type.required'      => 'กรุณาใส่ชนิดเชื้อเพลิง',
+            'wheels.required'         => 'กรุณากรอกจำนวนล้อ',
+            'cubic_capacity.required' => 'กรุณากรอกความจุกระบะ',
+            'load_capacity.required'  => 'กรุณากรอกน้ำหนักบรรทุก',
+            'curb_weight.required'    => 'กรุณากรอกน้ำหนักรถเปล่า',
+            'tank_capacity.required'  => 'กรุณากรอกความจุถังน้ำมัน',
+            'engine_cc.required'      => 'กรุณากรอกขนาดเครื่องยนต์',
+            'horsepower.required'     => 'กรุณากรอกแรงม้า',
+            'fuel_type.required'      => 'กรุณากรอกชนิดเชื้อเพลิง',
         ]);
     }
 }

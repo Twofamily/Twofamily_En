@@ -17,9 +17,6 @@
     <div class="d-flex justify-content-between align-items-start mb-3 gap-2 flex-wrap">
         <div>
             <div class="section-title">รายได้ ต้นทุน และกำไร</div>
-            <div class="section-note">
-                รายได้ก่อน VAT จากใบส่งของ · ต้นทุน = ค่าน้ำมัน + ค่าซ่อมรถ
-            </div>
         </div>
         <span class="badge badge-soft">{{ $f['bucketLabel'] }} · {{ $f['label'] }}</span>
     </div>

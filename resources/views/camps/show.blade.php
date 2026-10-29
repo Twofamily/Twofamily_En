@@ -7,8 +7,6 @@
 @endsection
 
 @section('content')
-    {{-- หน้าดูข้อมูลแคมป์ = read-only
-         การแก้ไขทุกอย่าง (รวมถึงเพิ่ม/ถอนรถ) ทำที่หน้าแก้ไข --}}
     <div class="container py-2">
         @if (session('info'))
             <div class="alert alert-info shadow-sm">{{ session('info') }}</div>
@@ -71,15 +69,16 @@
                                 </div>
                             @empty
                                 @if ($camp->quotation)
-                                    {{-- แคมป์เก่าที่ผูกใบเสนอราคาตรง ๆ --}}
-                                    <a href="{{ route('quotations.show', $camp->quotation) }}" class="text-decoration-none">
+                                    <a href="{{ route('quotations.show', $camp->quotation) }}"
+                                        class="text-decoration-none">
                                         {{ $camp->quotation->code_quot }}
                                     </a>
                                     <span class="text-muted">
                                         · {{ number_format($camp->quotation->total_amount, 2) }} บาท (ใบเสนอราคาเดิม)
                                     </span>
                                 @else
-                                    <span class="text-muted">ยังไม่มีใบสั่งขาย — เพิ่มได้จากหน้าใบสั่งขาย ปุ่ม "เพิ่มเข้าแคมป์เดิม"</span>
+                                    <span class="text-muted">ยังไม่มีใบสั่งขาย — เพิ่มได้จากหน้าใบสั่งขาย ปุ่ม
+                                        "เพิ่มเข้าแคมป์เดิม"</span>
                                 @endif
                             @endforelse
                         </div>
@@ -145,14 +144,11 @@
             </div>
         </div>
 
-        {{-- ==================== ทำงานต่อจากแคมป์ ====================
-             แคมป์ = แฟ้มงาน: เริ่มเอกสารทุกใบจากตรงนี้ได้ ไม่ต้องไปหาตามเมนู
-             ปุ่มขึ้นตามสถานะแคมป์ + สิทธิ์ของผู้ใช้ --}}
         @php
-            $user        = auth()->user();
-            $next        = \App\Models\Camp::NEXT_STEP[$camp->status_camp] ?? null;
+            $user = auth()->user();
+            $next = \App\Models\Camp::NEXT_STEP[$camp->status_camp] ?? null;
             $canEditCamp = $user->canEdit('camps');
-            $closing     = $next && $next[0] === 'closed';
+            $closing = $next && $next[0] === 'closed';
         @endphp
 
         <div class="card border-0 shadow-sm mb-3">
@@ -166,47 +162,40 @@
                 @endif
 
                 @if ($pendingNotes->isNotEmpty() && $camp->isOpen() && $user->canEdit('invoices'))
-                    <a href="{{ route('invoices.create', ['group' => 'camp-' . $camp->id_camp]) }}" class="btn btn-sm btn-primary">
+                    <a href="{{ route('invoices.create', ['group' => 'camp-' . $camp->id_camp]) }}"
+                        class="btn btn-sm btn-primary">
                         <i class="bi bi-receipt me-1"></i>ออกใบแจ้งหนี้
                         <span class="badge bg-light text-dark ms-1">รอออก {{ $pendingNotes->count() }} ใบ</span>
                     </a>
                 @endif
 
-                @if ($camp->isOpen() && $user->canEdit('receipts'))
-                    <a href="{{ route('receipts.create', ['type' => 'advance', 'camp' => $camp->id_camp]) }}"
-                       class="btn btn-sm btn-outline-warning">
-                        <i class="bi bi-cash-coin me-1"></i>รับเงินล่วงหน้า
-                    </a>
-                @endif
-
                 @if ($camp->isOpen() && $user->canEdit('sales_orders'))
                     <a href="{{ route('sales_orders.create') }}" class="btn btn-sm btn-outline-secondary"
-                       title="สร้างใบสั่งขาย ยืนยันแล้วกด &quot;เพิ่มเข้าแคมป์เดิม&quot; ในหน้าใบสั่งขาย">
+                        title="สร้างใบสั่งขาย ยืนยันแล้วกด &quot;เพิ่มเข้าแคมป์เดิม&quot; ในหน้าใบสั่งขาย">
                         <i class="bi bi-plus-lg me-1"></i>ใบสั่งขายเพิ่ม
                     </a>
                 @endif
 
-                {{-- เปลี่ยนสถานะทีละขั้น --}}
                 @if ($next && $canEditCamp)
                     <form method="POST" action="{{ route('camps.status', $camp) }}" class="ms-auto"
-                          data-confirm="{{ $closing
-                              ? 'ปิดแคมป์ ' . $camp->code_camp . ' หลังปิดจะออกเอกสารเพิ่มไม่ได้ (เปิดกลับได้ภายหลัง)'
-                              : 'เปลี่ยนสถานะแคมป์เป็น "' . \App\Models\Camp::STATUS_LABELS[$next[0]] . '"' }}"
-                          data-confirm-title="ยืนยันการเปลี่ยนสถานะแคมป์"
-                          data-confirm-variant="{{ $closing ? 'danger' : 'primary' }}"
-                          data-confirm-ok="{{ $next[1] }}">
+                        data-confirm="{{ $closing
+                            ? 'ปิดแคมป์ ' . $camp->code_camp . ' หลังปิดจะออกเอกสารเพิ่มไม่ได้ (เปิดกลับได้ภายหลัง)'
+                            : 'เปลี่ยนสถานะแคมป์เป็น "' . \App\Models\Camp::STATUS_LABELS[$next[0]] . '"' }}"
+                        data-confirm-title="ยืนยันการเปลี่ยนสถานะแคมป์"
+                        data-confirm-variant="{{ $closing ? 'danger' : 'primary' }}"
+                        data-confirm-ok="{{ $next[1] }}">
                         @csrf
                         @method('PATCH')
                         <input type="hidden" name="status_camp" value="{{ $next[0] }}">
-                        <button type="submit" class="btn btn-sm {{ $closing ? 'btn-outline-danger' : 'btn-outline-success' }}"
-                                @disabled($closing && $closeBlockers)>
+                        <button type="submit"
+                            class="btn btn-sm {{ $closing ? 'btn-outline-danger' : 'btn-outline-success' }}"
+                            @disabled($closing && $closeBlockers)>
                             <i class="bi {{ $next[2] }} me-1"></i>{{ $next[1] }}
                         </button>
                     </form>
                 @endif
             </div>
 
-            {{-- ยังปิดแคมป์ไม่ได้ → บอกว่าติดอะไร --}}
             @if ($closing && $closeBlockers)
                 <div class="card-footer bg-white small">
                     <div class="text-muted mb-1"><i class="bi bi-info-circle me-1"></i>ก่อนปิดแคมป์ต้องจัดการ:</div>
@@ -219,15 +208,18 @@
             @endif
         </div>
 
-        {{-- ==================== สรุปการเงินของแคมป์ ==================== --}}
         @php
             $tiles = [
-                ['มูลค่าตามสัญญา',          $summary['contract_value'],   'text-dark',    'รวม VAT ของใบสั่งขายทุกใบ'],
-                ['ส่งของแล้ว',              $summary['delivered_value'],  'text-dark',    'มูลค่าก่อน VAT'],
-                ['ออกใบแจ้งหนี้แล้ว',        $summary['invoiced'],         'text-dark',    'รวม VAT'],
-                ['รับเงินแล้วทั้งหมด',        $summary['cash_received'],    'text-success', 'ตามใบแจ้งหนี้ + ล่วงหน้า + ขายสด'],
-                ['เงินล่วงหน้าคงเหลือ',      $summary['advance_balance'],  'text-warning', 'ยังไม่ได้หักในใบแจ้งหนี้'],
-                ['ลูกค้าค้างชำระ',           $summary['outstanding'],      $summary['outstanding'] > 0 ? 'text-danger' : 'text-success', 'ใบแจ้งหนี้ที่ยังไม่ได้รับเงิน'],
+                ['มูลค่าตามสัญญา (บาท)', $summary['contract_value'], 'text-dark', 'รวม VAT ของใบสั่งขายทุกใบ'],
+                ['ส่งของแล้ว (บาท)', $summary['delivered_value'], 'text-dark', 'มูลค่าก่อน VAT'],
+                ['ออกใบแจ้งหนี้แล้ว (บาท)', $summary['invoiced'], 'text-dark', 'รวม VAT'],
+                ['รับเงินแล้วทั้งหมด (บาท)', $summary['cash_received'], 'text-success', 'ตามใบแจ้งหนี้ + ขายสด'],
+                [
+                    'ลูกค้าค้างชำระ (บาท)',
+                    $summary['outstanding'],
+                    $summary['outstanding'] > 0 ? 'text-danger' : 'text-success',
+                    'ใบแจ้งหนี้ที่ยังไม่ได้รับเงิน',
+                ],
             ];
         @endphp
 
@@ -239,7 +231,7 @@
             <div class="card-body">
                 <div class="row g-2 text-center">
                     @foreach ($tiles as [$label, $value, $color, $hint])
-                        <div class="col-6 col-md-4 col-xl-2">
+                        <div class="col-6 col-md-4 col-xl">
                             <div class="bg-light rounded-3 p-2 h-100">
                                 <div class="small text-muted">{{ $label }}</div>
                                 <div class="fw-bold {{ $color }}">{{ number_format($value, 2) }}</div>
@@ -251,7 +243,6 @@
             </div>
         </div>
 
-        {{-- ==================== ใบเสร็จของแคมป์ ==================== --}}
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-white fw-semibold">ใบเสร็จของแคมป์นี้</div>
 
@@ -262,8 +253,7 @@
                             <th>เลขที่</th>
                             <th>ประเภท</th>
                             <th>วันที่รับเงิน</th>
-                            <th class="text-end">ยอดรับ</th>
-                            <th class="text-end">ล่วงหน้าคงเหลือ</th>
+                            <th class="text-end">ยอดรับ (บาท)</th>
                             <th class="text-center" style="width: 100px;">จัดการ</th>
                         </tr>
                     </thead>
@@ -274,21 +264,14 @@
                                 <td><span class="badge bg-{{ $rc->type_badge }}">{{ $rc->type_label }}</span></td>
                                 <td>{{ thai_date($rc->date_receipt) }}</td>
                                 <td class="text-end">{{ number_format($rc->total, 2) }}</td>
-                                <td class="text-end">
-                                    @if ($rc->isAdvance())
-                                        {{ number_format($rc->advanceRemaining(), 2) }}
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
                                 <td class="text-center">
                                     <a href="{{ route('receipts.show', $rc->id_receipt) }}"
-                                       class="btn btn-sm btn-outline-primary">ดู</a>
+                                        class="btn btn-sm btn-outline-primary">ดู</a>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">ยังไม่มีใบเสร็จของแคมป์นี้</td>
+                                <td colspan="5" class="text-center text-muted py-4">ยังไม่มีใบเสร็จของแคมป์นี้</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -296,7 +279,6 @@
             </div>
         </div>
 
-        {{-- ความคืบหน้าการส่งของ --}}
         @if ($progress->isNotEmpty())
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold">
@@ -308,9 +290,9 @@
                         <thead class="table-light">
                             <tr>
                                 <th>รายการ</th>
-                                <th class="text-end">ตามสัญญา</th>
-                                <th class="text-end">ส่งแล้ว</th>
-                                <th class="text-end">คงเหลือ</th>
+                                <th class="text-end">ตามสัญญา (คิว)</th>
+                                <th class="text-end">ส่งแล้ว (คิว)</th>
+                                <th class="text-end">คงเหลือ (คิว)</th>
                                 <th style="width: 200px;">ความคืบหน้า</th>
                             </tr>
                         </thead>
@@ -345,7 +327,6 @@
             </div>
         @endif
 
-        {{-- ใบส่งของของแคมป์นี้ --}}
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <span class="fw-semibold">ใบส่งของของแคมป์นี้</span>
@@ -357,7 +338,7 @@
                         <tr>
                             <th>เลขที่</th>
                             <th>วันที่ส่ง</th>
-                            <th class="text-end">มูลค่า</th>
+                            <th class="text-end">มูลค่า (บาท)</th>
                             <th class="text-center">ใบแจ้งหนี้</th>
                             <th class="text-center" style="width: 100px;">จัดการ</th>
                         </tr>
@@ -373,7 +354,7 @@
                                 <td class="text-center">
                                     @if ($note->invoice)
                                         <a href="{{ route('invoices.show', $note->invoice) }}"
-                                           class="badge bg-success text-decoration-none">{{ $note->invoice->code_inv }}</a>
+                                            class="badge bg-success text-decoration-none">{{ $note->invoice->code_inv }}</a>
                                     @else
                                         <span class="badge bg-secondary">รอออก</span>
                                     @endif
@@ -398,8 +379,7 @@
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <span class="fw-semibold">รถบรรทุกและคนขับที่ทำงานที่แคมป์นี้</span>
-                <a href="{{ route('camps.edit', $camp->id_camp) }}#camp-trucks"
-                    class="btn btn-sm btn-outline-primary">
+                <a href="{{ route('camps.edit', $camp->id_camp) }}#camp-trucks" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-pencil-square me-1"></i>จัดการรถ/คนขับ (หน้าแก้ไข)
                 </a>
             </div>
@@ -423,7 +403,8 @@
                                 <td>{{ $truck->brand->name_brand ?? '-' }} {{ $truck->model->name_model ?? '' }}</td>
                                 <td>
                                     @if ($truck->pivot->driver)
-                                        <a href="{{ route('drivers.show', $truck->pivot->driver) }}" class="text-decoration-none">
+                                        <a href="{{ route('drivers.show', $truck->pivot->driver) }}"
+                                            class="text-decoration-none">
                                             {{ $truck->pivot->driver->full_name }}
                                         </a>
                                         @if ($truck->pivot->driver->phone_driver)

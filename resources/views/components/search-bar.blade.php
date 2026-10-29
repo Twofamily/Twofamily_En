@@ -35,7 +35,7 @@
     <div class="row g-2 align-items-end">
 
         {{-- ช่องค้นหาช่องเดียว + ปุ่มค้นหา --}}
-        <div class="col-12 {{ $dates ? 'col-xl-5' : ($statusOptions->isNotEmpty() ? 'col-lg-6' : 'col-lg-7') }}">
+        <div class="col-12 {{ $dates ? 'col-xl-5' : ($statusOptions->isNotEmpty() ? 'col-lg-5' : 'col-lg-5') }}">
             <label class="form-label small text-muted mb-1">ค้นหา</label>
 
             <div class="input-group">

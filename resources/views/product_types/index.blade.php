@@ -8,17 +8,15 @@
 
 @section('content')
     @php
-        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
         $canEdit = auth()->user()->canEdit('product_types');
     @endphp
     <div class="container py-3">
 
-        <!-- เพิ่มส่วนข้อความหัวข้อตรงนี้ -->
         <div class="mb-2">
             <label class="form-label fw-bold">ค้นหา</label>
         </div>
 
-        <x-search-bar :action="route('product_types.index')" placeholder="ค้นหาชื่อประเภทสินค้า" :search="$search" :per-page="$perPage" />
+        <x-search-bar :action="route('product_types.index')" placeholder="ชื่อประเภทสินค้า" :search="$search" :per-page="$perPage" />
 
         <div class="d-flex justify-content-end align-items-center mb-3">
             @if ($canEdit)
@@ -29,7 +27,6 @@
             @endif
         </div>
 
-        {{-- ตารางแสดงข้อมูล --}}
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">

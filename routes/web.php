@@ -132,14 +132,17 @@ Route::middleware([
 
     /* ==================== ใบเสนอราคา ==================== */
 
+    // เอกสารไม่มีการลบ — ใช้ "ยกเลิก" แทน (quotations.cancel)
     Route::resource('quotations', QuotationController::class)
-        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+        ->except(['destroy'])
+        ->middlewareFor(['create', 'store', 'edit', 'update'], 'role:admin,staff');
 
     Route::get('/quotation/{quotation}/pdf', [QuotationController::class, 'downloadPDF'])
         ->name('quotation.pdf');
 
+    // อนุมัติได้เฉพาะผู้ดูแลระบบ / ผู้จัดการ (staff สร้าง/แก้ใบร่างได้อย่างเดียว)
     Route::patch('quotations/{quotation}/approve', [QuotationController::class, 'approve'])
-        ->middleware('role:admin,staff')
+        ->middleware('role:admin')
         ->name('quotations.approve');
 
     Route::patch('quotations/{quotation}/cancel', [QuotationController::class, 'cancel'])
@@ -166,9 +169,17 @@ Route::middleware([
     Route::get('sales_orders/{salesOrder}/pdf', [SalesOrderController::class, 'pdf'])
         ->name('sales_orders.pdf');
 
+    // เพิ่มลูกค้าใหม่จากหน้าต่างใบสั่งตรง — ใช้ storeAjax ตัวเดิม แต่เช็กสิทธิ์ตามหน้าใบสั่งขาย
+    // (customers.store.ajax ผูกสิทธิ์กับหน้าใบเสนอราคา คนที่ดูแลแค่ใบสั่งขายจะโดน 403)
+    Route::post('sales_orders/customers', [CustomerController::class, 'storeAjax'])
+        ->middleware('role:admin,staff')
+        ->name('sales_orders.customers.store');
+
+    // เอกสารไม่มีการลบ — ใช้ "ยกเลิก" แทน (sales_orders.cancel)
     Route::resource('sales_orders', SalesOrderController::class)
         ->parameters(['sales_orders' => 'salesOrder'])
-        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], 'role:admin,staff');
+        ->except(['destroy'])
+        ->middlewareFor(['create', 'store', 'edit', 'update'], 'role:admin,staff');
 
     Route::patch('sales_orders/{salesOrder}/confirm', [SalesOrderController::class, 'confirm'])
         ->middleware('role:admin,staff')
@@ -225,18 +236,13 @@ Route::middleware([
         ->middleware('role:admin,staff')
         ->name('payments.destroy');
 
-    // หักเงินรับล่วงหน้าของแคมป์ในใบแจ้งหนี้
-    Route::post('/invoices/{id}/apply-advance', [PaymentController::class, 'applyAdvance'])
-        ->middleware('role:admin,staff')
-        ->name('payments.applyAdvance');
-
 
     /* ==================== ใบเสร็จ ==================== */
 
     Route::get('/receipts', [ReceiptController::class, 'index'])
         ->name('receipts.index');
 
-    // ใบเสร็จรับเงินล่วงหน้า / ขายสด (ไม่ต้องมีใบแจ้งหนี้)
+    // ใบเสร็จขายสด (ไม่ต้องมีใบแจ้งหนี้) — กรอกในหน้าต่างของหน้ารายการ
     // ต้องมาก่อน /receipts/{id} ไม่งั้น {id} จะกินคำว่า "create"
     Route::get('/receipts/create', [ReceiptController::class, 'create'])
         ->middleware('role:admin,staff')

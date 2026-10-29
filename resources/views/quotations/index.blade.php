@@ -23,10 +23,10 @@
         {{-- ==================== ปุ่มสร้าง ==================== --}}
         <div class="d-flex justify-content-end align-items-center mb-3">
             @if ($canEdit)
-            <a href="{{ route('quotations.create') }}" class="btn btn-dark text-nowrap">
-                <i class="bi bi-plus-lg me-1"></i>
-                สร้างใบเสนอราคา
-            </a>
+                <button type="button" class="btn btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#createQuotationModal">
+                    <i class="bi bi-plus-lg me-1"></i>
+                    สร้างใบเสนอราคา
+                </button>
             @endif
         </div>
 
@@ -74,18 +74,30 @@
                             </td>
 
                             <td class="text-center">
-                                <x-row-actions :show="route('quotations.show', $q)"
-                                               :delete="$canEdit ? (route('quotations.destroy', $q)) : null"
-                                               :label="$q->code_quot"
-                                               :delete-confirm="'ใบเสนอราคา ' . $q->code_quot . ' จะถูกลบออกจากระบบ'">
-                                    {{-- อนุมัติ (เฉพาะสถานะร่าง) --}}
+                                {{-- เอกสารไม่มีการลบ — ยกเลิกแทน (เลขที่ไม่หาย) --}}
+                                <x-row-actions :show="route('quotations.show', $q)" :label="$q->code_quot">
                                     @if ($canEdit && $q->status === 'draft')
-                                        <x-row-actions.form :action="route('quotations.approve', $q)" method="PATCH"
-                                                            icon="bi-check-lg" variant="success"
-                                                            :confirm="'ใบเสนอราคา ' . $q->code_quot . ' จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้'"
-                                                            confirm-title="ยืนยันการอนุมัติ" confirm-ok="อนุมัติ">
-                                            อนุมัติ
-                                        </x-row-actions.form>
+                                        <x-row-actions.link :href="route('quotations.show', [$q, 'edit' => 1])" icon="bi-pencil-square">แก้ไข</x-row-actions.link>
+                                    @endif
+
+                                    {{-- อนุมัติ (เฉพาะสถานะร่าง · เฉพาะ admin · ห้ามอนุมัติใบของตัวเอง) --}}
+                                    @if ($canEdit && $q->status === 'draft')
+                                        @php $approveBlock = $q->approveBlocker(auth()->user()); @endphp
+                                        @if (! $approveBlock)
+                                            <x-row-actions.form :action="route('quotations.approve', $q)" method="PATCH"
+                                                                icon="bi-check-lg" variant="success"
+                                                                :confirm="'ใบเสนอราคา ' . $q->code_quot . ' จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้'"
+                                                                confirm-title="ยืนยันการอนุมัติ" confirm-ok="อนุมัติ">
+                                                อนุมัติ
+                                            </x-row-actions.form>
+                                        @else
+                                            <li>
+                                                <span class="dropdown-item disabled row-actions-disabled" aria-disabled="true">
+                                                    <i class="bi bi-check-lg" aria-hidden="true"></i>
+                                                    <span>อนุมัติ <small class="d-block">{{ $approveBlock }}</small></span>
+                                                </span>
+                                            </li>
+                                        @endif
                                     @endif
 
                                     {{-- ยกเลิก (สถานะร่างหรืออนุมัติแล้ว) --}}
@@ -127,4 +139,7 @@
         @include('partials.pagination-footer', ['paginator' => $quotations])
 
     </div>
+    @if ($canEdit)
+        @include('quotations._form-modal', ['mode' => 'create'])
+    @endif
 @endsection

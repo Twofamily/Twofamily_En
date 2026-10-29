@@ -15,20 +15,6 @@
 @section('content')
     <div class="container py-3">
 
-        {{-- ออกใบเสร็จโดยไม่ต้องมีใบแจ้งหนี้ (ใบเสร็จตามใบแจ้งหนี้ ออกจากหน้าใบแจ้งหนี้) --}}
-        <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center mb-3">
-            @if ($canManage)
-                <div class="d-flex gap-2">
-                    <a href="{{ route('receipts.create', ['type' => 'advance']) }}" class="btn btn-sm btn-outline-dark">
-                        <i class="bi bi-cash-coin me-1"></i>รับเงินล่วงหน้า
-                    </a>
-                    <a href="{{ route('receipts.create', ['type' => 'direct']) }}" class="btn btn-sm btn-dark">
-                        <i class="bi bi-cart-check me-1"></i>ขายสด
-                    </a>
-                </div>
-            @endif
-        </div>
-
         <x-search-bar :action="route('receipts.index')"
                       placeholder="ค้นหาเลขที่ใบเสร็จ / ใบแจ้งหนี้ / แคมป์ / ชื่อลูกค้า"
                       :statuses="\App\Models\Receipt::TYPES + ['cancelled' => ['label' => 'ยกเลิกแล้ว', 'badge' => 'dark']]" :status="$type"
@@ -36,6 +22,15 @@
                       :search="$search" :per-page="$perPage"
                       :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่รับชำระ"
                       :ranges="$ranges" />
+
+        {{-- ออกใบเสร็จโดยไม่ต้องมีใบแจ้งหนี้ (ใบเสร็จตามใบแจ้งหนี้ ออกจากหน้าใบแจ้งหนี้) --}}
+        <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center mb-3">
+            @if ($canManage && $canCreate)
+                <button type="button" class="btn btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#createReceiptModal">
+                    <i class="bi bi-plus-lg me-1"></i>ออกใบเสร็จขายสด
+                </button>
+            @endif
+        </div>
 
         {{-- ==================== ตาราง ==================== --}}
         <div class="table-responsive shadow-sm rounded-3">
@@ -97,10 +92,8 @@
                             <td @class(['text-end', 'text-decoration-line-through' => $cancelled])>{{ number_format($r->total, 2) }}</td>
 
                             <td class="text-center">
-                                @php $blocker = ($canManage && ! $cancelled) ? $r->cancelBlocker() : null; @endphp
                                 <x-row-actions :show="route('receipts.show', $r->id_receipt)"
-                                               :delete="($canManage && ! $cancelled && ! $blocker) ? route('receipts.destroy', $r->id_receipt) : null"
-                                               :delete-disabled="$blocker ? 'เงินล่วงหน้าถูกหักใช้แล้ว' : null"
+                                               :delete="($canManage && ! $cancelled) ? route('receipts.destroy', $r->id_receipt) : null"
                                                :label="$r->code_rc"
                                                delete-label="ยกเลิกใบเสร็จ" delete-icon="bi-x-octagon"
                                                delete-title="ยกเลิกใบเสร็จ" delete-ok="ยกเลิกใบเสร็จ"
@@ -148,4 +141,15 @@
         @include('partials.pagination-footer', ['paginator' => $receipts])
 
     </div>
+    {{-- ==================== หน้าต่างออกใบเสร็จขายสด ==================== --}}
+    @if ($canManage && $canCreate)
+        @include('receipts._direct-modal')
+
+        @if ($errors->createReceipt->any() || request('modal') === 'create')
+            <script>
+                document.addEventListener('DOMContentLoaded', () =>
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('createReceiptModal')).show());
+            </script>
+        @endif
+    @endif
 @endsection

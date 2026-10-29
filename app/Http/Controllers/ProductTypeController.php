@@ -48,14 +48,19 @@ class ProductTypeController extends Controller
             ->with('ok', 'เพิ่มประเภทสินค้าเรียบร้อย');
     }
 
-    public function edit(ProductType $product_type)
+    /** แก้ไขประเภทสินค้าทำในหน้าต่าง (modal) ของแท็บประเภทสินค้า */
+    public function edit(Request $request, ProductType $product_type)
     {
+        if ($request->user()?->canViewModule('products')) {
+            return redirect()->route('products.index', ['tab' => 'types', 'edit_type' => $product_type->getKey()]);
+        }
+
         return view('product_types.edit', compact('product_type'));
     }
 
     public function update(Request $request, ProductType $product_type)
     {
-        $product_type->update($this->validateType($request));
+        $product_type->update($this->validateType($request, 'updateType'));
 
         return redirect()
             ->route('products.index', ['tab' => 'types'])
@@ -75,9 +80,9 @@ class ProductTypeController extends Controller
             ->with('ok', 'ลบข้อมูลเรียบร้อย');
     }
 
-    private function validateType(Request $request): array
+    private function validateType(Request $request, string $bag = 'default'): array
     {
-        return $request->validate([
+        return $request->validateWithBag($bag, [
             'name_product_type' => ['required', 'string', 'max:100'],
         ], [
             'name_product_type.required' => 'กรุณาใส่ประเภทสินค้า',

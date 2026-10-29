@@ -7,6 +7,8 @@
 @endsection
 
 @php
+    $canEdit = auth()->user()->canEdit('quotations');
+
     // บริษัทไม่มีส่วนลดแล้ว: ยอดสุทธิ = รวมเป็นเงิน + VAT
     // (ใบเก่าที่เคยมีส่วนลด ยังแสดงบรรทัดส่วนลดให้ยอดตรงกับเอกสารที่ออกไปแล้ว)
     $subTotal      = $quotation->details->sum('total_price');
@@ -44,12 +46,20 @@
                         <span class="text-secondary fw-semibold">
                             <i class="bi bi-pencil-square me-2"></i>ฉบับร่าง รอตรวจสอบและอนุมัติ
                         </span>
-                        <form method="POST" action="{{ route('quotations.approve', $quotation) }}" class="d-inline"
-                            data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้"
-                            data-confirm-title="ยืนยันการอนุมัติ" data-confirm-variant="success" data-confirm-ok="อนุมัติ">
-                            @csrf @method('PATCH')
-                            <button class="btn btn-success" type="submit">อนุมัติ</button>
-                        </form>
+                        @php $approveBlock = $quotation->approveBlocker(auth()->user()); @endphp
+                        @if (! $approveBlock)
+                            <form method="POST" action="{{ route('quotations.approve', $quotation) }}" class="d-inline"
+                                data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกอนุมัติ และสามารถนำไปเปิดแคมป์ได้"
+                                data-confirm-title="ยืนยันการอนุมัติ" data-confirm-variant="success" data-confirm-ok="อนุมัติ">
+                                @csrf @method('PATCH')
+                                <button class="btn btn-success" type="submit">อนุมัติ</button>
+                            </form>
+                        @else
+                            {{-- อนุมัติไม่ได้: บอกเหตุผล (เช่น เป็นผู้จัดทำเอง / ไม่ใช่ผู้ดูแลระบบ) --}}
+                            <span class="small text-muted">
+                                <i class="bi bi-lock me-1"></i>{{ $approveBlock }}
+                            </span>
+                        @endif
 
                     @elseif ($quotation->status === 'approved' && !$so)
                         <span class="text-primary fw-semibold">
@@ -82,13 +92,14 @@
                         <i class="bi bi-printer me-1"></i>พิมพ์
                     </a>
 
-                    @if ($quotation->status === 'draft')
-                        <a href="{{ route('quotations.edit', $quotation->id_quot) }}" class="btn btn-outline-warning">
-                            แก้ไข
-                        </a>
+                    @if ($canEdit && $quotation->status === 'draft')
+                        <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editQuotationModal">
+                            <i class="bi bi-pencil-square me-1"></i>แก้ไข
+                        </button>
                     @endif
 
-                    @if (in_array($quotation->status, ['draft', 'approved']))
+                    {{-- เอกสารไม่มีการลบ — ยกเลิกแทน (เลขที่ไม่หาย) --}}
+                    @if ($canEdit && in_array($quotation->status, ['draft', 'approved']) && ! $so)
                         <form method="POST" action="{{ route('quotations.cancel', $quotation) }}" class="d-inline"
                             data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกยกเลิก"
                             data-confirm-title="ยืนยันการยกเลิก" data-confirm-variant="warning"
@@ -98,17 +109,6 @@
                         </form>
                     @endif
 
-                    @if ($quotation->status === 'draft')
-                        <form method="POST" action="{{ route('quotations.destroy', $quotation) }}" class="d-inline"
-                            data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกลบออกจากระบบ"
-                            data-confirm-title="ยืนยันการลบข้อมูล" data-confirm-variant="danger"
-                            data-confirm-ok="ลบข้อมูล">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-outline-danger" type="submit">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
-                    @endif
                 </div>
 
             </div>
@@ -231,4 +231,7 @@
         </a>
 
     </div>
+    @if ($canEdit && $quotation->status === 'draft')
+        @include('quotations._form-modal', ['mode' => 'edit', 'quotation' => $quotation])
+    @endif
 @endsection

@@ -3,18 +3,20 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasDocumentCode;
+use App\Models\Concerns\RecordsCreator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesOrder extends Model
 {
     // เลขที่เอกสาร (code_so) สร้างให้อัตโนมัติตอน create ตามรูปแบบในหน้าตั้งค่า
-    use SoftDeletes, HasDocumentCode;
+    use SoftDeletes, HasDocumentCode, RecordsCreator;
 
     protected $table      = 'sales_orders';
     protected $primaryKey = 'id_so';
 
     protected $fillable = [
+        'created_by_user_id',
         'code_so',
         'id_quot',
         'id_customer',
@@ -124,6 +126,51 @@ class SalesOrder extends Model
     public function canConfirm(): bool
     {
         return $this->status === 'draft' && $this->details()->exists();
+    }
+
+    /** สั่งตรง = ไม่ได้ออกจากใบเสนอราคา (ลูกค้าประจำโทรสั่ง ฯลฯ) */
+    public function isDirect(): bool
+    {
+        return $this->id_quot === null;
+    }
+
+    /**
+     * เหตุผลที่ผู้ใช้คนนี้ยืนยันใบสั่งขายไม่ได้ (null = ยืนยันได้)
+     *
+     * ใบที่มาจากใบเสนอราคา ราคาผ่านการอนุมัติมาแล้ว → พนักงานยืนยันเองได้
+     * ใบสั่งตรง ราคายังไม่มีใครอนุมัติ → ใช้กฎเดียวกับการอนุมัติใบเสนอราคา
+     *   - ต้องเป็นผู้ดูแลระบบ
+     *   - ผู้ดูแลที่สร้างใบเอง ต้องให้ผู้ดูแลคนอื่นยืนยัน (ยกเว้นมีผู้ดูแลอยู่คนเดียว)
+     */
+    public function confirmBlocker(?User $user): ?string
+    {
+        if ($this->status !== 'draft') {
+            return 'ใบสั่งขายนี้ไม่อยู่ในสถานะร่าง';
+        }
+
+        if (! $this->details()->exists()) {
+            return 'ไม่มีรายการสินค้า ไม่สามารถยืนยันได้';
+        }
+
+        if (! $this->isDirect()) {
+            return null;
+        }
+
+        if (! $user || ! $user->isAdmin()) {
+            return 'ใบสั่งตรง (ไม่มีใบเสนอราคา) ต้องให้ผู้ดูแลระบบตรวจราคาและยืนยัน';
+        }
+
+        $isOwnDocument = (int) $this->created_by_user_id === (int) $user->getKey();
+        $otherAdmins   = User::where('role', User::ROLE_ADMIN)
+            ->where('is_active', true)
+            ->whereKeyNot($user->getKey())
+            ->exists();
+
+        if ($isOwnDocument && $otherAdmins) {
+            return 'คุณเป็นผู้สร้างใบสั่งตรงนี้ ต้องให้ผู้ดูแลระบบคนอื่นยืนยัน';
+        }
+
+        return null;
     }
 
     /** เข้าแคมป์ได้ (เปิดแคมป์ใหม่ หรือผูกแคมป์เดิม) เมื่อยืนยันแล้ว และยังไม่อยู่ในแคมป์ไหน */

@@ -305,6 +305,8 @@
         [
             'party' => 'company',
             'label' => 'ผู้ส่งของ',
+            'user'  => $deliveryNote->creator,      // ผู้ออกเอกสาร: มีลายเซ็นแสดงรูป ไม่มีเว้นว่าง
+            'date'  => $deliveryNote->delivery_date,
         ],
     ]])
 

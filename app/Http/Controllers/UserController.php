@@ -50,22 +50,23 @@ class UserController extends Controller
      ============================================================ */
     public function create()
     {
-        return view('users.create', [
-            'roles' => User::roleList(),
-        ]);
+        // เพิ่มผู้ใช้ทำในหน้าต่าง (modal) ของหน้ารายการ
+        return redirect()->route('users.index', ['modal' => 'create']);
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name'          => ['required', 'string', 'max:255'],
+        $data = $request->validateWithBag('createUser', [
+            'first_name'    => ['required', 'string', 'max:100'],
+            'last_name'     => ['required', 'string', 'max:100'],
             'email'         => ['required', 'email', 'max:255', 'unique:users,email'],
             'role'          => ['required', Rule::in(array_keys(User::roleList()))],
             'password'      => ['required', 'confirmed', Password::min(8)],
             'permissions'   => ['nullable', 'array'],
             'permissions.*' => [Rule::in(array_keys(Permission::LEVELS))],
         ], [
-            'name.required'     => 'กรุณากรอกชื่อ-นามสกุล',
+            'first_name.required' => 'กรุณากรอกชื่อ',
+            'last_name.required'  => 'กรุณากรอกนามสกุล',
             'email.required'    => 'กรุณากรอกอีเมล',
             'email.email'       => 'รูปแบบอีเมลไม่ถูกต้อง',
             'email.unique'      => 'อีเมลนี้ถูกใช้งานแล้ว',
@@ -91,22 +92,22 @@ class UserController extends Controller
      ============================================================ */
     public function edit(User $user)
     {
-        return view('users.edit', [
-            'user'  => $user,
-            'roles' => User::roleList(),
-        ]);
+        // แก้ไขผู้ใช้ทำในหน้าต่าง (modal) ของหน้ารายการ
+        return redirect()->route('users.index', ['edit' => $user->getKey()]);
     }
 
     public function update(Request $request, User $user)
     {
         $data = $request->validateWithBag('updateUser', [
-            'name'          => ['required', 'string', 'max:255'],
+            'first_name'    => ['required', 'string', 'max:100'],
+            'last_name'     => ['required', 'string', 'max:100'],
             'email'         => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->getKey())],
             'role'          => ['required', Rule::in(array_keys(User::roleList()))],
             'permissions'   => ['nullable', 'array'],
             'permissions.*' => [Rule::in(array_keys(Permission::LEVELS))],
         ], [
-            'name.required'    => 'กรุณากรอกชื่อ-นามสกุล',
+            'first_name.required' => 'กรุณากรอกชื่อ',
+            'last_name.required'  => 'กรุณากรอกนามสกุล',
             'email.required'   => 'กรุณากรอกอีเมล',
             'email.email'      => 'รูปแบบอีเมลไม่ถูกต้อง',
             'email.unique'     => 'อีเมลนี้ถูกใช้งานแล้ว',
@@ -174,7 +175,7 @@ class UserController extends Controller
         }
 
         return redirect()
-            ->route('users.edit', $user)
+            ->route('users.index')
             ->with('ok', 'บันทึกลายเซ็นของ ' . $user->name . ' เรียบร้อยแล้ว');
     }
 

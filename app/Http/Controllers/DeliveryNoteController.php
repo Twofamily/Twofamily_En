@@ -64,24 +64,41 @@ class DeliveryNoteController extends Controller
             'dateFrom'      => $dateFrom,
             'dateTo'        => $dateTo,
             'status'        => $status,
-        ]);
+        ] + $this->createFormData($request));
     }
 
-    /** เลือกแคมป์ก่อน แล้วค่อยกรอกรายการ (เฉพาะแคมป์ที่เตรียมงาน / กำลังดำเนินงาน) */
-    public function create(Request $request)
+    /**
+     * ข้อมูลของหน้าต่างสร้างใบส่งของ (อยู่ในหน้ารายการ)
+     * เลือกแคมป์ก่อน (?camp=) แล้วค่อยกรอกรายการ — เฉพาะแคมป์ที่เตรียมงาน / กำลังดำเนินงาน
+     */
+    private function createFormData(Request $request): array
     {
+        if (! $request->user()?->canEdit('delivery_notes')) {
+            return ['canCreate' => false];
+        }
+
         $camps = Camp::with(['customer', 'quotation'])
             ->active()
             ->latest('id_camp')
             ->get();
 
-        $camp = $request->camp
-            ? Camp::with(['customer', 'quotation.details.product', 'salesOrders'])->find($request->camp)
+        $campId = $request->input('camp') ?: old('id_camp');
+        $camp = $campId
+            ? Camp::with(['customer', 'quotation.details.product', 'salesOrders'])->find($campId)
             : null;
 
         $suggestedItems = $camp ? $this->buildSuggestedItems($camp) : collect();
 
-        return view('delivery_notes.create', compact('camps', 'camp', 'suggestedItems'));
+        return ['canCreate' => true] + compact('camps', 'camp', 'suggestedItems');
+    }
+
+    /** สร้างใบส่งของในหน้าต่าง (modal) ของหน้ารายการ — ลิงก์เดิม ?camp= ยังใช้ได้ */
+    public function create(Request $request)
+    {
+        return redirect()->route('delivery_notes.index', array_filter([
+            'modal' => 'create',
+            'camp'  => $request->input('camp'),
+        ]));
     }
 
     public function store(Request $request)
@@ -117,13 +134,13 @@ class DeliveryNoteController extends Controller
             'items.*.price.required'   => 'กรุณาใส่ราคาต่อหน่วย',
             'items.*.price.numeric'    => 'ราคาต่อหน่วยต้องเป็นตัวเลข',
             'items.*.price.min'        => 'ราคาต่อหน่วยต้องไม่ติดลบ',
-        ])->validate();
+        ])->validateWithBag('createDeliveryNote');
 
         $camp = Camp::findOrFail($data['id_camp']);
 
         if (! $camp->isWorking()) {
-            return back()->withInput()->with('error',
-                'แคมป์ ' . $camp->code_camp . ' อยู่ในสถานะ "' . $camp->status_label . '" ออกใบส่งของเพิ่มไม่ได้');
+            return back()->withInput()->withErrors(['id_camp' =>
+                'แคมป์ ' . $camp->code_camp . ' อยู่ในสถานะ "' . $camp->status_label . '" ออกใบส่งของเพิ่มไม่ได้'], 'createDeliveryNote');
         }
 
         /*
@@ -135,7 +152,7 @@ class DeliveryNoteController extends Controller
 
             if ($over) {
                 return back()->withInput()
-                    ->withErrors($over)
+                    ->withErrors($over, 'createDeliveryNote')
                     ->with('over_contract', true);
             }
         }

@@ -32,12 +32,13 @@ class DriverController extends Controller
 
     public function create()
     {
-        return view('drivers.create');
+        // เพิ่มพนักงานขับรถทำในหน้าต่าง (modal) ของหน้ารายการ
+        return redirect()->route('drivers.index', ['modal' => 'create']);
     }
 
     public function store(Request $request)
     {
-        $data = $this->validateDriver($request);
+        $data = $this->validateDriver($request, null, 'createDriver');
 
         if ($request->hasFile('citizen_image')) {
             $data['citizen_image'] = $this->handleImageUpload($request);
@@ -62,12 +63,13 @@ class DriverController extends Controller
 
     public function edit(Driver $driver)
     {
-        return view('drivers.edit', compact('driver'));
+        // แก้ไขทำในหน้าต่าง (modal) ของหน้ารายการ
+        return redirect()->route('drivers.index', ['edit' => $driver->getKey()]);
     }
 
     public function update(Request $request, Driver $driver)
     {
-        $data = $this->validateDriver($request, $driver);
+        $data = $this->validateDriver($request, $driver, 'updateDriver');
 
         if ($request->hasFile('citizen_image')) {
             $data['citizen_image'] = $this->handleImageUpload($request, $driver->citizen_image);
@@ -76,7 +78,7 @@ class DriverController extends Controller
         $driver->update($data);
 
         return redirect()
-            ->route('drivers.index')
+            ->route('drivers.index', $request->only('page', 'search', 'per_page'))
             ->with('ok', 'แก้ไขข้อมูลเรียบร้อย');
     }
 
@@ -93,11 +95,11 @@ class DriverController extends Controller
             ->with('ok', 'ลบข้อมูลเรียบร้อย');
     }
 
-    private function validateDriver(Request $request, ?Driver $driver = null): array
+    private function validateDriver(Request $request, ?Driver $driver, string $bag): array
     {
         $driverId = $driver?->id_driver;
 
-        return $request->validate([
+        return $request->validateWithBag($bag, [
             'fname_driver' => [
                 'required',
                 'string',
@@ -127,6 +129,10 @@ class DriverController extends Controller
             'citizenid_driver.unique' => 'เลขบัตรประชาชนนี้ ถูกใช้งานไปแล้ว!',
             'citizenid_driver.digits' => 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลักเท่านั้น (ห้ามมีตัวอักษร)',
             'phone_driver.digits'     => 'เบอร์โทรต้องเป็นตัวเลข 10 หลักเท่านั้น',
+            'fname_driver.required'   => 'กรุณาใส่ชื่อ',
+            'lname_driver.required'   => 'กรุณาใส่นามสกุล',
+            'citizen_image.image'     => 'ไฟล์รูปใบขับขี่ต้องเป็นรูปภาพ',
+            'citizen_image.max'       => 'รูปใบขับขี่ต้องไม่เกิน 2MB',
         ]);
     }
 

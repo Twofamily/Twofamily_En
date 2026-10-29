@@ -4,11 +4,12 @@ namespace App\Models;
 
 use App\Models\Concerns\Cancellable;
 use App\Models\Concerns\HasDocumentCode;
+use App\Models\Concerns\RecordsCreator;
 use Illuminate\Database\Eloquent\Model;
 
 class DeliveryNote extends Model
 {
-    use HasDocumentCode, Cancellable;
+    use HasDocumentCode, Cancellable, RecordsCreator;
 
     /** ยกเลิกเอกสาร = ใส่ cancelled_at (SoftDeletes) ไม่ลบแถวทิ้ง */
     public const DELETED_AT = 'cancelled_at';
@@ -16,6 +17,7 @@ class DeliveryNote extends Model
     protected $primaryKey = 'id_delivery_note';
 
     protected $fillable = [
+        'created_by_user_id',
         'code_dn',
         'id_quotation',
         'id_camp',

@@ -10,7 +10,6 @@ use App\Models\Driver;
 use App\Models\FuelRecord;
 use App\Models\Invoice;
 use App\Models\InvoiceDetail;
-use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductType;
 use App\Models\Quotation;
@@ -37,8 +36,7 @@ use Illuminate\Support\Facades\Hash;
  *
  *   แคมป์ A  กำลังดำเนินงาน  ใบเสนอราคา → ใบสั่งขาย → ส่งของ 6 ใบ → ใบแจ้งหนี้ชำระครบ + ออกใบเสร็จ
  *                             ใบแจ้งหนี้ชำระบางส่วน · ใบส่งของรอออกบิล 2 ใบ · ใบส่งของ/ใบแจ้งหนี้ที่ยกเลิก
- *   แคมป์ B  กำลังดำเนินงาน  ใบสั่งขายอย่างเดียว (ไม่มีใบเสนอราคา) · รับเงินล่วงหน้า → หักในใบแจ้งหนี้
- *                             ใบแจ้งหนี้เลยกำหนดชำระ
+ *   แคมป์ B  กำลังดำเนินงาน  ใบสั่งตรง (ไม่มีใบเสนอราคา) · ใบแจ้งหนี้ชำระบางส่วน และเลยกำหนดชำระ
  *   แคมป์ C  เตรียมงาน      เปิดแคมป์แล้ว ยังไม่ได้ส่งของ
  *   แคมป์ D  ปิดแคมป์แล้ว    ส่งครบ เก็บเงินครบ ถอนรถออกแล้ว
  *   ขายสด    ลูกค้าบุคคล ซื้อแล้วจ่ายเงินสดทันที · ใบเสนอราคาร่าง 1 ใบ
@@ -106,7 +104,8 @@ class DemoDataSeeder extends Seeder
         $this->staff = User::updateOrCreate(
             ['email' => 'staff@twofamily.test'],
             [
-                'name'      => 'สมหญิง ขยันงาน',
+                'first_name' => 'สมหญิง',
+                'last_name'  => 'ขยันงาน',
                 'password'  => Hash::make('staff1234'),
                 'role'      => 'staff',
                 'is_active' => 1,
@@ -144,9 +143,13 @@ class DemoDataSeeder extends Seeder
             'siam' => $make([
                 'name_customer'  => self::MARK_CUSTOMER,
                 'customer_type'  => 'company',
+                'tax_id'         => '0305550000011',
+                'branch_code'    => Customer::HEAD_OFFICE,
+                'contact_name'   => 'คุณวิภา (ฝ่ายจัดซื้อ)',
                 'phone_customer' => '0441234567',
                 'email_customer' => 'purchase@siamphatthana.test',
-                'address_detail' => '99/9 ถนนมิตรภาพ',
+                'address_no'     => '99/9',
+                'road'           => 'มิตรภาพ',
                 'subdistrict'    => 'ในเมือง',
                 'district'       => 'เมืองนครราชสีมา',
                 'zipcode'        => '30000',
@@ -154,8 +157,12 @@ class DemoDataSeeder extends Seeder
             'korat' => $make([
                 'name_customer'  => 'ห้างหุ้นส่วนจำกัด โคราชวิศวกรรม',
                 'customer_type'  => 'company',
+                'tax_id'         => '0303550000022',
+                'branch_code'    => Customer::HEAD_OFFICE,
+                'contact_name'   => 'คุณประเสริฐ',
                 'phone_customer' => '0449876543',
-                'address_detail' => '45 หมู่ 3',
+                'address_no'     => '45',
+                'moo'            => '3',
                 'subdistrict'    => 'หนองระเวียง',
                 'district'       => 'เมืองนครราชสีมา',
                 'zipcode'        => '30000',
@@ -163,17 +170,23 @@ class DemoDataSeeder extends Seeder
             'pakchong' => $make([
                 'name_customer'  => 'บริษัท ปากช่องแลนด์ จำกัด',
                 'customer_type'  => 'company',
+                'tax_id'         => '0305560000033',
+                'branch_code'    => '00001',
                 'phone_customer' => '0443112233',
-                'address_detail' => '12 ถนนธนะรัชต์',
+                'address_no'     => '12',
+                'road'           => 'ธนะรัชต์',
                 'subdistrict'    => 'หมูสี',
                 'district'       => 'ปากช่อง',
                 'zipcode'        => '30130',
             ]),
             'somchai' => $make([
-                'name_customer'  => 'นายสมชาย ใจดี',
                 'customer_type'  => 'person',
+                'name_prefix'    => 'นาย',
+                'first_name'     => 'สมชาย',
+                'last_name'      => 'ใจดี',
                 'phone_customer' => '0812345678',
-                'address_detail' => '7 หมู่ 14',
+                'address_no'     => '7',
+                'moo'            => '14',
                 'subdistrict'    => 'สูงเนิน',
                 'district'       => 'สูงเนิน',
                 'zipcode'        => '30170',
@@ -285,7 +298,7 @@ class DemoDataSeeder extends Seeder
         });
     }
 
-    /** แคมป์ B — ไม่มีใบเสนอราคา · รับเงินล่วงหน้า · ใบแจ้งหนี้เลยกำหนด */
+    /** แคมป์ B — ใบสั่งตรง (ไม่มีใบเสนอราคา) · ใบแจ้งหนี้ชำระบางส่วนและเลยกำหนด */
     private function campB(Customer $cus, array $p, array $t, array $d): void
     {
         $items = [[$p['fsand'], 600, 380.50], [$p['crush'], 400, 550]];
@@ -302,7 +315,6 @@ class DemoDataSeeder extends Seeder
         ]));
 
         $this->at(42, fn () => $this->assign($x->camp, $t[2], $d[2], 42));
-        $this->at(40, fn () => $x->advance = $this->advanceReceipt($x->camp, 40, 100000));
 
         $this->at(35, fn () => $x->dn1 = $this->deliveryNote($x->camp, 35, [[$p['fsand'], 200, 380.50]], $t[2], 24));
         $this->at(28, fn () => $x->dn2 = $this->deliveryNote($x->camp, 28, [[$p['crush'], 150, 550]], $t[2], 24));
@@ -310,7 +322,7 @@ class DemoDataSeeder extends Seeder
 
         // เครดิต 15 วัน → เลยกำหนดแล้ว
         $this->at(27, fn () => $x->inv = $this->invoice([$x->dn1, $x->dn2], 27, 15, billReceived: 26));
-        $this->at(25, fn () => $this->applyAdvance($x->inv, $x->advance, 25, 100000));
+        $this->at(20, fn () => $this->pay($x->inv, 20, 100000, 'transfer', 'ธนาคารกรุงไทย', 'TRF-0412'));
     }
 
     /** แคมป์ C — เพิ่งเปิด ยังไม่ส่งของ */
@@ -469,6 +481,7 @@ class DemoDataSeeder extends Seeder
         [$subtotal, $vat, $total] = $this->totals($items);
 
         $so = SalesOrder::create([
+            'created_by_user_id' => $this->staff->id,
             'id_quot'      => $quot?->id_quot,
             'id_customer'  => $cus->id_customer,
             'order_date'   => $this->ago($daysAgo),
@@ -530,6 +543,7 @@ class DemoDataSeeder extends Seeder
     private function deliveryNote(Camp $camp, int $daysAgo, array $items, ?Truck $truck, float $km): DeliveryNote
     {
         $dn = DeliveryNote::create([
+            'created_by_user_id' => $this->staff->id,
             'id_quotation'  => $camp->id_quot,
             'id_camp'       => $camp->id_camp,
             'id_customer'   => $camp->id_customer,
@@ -589,6 +603,7 @@ class DemoDataSeeder extends Seeder
         $subtotal = round($lines->sum('total'), 2);
 
         $invoice = Invoice::create([
+            'created_by_user_id' => $this->staff->id,
             'invoice_date'       => $this->ago($daysAgo),
             'credit_days'        => $creditDays,
             'bill_received_date' => $billReceived !== null ? $this->ago($billReceived) : null,
@@ -637,61 +652,9 @@ class DemoDataSeeder extends Seeder
             'id_camp'           => $invoice->id_camp,
             'subtotal'          => $invoice->itemsSubtotal(),
             'vat_amount'        => $invoice->itemsVat(),
-            'advance_deducted'  => $invoice->advanceAppliedAmount(),
-            'total'             => $invoice->cashPaidAmount(),
+            'total'             => $invoice->paidAmount(),
             'date_receipt'      => $this->ago($daysAgo),
             'issued_by_user_id' => $this->admin->id,
         ]);
-    }
-
-    private function advanceReceipt(Camp $camp, int $daysAgo, float $gross): Receipt
-    {
-        [$subtotal, $vat] = Receipt::splitGross($gross);
-
-        $receipt = Receipt::create([
-            'receipt_type'      => Receipt::TYPE_ADVANCE,
-            'id_customer'       => $camp->id_customer,
-            'id_camp'           => $camp->id_camp,
-            'subtotal'          => $subtotal,
-            'vat_amount'        => $vat,
-            'total'             => $gross,
-            'date_receipt'      => $this->ago($daysAgo),
-            'description'       => 'มัดจำงวดแรก',
-            'issued_by_user_id' => $this->admin->id,
-        ]);
-
-        $receipt->items()->create([
-            'description' => 'รับเงินล่วงหน้า ' . $camp->code_camp . ' ' . $camp->name_camp . ' — มัดจำงวดแรก',
-            'quantity'    => 1,
-            'price'       => $subtotal,
-            'total'       => $subtotal,
-        ]);
-
-        $receipt->payments()->create([
-            'paid_at'             => $this->ago($daysAgo),
-            'amount'              => $gross,
-            'method'              => 'transfer',
-            'bank_name'           => 'ธนาคารกรุงไทย',
-            'reference_no'        => 'TRF-ADV-0412',
-            'note'                => 'ข้อมูลตัวอย่าง (ไม่มีไฟล์สลิป)',
-            'recorded_by_user_id' => $this->admin->id,
-        ]);
-
-        return $receipt;
-    }
-
-    private function applyAdvance(Invoice $invoice, Receipt $advance, int $daysAgo, float $amount): void
-    {
-        $invoice->payments()->create([
-            'id_advance_receipt'  => $advance->id_receipt,
-            'paid_at'             => $this->ago($daysAgo),
-            'amount'              => $amount,
-            'method'              => Payment::METHOD_ADVANCE,
-            'reference_no'        => $advance->code_rc,
-            'note'                => 'หักจากใบเสร็จรับเงินล่วงหน้า ' . $advance->code_rc,
-            'recorded_by_user_id' => $this->admin->id,
-        ]);
-
-        $invoice->syncPaymentStatus();
     }
 }

@@ -24,12 +24,12 @@
 
         @if (auth()->user()->canEdit('invoices'))
             <div class="d-flex justify-content-end mb-3">
-                <a href="{{ route('invoices.create') }}" class="btn btn-dark text-nowrap">
+                <button type="button" class="btn btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#createInvoiceModal">
                     <i class="bi bi-plus-lg me-1"></i>ออกใบแจ้งหนี้
                     @if ($pendingNotes > 0)
                         <span class="badge bg-warning text-dark ms-1">ใบส่งของรอออก {{ $pendingNotes }}</span>
                     @endif
-                </a>
+                </button>
             </div>
         @endif
 
@@ -164,4 +164,15 @@
         @include('partials.pagination-footer', ['paginator' => $invoices])
 
     </div>
+    {{-- ==================== หน้าต่างออกใบแจ้งหนี้ ==================== --}}
+    @if (auth()->user()->canEdit('invoices') && ($canCreate ?? false))
+        @include('invoices._create-modal')
+
+        @if ($errors->createInvoice->any() || request('modal') === 'create')
+            <script>
+                document.addEventListener('DOMContentLoaded', () =>
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('createInvoiceModal')).show());
+            </script>
+        @endif
+    @endif
 @endsection

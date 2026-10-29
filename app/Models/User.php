@@ -49,7 +49,9 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
+        'name',             // ประกอบจาก first_name + last_name ให้เองตอนบันทึก
+        'first_name',
+        'last_name',
         'email',
         'password',
         'role',
@@ -93,6 +95,30 @@ class User extends Authenticatable
             'is_active'         => 'boolean',
             'permissions'       => 'array',
         ];
+    }
+
+    /* ============================================================
+     |  ชื่อ / นามสกุล
+     |  name เป็นชื่อเต็มที่ระบบส่วนอื่นใช้ (Jetstream, PDF, หน้ารายการ)
+     |  แก้ชื่อ/นามสกุล → ประกอบ name ใหม่ · แก้ name ตรง ๆ (หน้าโปรไฟล์ Jetstream) → แยกกลับเป็นชื่อ/นามสกุล
+     ============================================================ */
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            if ($user->isDirty(['first_name', 'last_name']) && filled($user->first_name)) {
+                $user->name = trim($user->first_name . ' ' . $user->last_name);
+            } elseif ($user->isDirty('name')) {
+                [$user->first_name, $user->last_name] = self::splitName($user->name);
+            }
+        });
+    }
+
+    /** "สมหญิง ขยันงาน" → ['สมหญิง', 'ขยันงาน'] (คำแรก = ชื่อ ที่เหลือ = นามสกุล) */
+    public static function splitName(?string $name): array
+    {
+        $parts = preg_split('/\s+/u', trim((string) $name), 2);
+
+        return [$parts[0] ?? '', $parts[1] ?? null];
     }
 
     /* ============================================================
@@ -210,6 +236,21 @@ class User extends Authenticatable
      * หมายเหตุ: dompdf อ่าน URL ไม่ได้ ต้องใช้ path ในเครื่องเท่านั้น
      * จึงใช้ public_path() ไม่ใช่ asset()
      */
+    /**
+     * path ลายเซ็นที่ dompdf วาดได้จริง (null = ไม่แสดงรูป แต่ PDF ยังออกได้)
+     * PNG ต้องใช้ PHP GD บนเว็บเซิร์ฟเวอร์ · JPG ไม่ต้องใช้
+     */
+    public function signatureForPdf(): ?string
+    {
+        if (! $this->hasSignature()) {
+            return null;
+        }
+
+        $isJpeg = (bool) preg_match('/\.jpe?g$/i', $this->signature_path);
+
+        return ($isJpeg || extension_loaded('gd')) ? public_path($this->signature_path) : null;
+    }
+
     public function getSignatureFullPathAttribute(): ?string
     {
         return $this->hasSignature() ? public_path($this->signature_path) : null;

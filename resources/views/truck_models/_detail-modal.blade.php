@@ -112,6 +112,18 @@
             const edit = field('edit');
             edit.classList.toggle('d-none', !data.edit);
             edit.href = data.edit || '#';
+            edit.dataset.id = data.id;
+        });
+
+        // "แก้ไขรุ่นนี้" → ปิดหน้าต่างดู แล้วเปิด modal แก้ไขในหน้านี้เลย
+        // (ถ้าหน้านี้ไม่มี modal แก้ไข ก็ไปตามลิงก์ตามปกติ)
+        field('edit').addEventListener('click', function (e) {
+            const btn = document.querySelector('[data-model-edit][data-model-id="' + this.dataset.id + '"]');
+            if (!btn || typeof window.openModelEdit !== 'function') return;
+
+            e.preventDefault();
+            modalEl.addEventListener('hidden.bs.modal', () => window.openModelEdit(JSON.parse(btn.dataset.modelEdit)), { once: true });
+            bootstrap.Modal.getInstance(modalEl)?.hide();
         });
     });
 </script>

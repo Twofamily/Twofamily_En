@@ -10,13 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/action-buttons.css') }}">
     <link rel="stylesheet" href="{{ asset('css/form-ui.css') }}">
-    {{-- ปฏิทินเลือกวันที่ แสดงเป็น วัน/เดือน/ปี (ไฟล์อยู่ในเครื่อง ใช้ offline ได้) --}}
     <link rel="stylesheet" href="{{ asset('js/vendor/flatpickr/flatpickr.min.css') }}">
-
-    {{--
-        อ่านสถานะย่อ/ขยายก่อนหน้าจะ render
-        ต้องวางไว้ใน <head> ไม่ใช่ท้าย body ไม่งั้นจะเห็นเมนูกางออกแล้วหุบวูบหนึ่ง (FOUC)
-    --}}
     <script>
         (function() {
             try {
@@ -24,7 +18,6 @@
                     document.documentElement.classList.add('sidebar-collapsed');
                 }
             } catch (e) {
-                // localStorage ถูกปิด (โหมดส่วนตัว) ให้ใช้ค่าเริ่มต้นคือกางออก
             }
         })();
     </script>
@@ -36,13 +29,10 @@
             --sidebar-hover: rgba(255, 255, 255, 0.12);
             --active-bg: #f8fafc;
             --active-text: #141414;
-
-            /* ความกว้างสองสถานะ ประกาศเป็นตัวแปรเพื่อให้แก้ที่เดียวแล้วขยับทั้งหน้า */
             --sidebar-w: 280px;
             --sidebar-w-collapsed: 78px;
         }
 
-        /* สถานะย่อ: เปลี่ยนแค่ค่าตัวแปรตัวเดียว ที่เหลือขยับตามเอง */
         html.sidebar-collapsed {
             --sidebar-w: var(--sidebar-w-collapsed);
         }
@@ -51,8 +41,6 @@
             background-color: #f5f7fa;
             overflow-x: hidden;
         }
-
-        /* ==================== โครงหลัก ==================== */
 
         .sidebar {
             position: fixed;
@@ -75,8 +63,6 @@
             padding: 24px;
             transition: margin-left .25s ease;
         }
-
-        /* ==================== แถวหัว (ชื่อบริษัท + ปุ่มย่อ/ขยาย) ==================== */
 
         .sidebar-head {
             display: flex;
@@ -105,12 +91,9 @@
             color: #fff;
         }
 
-        /* ==================== แบรนด์ ==================== */
-
         .brand {
             flex: 1 1 auto;
             min-width: 0;
-            /* ให้ข้อความหดได้ ไม่ดันปุ่มตกบรรทัด */
             color: #fff;
             text-decoration: none;
             padding: 4px 8px;
@@ -119,7 +102,6 @@
             overflow: hidden;
         }
 
-        /* ชื่อบริษัทไม่ต้องมีพื้นหลังตอนชี้เมาส์ ทับ .sidebar a:hover ด้านล่าง */
         .brand:hover {
             background-color: transparent !important;
         }
@@ -141,8 +123,6 @@
             margin-top: 1px;
         }
 
-        /* ---------- ตอนย่อ: เหลือแต่ปุ่ม จัดกลาง ---------- */
-
         html.sidebar-collapsed .sidebar-head {
             justify-content: center;
             padding: 16px 0 18px;
@@ -151,8 +131,6 @@
         html.sidebar-collapsed .brand {
             display: none;
         }
-
-        /* ==================== เมนู ==================== */
 
         .sidebar a {
             transition: all .25s ease;
@@ -212,9 +190,6 @@
             font-weight: 600;
         }
 
-        /* ---------- ปรับหน้าตาเมนูตอนย่อ ---------- */
-
-        /* ซ่อนข้อความ เหลือแต่ไอคอน */
         html.sidebar-collapsed .menu-text,
         html.sidebar-collapsed .arrow {
             display: none;
@@ -225,18 +200,14 @@
             padding: 12px 0;
         }
 
-        /* ตอนย่อ ไอคอนไม่ต้องมีระยะห่างขวาแล้ว ไม่งั้นจะเยื้องออกจากกลาง */
         html.sidebar-collapsed .sidebar .nav-link i.me-2 {
             margin-right: 0 !important;
             font-size: 1.25rem;
         }
 
-        /* ซ่อนเมนูย่อยตอนย่อ กดแล้วจะให้กางไซด์บาร์ออกก่อน (จัดการใน JS) */
         html.sidebar-collapsed .submenu {
             display: none;
         }
-
-        /* ==================== ส่วนผู้ใช้ ==================== */
 
         .user-menu {
             background: var(--sidebar-bg);
@@ -261,11 +232,6 @@
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
         }
 
-        /* ==================== มือถือ ==================== */
-        /*
-            บนจอเล็ก การย่อเหลือไอคอนยังกินพื้นที่มากเกินไป
-            เปลี่ยนเป็นเลื่อนออกนอกจอแล้วเปิดทับเนื้อหาแทน
-        */
         @media (max-width: 767.98px) {
             .sidebar {
                 width: 280px;
@@ -276,7 +242,6 @@
                 transform: translateX(0);
             }
 
-            /* บนมือถือให้กางเต็มเสมอ ไม่ใช้โหมดไอคอน */
             html.sidebar-collapsed .brand {
                 display: block;
             }
@@ -317,7 +282,6 @@
             }
         }
 
-        /* ปุ่มเปิดเมนูบนมือถือ ซ่อนบนจอใหญ่ */
         .mobile-open-btn {
             display: none;
         }
@@ -331,7 +295,6 @@
             }
         }
 
-        /* เคารพผู้ใช้ที่ปิดแอนิเมชันในระบบปฏิบัติการ */
         @media (prefers-reduced-motion: reduce) {
 
             .sidebar,
@@ -344,16 +307,11 @@
 
 <body>
 
-    {{-- ฉากหลังสีดำตอนเปิดเมนูบนมือถือ กดแล้วปิด --}}
     <div class="mobile-backdrop" data-sidebar-close></div>
 
-    {{-- ==================== SIDEBAR ==================== --}}
     <div class="sidebar">
         <div class="d-flex flex-column px-3 min-vh-100">
-
-            {{-- แถวหัว: ชื่อบริษัทซ้าย ปุ่มย่อ/ขยายขวา --}}
             <div class="sidebar-head">
-
                 <a href="{{ route('dashboard') }}" class="brand">
                     <span class="brand-line-1">บริษัททูแฟมิลี่</span>
                     <span class="brand-line-2">เอ็นจิเนียริ่ง จำกัด</span>
@@ -363,14 +321,9 @@
                     aria-label="ย่อหรือขยายเมนูด้านข้าง">
                     <i class="bi bi-list"></i>
                 </button>
-
             </div>
 
             @php
-                /*
-                 | สิทธิ์รายหน้า: ซ่อนเมนูที่ผู้ใช้ไม่มีสิทธิ์เข้า
-                 | (การกันจริงอยู่ที่ middleware CheckPermission ตรงนี้แค่ซ่อนลิงก์)
-                 */
                 $authUser = auth()->user();
                 $canSee = fn(string $module) => $authUser && $authUser->canViewModule($module);
 
@@ -394,7 +347,6 @@
                     request()->routeIs('drivers.*') ||
                     request()->routeIs('customers.*');
 
-                // เมนูที่มีเมนูย่อย แสดงก็ต่อเมื่อเห็นเมนูย่อยได้อย่างน้อย 1 รายการ
                 $showProductMenu = $canSee('product_types') || $canSee('products');
                 $showTruckMenu = $canSee('truck_brands') || $canSee('truck_models') || $canSee('trucks');
                 $showDocMenu =
@@ -408,16 +360,12 @@
             @endphp
 
             <ul class="nav flex-column mb-auto">
-
-                {{-- แดชบอร์ด --}}
                 <li class="nav-item">
                     <a href="{{ route('dashboard') }}"
                         class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" title="แดชบอร์ด">
                         <span><i class="bi bi-speedometer2 me-2"></i><span class="menu-text">แดชบอร์ด</span></span>
                     </a>
                 </li>
-
-                {{-- แคมป์งาน --}}
                 @if ($canSee('camps'))
                     <li class="nav-item">
                         <a href="{{ route('camps.index') }}"
@@ -427,10 +375,8 @@
                     </li>
                 @endif
 
-                {{-- สินค้า (สินค้าทั้งหมด + ประเภทสินค้า เป็นแท็บในหน้าเดียวกัน) --}}
                 @if ($showProductMenu)
                     @php
-                        // ดูสินค้าไม่ได้แต่ดูประเภทได้ → พาไปหน้าประเภทแทน กันเจอหน้า 403
                         $productMenuUrl = $canSee('products')
                             ? route('products.index')
                             : route('product_types.index');
@@ -443,7 +389,6 @@
                     </li>
                 @endif
 
-                {{-- ต้นทุนค่าน้ำมัน --}}
                 @if ($canSee('fuel_records'))
                     <li class="nav-item">
                         <a href="{{ route('fuel_records.index') }}"
@@ -454,10 +399,8 @@
                     </li>
                 @endif
 
-                {{-- รถบรรทุก (รถ + รุ่น + ยี่ห้อ เป็นแท็บในหน้าเดียวกัน) --}}
                 @if ($showTruckMenu)
                     @php
-                        // พาไปแท็บแรกที่ผู้ใช้มีสิทธิ์ดู กันเจอหน้า 403
                         $truckMenuUrl = $canSee('trucks')
                             ? route('trucks.index')
                             : ($canSee('truck_models') ? route('truck_models.index') : route('truck_brands.index'));
@@ -470,7 +413,6 @@
                     </li>
                 @endif
 
-                {{-- เอกสาร --}}
                 @if ($showDocMenu)
                     <li class="nav-item">
                         <a class="nav-link {{ $isDocPage ? 'active' : '' }}" data-bs-toggle="collapse"
@@ -515,7 +457,6 @@
                     </li>
                 @endif
 
-                {{-- จัดการข้อมูลบุคคล --}}
                 @if ($showUserMenu)
                     <li class="nav-item">
                         <a class="nav-link {{ $isUserPage ? 'active' : '' }}" data-bs-toggle="collapse"
@@ -586,10 +527,7 @@
         </div>
     </div>
 
-    {{-- ==================== เนื้อหา ==================== --}}
     <div class="main-area">
-
-        {{-- ปุ่มเปิดเมนูบนมือถือ --}}
         <button type="button" class="btn btn-dark mobile-open-btn" data-sidebar-open>
             <i class="bi bi-list"></i> เมนู
         </button>
@@ -599,7 +537,6 @@
             @yield('namepage')
             <hr>
 
-            {{-- ===== แจ้งเตือนผลการทำรายการ ===== --}}
             @if (session('ok') || session('success'))
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <i class="bi bi-check-circle-fill me-2"></i>
@@ -624,7 +561,6 @@
                 </div>
             @endif
 
-            {{-- แจ้งเตือนข้อผิดพลาดจากการกรอกฟอร์ม --}}
             @if ($errors->any() && !$errors->hasBag('updateUser') && !$errors->hasBag('updatePassword'))
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="bi bi-exclamation-circle-fill me-2"></i>
@@ -637,26 +573,19 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="ปิด"></button>
                 </div>
             @endif
-            {{-- ===== จบส่วนแจ้งเตือน ===== --}}
-
             @yield('content')
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    {{-- ระบบยืนยันการทำรายการ --}}
     <x-confirm-modal />
-    {{-- ลำดับสำคัญ: searchable-select → date-input → form-validation → confirm
-         ฟอร์มต้องผ่านการตรวจ required ก่อน modal ยืนยันจึงจะเด้ง --}}
     <script src="{{ asset('js/vendor/flatpickr/flatpickr.min.js') }}"></script>
     <script src="{{ asset('js/vendor/flatpickr/th.js') }}"></script>
     <script src="{{ asset('js/searchable-select.js') }}"></script>
     <script src="{{ asset('js/date-input.js') }}"></script>
     <script src="{{ asset('js/form-validation.js') }}"></script>
     <script src="{{ asset('js/confirm.js') }}"></script>
-
-    {{-- ==================== สคริปต์ควบคุมไซด์บาร์ ==================== --}}
     <script>
         (function() {
             var root = document.documentElement;
@@ -670,16 +599,13 @@
                 try {
                     localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
                 } catch (e) {
-                    // ถ้าเซฟไม่ได้ก็ยังใช้งานได้ปกติ แค่ไม่จำสถานะข้ามหน้า
                 }
             }
 
-            // ---------- ปุ่มย่อ/ขยาย ----------
             var toggleBtn = document.getElementById('sidebarToggle');
 
             if (toggleBtn) {
                 toggleBtn.addEventListener('click', function() {
-                    // บนมือถือ ปุ่มนี้ทำหน้าที่ "ปิดเมนู" แทนการย่อ
                     if (isMobile()) {
                         root.classList.remove('sidebar-mobile-open');
                         return;
@@ -689,8 +615,6 @@
                     saveState(collapsed);
                 });
             }
-
-            // ---------- เปิด/ปิดเมนูบนมือถือ ----------
             document.querySelectorAll('[data-sidebar-open]').forEach(function(el) {
                 el.addEventListener('click', function() {
                     root.classList.add('sidebar-mobile-open');
@@ -702,13 +626,6 @@
                     root.classList.remove('sidebar-mobile-open');
                 });
             });
-
-            // ---------- กดเมนูที่มีเมนูย่อยตอนไซด์บาร์ย่ออยู่ ----------
-            /*
-               ตอนย่อเหลือแต่ไอคอน เมนูย่อยถูกซ่อนด้วย CSS
-               ถ้าปล่อยให้ Bootstrap เปิด collapse ตามปกติ ผู้ใช้จะกดแล้วเหมือนไม่มีอะไรเกิดขึ้น
-               จึงดักไว้ให้กางไซด์บาร์ออกก่อน แล้วค่อยเปิดเมนูย่อย
-            */
             document.querySelectorAll('[data-submenu-toggle]').forEach(function(link) {
                 link.addEventListener('click', function(e) {
                     if (!isMobile() && root.classList.contains('sidebar-collapsed')) {
@@ -717,8 +634,6 @@
 
                         root.classList.remove('sidebar-collapsed');
                         saveState(false);
-
-                        // รอให้ไซด์บาร์กางเสร็จก่อนค่อยเปิดเมนูย่อย ไม่งั้นความสูงคำนวณผิด
                         var target = document.querySelector(link.getAttribute('href'));
                         if (target) {
                             setTimeout(function() {
@@ -728,8 +643,6 @@
                     }
                 });
             });
-
-            // ---------- ปิดเมนูมือถืออัตโนมัติเมื่อขยายจอ ----------
             window.addEventListener('resize', function() {
                 if (!isMobile()) {
                     root.classList.remove('sidebar-mobile-open');

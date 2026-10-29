@@ -16,7 +16,6 @@
     $subTotal = (float) $receipt->subtotal ?: ($inv?->itemsSubtotal() ?? 0);
     $vat      = (float) $receipt->vat_amount ?: ($inv?->itemsVat() ?? 0);
     $gross    = round($subTotal + $vat, 2);
-    $deducted = (float) $receipt->advance_deducted;
 
     $canManage = in_array(auth()->user()->role, ['admin', 'staff']);
 
@@ -55,12 +54,6 @@
 
                 @if ($receipt->isCancelled())
                     <span class="badge bg-dark fs-6">ยกเลิกแล้ว</span>
-                @elseif ($receipt->isAdvance())
-                    <span class="{{ $receipt->advanceRemaining() > 0 ? 'text-warning' : 'text-success' }}">
-                        <i class="bi bi-piggy-bank me-1"></i>
-                        หักไปแล้ว {{ number_format($receipt->advanceUsed(), 2) }}
-                        · คงเหลือ {{ number_format($receipt->advanceRemaining(), 2) }} บาท
-                    </span>
                 @endif
             </div>
 
@@ -182,16 +175,6 @@
                                     <th colspan="4" class="text-end fw-normal text-muted">ภาษีมูลค่าเพิ่ม 7%</th>
                                     <th class="text-end">{{ number_format($vat, 2) }}</th>
                                 </tr>
-                                @if ($deducted > 0)
-                                    <tr>
-                                        <th colspan="4" class="text-end fw-normal text-muted">รวมทั้งสิ้น</th>
-                                        <th class="text-end">{{ number_format($gross, 2) }}</th>
-                                    </tr>
-                                    <tr>
-                                        <th colspan="4" class="text-end fw-normal text-muted">หัก เงินรับล่วงหน้า</th>
-                                        <th class="text-end text-danger">-{{ number_format($deducted, 2) }}</th>
-                                    </tr>
-                                @endif
                                 <tr class="table-primary fw-bold">
                                     <th colspan="4" class="text-end">จำนวนเงินที่ได้รับ</th>
                                     <th class="text-end">{{ number_format($receipt->total, 2) }}</th>
@@ -276,56 +259,6 @@
             </div>
         </div>
     </div>
-
-    {{-- ==================== เงินล่วงหน้าใบนี้ถูกหักไปที่ไหน ==================== --}}
-    @if ($receipt->isAdvance())
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-4">
-                <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">การหักเงินรับล่วงหน้าในใบแจ้งหนี้</h6>
-
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0 small">
-                        <thead class="table-light">
-                            <tr>
-                                <th>วันที่หัก</th>
-                                <th>ใบแจ้งหนี้</th>
-                                <th class="text-end">ยอดที่หัก</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($receipt->appliedAdvances as $use)
-                                <tr>
-                                    <td>{{ $use->paid_at->format('d/m/Y') }}</td>
-                                    <td>
-                                        @if ($use->invoice)
-                                            <a href="{{ route('invoices.show', $use->invoice->id_invoice) }}" class="text-decoration-none">
-                                                {{ $use->invoice->code_inv }}
-                                            </a>
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                    <td class="text-end">{{ number_format($use->amount, 2) }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="3" class="text-center text-muted py-3">
-                                        ยังไม่ถูกหัก — ไปที่ใบแจ้งหนี้ของแคมป์นี้ แล้วกด "หักเงินรับล่วงหน้า"
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                        <tfoot>
-                            <tr class="fw-bold">
-                                <th colspan="2" class="text-end">คงเหลือให้หัก</th>
-                                <th class="text-end">{{ number_format($receipt->advanceRemaining(), 2) }}</th>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-        </div>
-    @endif
 
     <div class="mt-3">
         <a href="{{ route('receipts.index') }}" class="btn btn-outline-secondary">ย้อนกลับ</a>

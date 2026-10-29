@@ -1,4 +1,6 @@
+<h1>TESTING BLADE FILE</h1>
 @extends('layout')
+...
 
 @section('namepage')
     <div class="container">
@@ -10,10 +12,12 @@
     <div class="container py-4">
 
         <x-search-bar :action="route('truck_models.index')"
-                      placeholder="ค้นหาชื่อรุ่น / ยี่ห้อ / ประเภท / เชื้อเพลิง / ปีรุ่น"
+                      placeholder="ชื่อรุ่น / ยี่ห้อ / ประเภท / ปีรุ่น"
                       :search="$search" :per-page="$perPage"
-                      :statuses="$statusLabels" :status="$status"
-                      :ranges="$ranges" />
+                      :statuses="$wheelLabels" :status="$wheels"
+                      status-name="wheels" status-label="จำนวนล้อ"
+                      {{-- :ranges="$ranges"  --}}
+                      />
 
         <div class="d-flex justify-content-end mb-3">
             <a href="{{ route('truck_models.create') }}" class="btn btn-dark text-nowrap">

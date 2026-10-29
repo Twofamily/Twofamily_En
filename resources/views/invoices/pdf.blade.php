@@ -283,7 +283,7 @@
         </tr>
         <tr>
             <td class="label">เลขภาษี</td>
-            <td>{{ $invoice->customer->tax_id ?? '-' }}</td>
+            <td>{{ customer_tax_line($invoice->customer) }}</td>
             <td class="divider"></td>
             <td></td>
         </tr>
@@ -407,6 +407,8 @@
         [
             'party' => 'company',
             'label' => 'ผู้ออกใบแจ้งหนี้',
+            'user'  => $invoice->creator,      // ผู้ออกเอกสาร: มีลายเซ็นแสดงรูป ไม่มีเว้นว่าง
+            'date'  => $invoice->invoice_date,
         ],
     ]])
 

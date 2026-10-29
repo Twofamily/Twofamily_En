@@ -9,11 +9,7 @@ use Illuminate\Database\Eloquent\Model;
  *
  * ผูกได้ 2 ทาง
  *   - id_invoice : ชำระตามใบแจ้งหนี้ (แบบเดิม)
- *   - id_receipt : หลักฐานของใบเสร็จรับเงินล่วงหน้า / ขายสด
- *
- * รายการชนิดพิเศษ method = 'advance'
- *   = หักเงินรับล่วงหน้าในใบแจ้งหนี้ ไม่มีสลิป (สลิปอยู่ที่ใบเสร็จล่วงหน้าแล้ว)
- *   id_advance_receipt บอกว่าหักจากใบเสร็จล่วงหน้าใบไหน
+ *   - id_receipt : หลักฐานของใบเสร็จขายสด
  */
 class Payment extends Model
 {
@@ -22,7 +18,6 @@ class Payment extends Model
     protected $fillable = [
         'id_invoice',
         'id_receipt',
-        'id_advance_receipt',
         'paid_at',
         'amount',
         'method',
@@ -46,9 +41,6 @@ class Payment extends Model
         'cash'     => 'เงินสด',
         'cheque'   => 'เช็ค',
     ];
-
-    // ระบบสร้างเองตอนกด "หักเงินรับล่วงหน้า" — ไม่อยู่ใน dropdown
-    public const METHOD_ADVANCE = 'advance';
 
     // ชนิดไฟล์และขนาดสูงสุดของหลักฐาน (ใช้ร่วมกับ validation ใน controller)
     public const SLIP_MIMES  = 'jpg,jpeg,png,pdf';
@@ -94,16 +86,10 @@ class Payment extends Model
         return $this->belongsTo(Invoice::class, 'id_invoice', 'id_invoice')->withTrashed();
     }
 
-    /** ใบเสร็จ (advance / direct) ที่รายการนี้เป็นหลักฐาน */
+    /** ใบเสร็จขายสดที่รายการนี้เป็นหลักฐาน */
     public function receipt()
     {
         return $this->belongsTo(Receipt::class, 'id_receipt', 'id_receipt')->withTrashed();
-    }
-
-    /** ใบเสร็จรับเงินล่วงหน้าที่ถูกหักมาใช้ในรายการนี้ */
-    public function advanceReceipt()
-    {
-        return $this->belongsTo(Receipt::class, 'id_advance_receipt', 'id_receipt')->withTrashed();
     }
 
     public function recordedBy()
@@ -115,16 +101,7 @@ class Payment extends Model
 
     public function getMethodLabelAttribute(): string
     {
-        if ($this->method === self::METHOD_ADVANCE) {
-            return 'หักเงินรับล่วงหน้า';
-        }
-
         return self::METHODS[$this->method] ?? $this->method;
-    }
-
-    public function isAdvanceApplication(): bool
-    {
-        return $this->method === self::METHOD_ADVANCE;
     }
 
     public function hasSlip(): bool

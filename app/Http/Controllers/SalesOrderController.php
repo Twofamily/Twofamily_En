@@ -58,18 +58,47 @@ class SalesOrderController extends Controller
 
         return view('sales_orders.index', compact(
             'salesOrders', 'perPage', 'search', 'dateFrom', 'dateTo', 'status', 'ranges'
-        ));
+        ) + $this->createFormData($request));
     }
 
     /**
-     * เลือกใบเสนอราคาก่อน แล้วค่อยสร้างใบสั่งขาย
-     * ถ้าไม่ส่ง quotation มา จะแสดงรายการให้เลือก
+     * ข้อมูลของหน้าต่างสร้างใบสั่งขาย (อยู่ในหน้ารายการ)
+     *   ?quotation=ID : จากใบเสนอราคาที่อนุมัติแล้ว (ราคาตามใบเสนอราคา)
+     *   ?direct=1     : สั่งตรง ไม่มีใบเสนอราคา (ลูกค้าประจำโทรสั่ง) — ต้องให้ผู้ดูแลระบบยืนยันราคา
+     *   ไม่ส่งอะไรมา  : เลือกว่าจะสร้างแบบไหน
      */
+    private function createFormData(Request $request): array
+    {
+        if (! $request->user()?->canEdit('sales_orders')) {
+            return ['canCreate' => false];
+        }
+
+        $quotationId = $request->input('quotation') ?: old('id_quot');
+        $quotation = $quotationId
+            ? Quotation::with(['customer', 'details.product'])->find($quotationId)
+            : null;
+
+        // ใบเสนอราคาที่ออกใบสั่งขายไม่ได้แล้ว → กลับไปหน้าเลือก
+        if ($quotation && ! $quotation->canCreateSalesOrder()) {
+            $quotation = null;
+        }
+
+        $direct = ! $quotation && ($request->boolean('direct') || old('direct'));
+
+        return [
+            'canCreate'  => true,
+            'quotation'  => $quotation,
+            'direct'     => $direct,
+            'quotations' => Quotation::with('customer')->convertible()->latest('id_quot')->get(),
+            'customers'  => $direct ? Customer::orderBy('name_customer')->get() : collect(),
+            'products'   => Product::orderBy('name_product')->get(),
+        ];
+    }
+
+    /** สร้างใบสั่งขายในหน้าต่าง (modal) ของหน้ารายการ — ลิงก์เดิม (?quotation= / ?direct=) ยังใช้ได้ */
     public function create(Request $request)
     {
-        $quotation = $request->quotation
-            ? Quotation::with(['customer', 'details.product'])->find($request->quotation)
-            : null;
+        $quotation = $request->quotation ? Quotation::find($request->quotation) : null;
 
         // กันการเปิดใบสั่งขายซ้ำจากใบเสนอราคาเดิม
         if ($quotation && ! $quotation->canCreateSalesOrder()) {
@@ -80,22 +109,19 @@ class SalesOrderController extends Controller
                     : 'ใบเสนอราคานี้ยังไม่ได้รับการอนุมัติ');
         }
 
-        return view('sales_orders.create', [
-            'quotation'  => $quotation,
-            'quotations' => Quotation::with('customer')
-                                ->convertible()
-                                ->latest('id_quot')
-                                ->get(),
-            'products'   => Product::orderBy('name_product')->get(),
-        ]);
+        return redirect()->route('sales_orders.index', array_filter([
+            'modal'     => 'create',
+            'quotation' => $quotation?->id_quot,
+            'direct'    => $request->boolean('direct') ? 1 : null,
+        ]));
     }
 
     public function store(Request $request)
     {
-        $data = $this->validateSalesOrder($request);
+        $data = $this->validateSalesOrder($request, 'createSalesOrder');
 
         if ($error = $this->checkQuotation($data)) {
-            return back()->withInput()->with('error', $error);
+            return back()->withInput()->withErrors(['id_quot' => $error], 'createSalesOrder');
         }
 
         $totals = $this->calculateTotals($data['items']);
@@ -123,7 +149,9 @@ class SalesOrderController extends Controller
 
         return redirect()
             ->route('sales_orders.show', $salesOrder)
-            ->with('ok', "สร้างใบสั่งขาย {$salesOrder->code_so} เรียบร้อย");
+            ->with('ok', $salesOrder->isDirect()
+                ? "สร้างใบสั่งตรง {$salesOrder->code_so} เรียบร้อย — รอผู้ดูแลระบบตรวจราคาและยืนยัน"
+                : "สร้างใบสั่งขาย {$salesOrder->code_so} เรียบร้อย");
     }
 
     public function show(SalesOrder $salesOrder)
@@ -143,9 +171,13 @@ class SalesOrderController extends Controller
                 ->get()
             : collect();
 
-        return view('sales_orders.show', compact('salesOrder', 'campOptions'));
+        // หน้าต่างแก้ไข (เฉพาะใบร่าง)
+        $products = $salesOrder->canEdit() ? Product::orderBy('name_product')->get() : collect();
+
+        return view('sales_orders.show', compact('salesOrder', 'campOptions', 'products'));
     }
 
+    /** แก้ไขใบสั่งขายในหน้าต่าง (modal) ของหน้าดูใบสั่งขาย */
     public function edit(SalesOrder $salesOrder)
     {
         if (! $salesOrder->canEdit()) {
@@ -154,13 +186,7 @@ class SalesOrderController extends Controller
                 ->with('error', 'ใบสั่งขายที่ยืนยันแล้วไม่สามารถแก้ไขได้');
         }
 
-        $salesOrder->load(['customer', 'quotation', 'details.product']);
-
-        return view('sales_orders.edit', [
-            'salesOrder' => $salesOrder,
-            'products'   => Product::orderBy('name_product')->get(),
-            'customers'  => Customer::orderBy('name_customer')->get(),
-        ]);
+        return redirect()->route('sales_orders.show', [$salesOrder, 'edit' => 1]);
     }
 
     public function update(Request $request, SalesOrder $salesOrder)
@@ -171,7 +197,7 @@ class SalesOrderController extends Controller
                 ->with('error', 'ใบสั่งขายที่ยืนยันแล้วไม่สามารถแก้ไขได้');
         }
 
-        $data = $this->validateSalesOrder($request, $salesOrder);
+        $data = $this->validateSalesOrder($request, 'updateSalesOrder');
 
         $totals = $this->calculateTotals($data['items']);
 
@@ -197,35 +223,13 @@ class SalesOrderController extends Controller
             ->with('ok', 'แก้ไขใบสั่งขายเรียบร้อย');
     }
 
-    public function destroy(SalesOrder $salesOrder)
-    {
-        if ($salesOrder->hasCamp()) {
-            return back()->with('error', 'ใบสั่งขายนี้อยู่ในแคมป์แล้ว ไม่สามารถลบได้');
-        }
-
-        if ($salesOrder->status !== 'draft') {
-            return back()->with('error', 'ลบได้เฉพาะใบสั่งขายที่ยังเป็นร่าง หากต้องการยกเลิกให้ใช้ปุ่มยกเลิก');
-        }
-
-        DB::transaction(function () use ($salesOrder) {
-            $salesOrder->details()->delete();
-            $salesOrder->delete();
-        });
-
-        return redirect()
-            ->route('sales_orders.index')
-            ->with('ok', 'ลบใบสั่งขายแล้ว');
-    }
-
     /* ==================== เปลี่ยนสถานะ ==================== */
 
     /** ยืนยันใบสั่งขาย = ล็อกรายการ พร้อมเปิดแคมป์ */
     public function confirm(SalesOrder $salesOrder)
     {
-        if (! $salesOrder->canConfirm()) {
-            return back()->with('error', $salesOrder->details()->exists()
-                ? 'ใบสั่งขายนี้ไม่อยู่ในสถานะร่าง'
-                : 'ไม่มีรายการสินค้า ไม่สามารถยืนยันได้');
+        if ($reason = $salesOrder->confirmBlocker(auth()->user())) {
+            return back()->with('error', $reason);
         }
 
         $salesOrder->update(['status' => 'confirmed']);
@@ -326,9 +330,9 @@ class SalesOrderController extends Controller
 
     /* ==================== Helpers ==================== */
 
-    private function validateSalesOrder(Request $request, ?SalesOrder $salesOrder = null): array
+    private function validateSalesOrder(Request $request, string $bag): array
     {
-        return $request->validate([
+        return $request->validateWithBag($bag, [
             'id_quot'            => ['nullable', 'exists:quotations,id_quot'],
             'id_customer'        => ['required', 'exists:customers,id_customer'],
             'order_date'         => ['required', 'date'],

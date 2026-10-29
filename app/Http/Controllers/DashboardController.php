@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * แดชบอร์ดการเงิน: รายได้ ต้นทุน กำไร ลูกหนี้ เงินล่วงหน้า งานในมือ
+ * แดชบอร์ดการเงิน: รายได้ ต้นทุน กำไร ลูกหนี้ งานในมือ
  *
  * ช่วงเวลามาจากตัวกรองด้านบน (RevenueReport จัดการ preset / วันที่)
  * แล้วส่งช่วงเดียวกันให้ DashboardFinance คำนวณส่วนที่เหลือ ตัวเลขทั้งหน้าจึงตรงกันเสมอ
@@ -25,7 +25,6 @@ class DashboardController extends Controller
             'campProfit' => $finance->campProfit(),
             'aging'      => $finance->receivableAging(),
             'truckCosts' => $finance->truckCosts(),
-            'advance'    => $finance->advanceBalance(),
             'backlog'    => $finance->backlog(),
             'ops'        => $this->operations(),
         ]);

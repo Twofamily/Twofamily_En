@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * รายการของใบเสร็จแบบรับเงินล่วงหน้า / ขายสด
+ * รายการของใบเสร็จขายสด
  * (ใบเสร็จแบบชำระตามใบแจ้งหนี้ใช้รายการจาก invoice_details)
  */
 class ReceiptItem extends Model

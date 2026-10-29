@@ -1,22 +1,8 @@
 @extends('layout')
 
-{{--
-    หน้ารถบรรทุก — 3 แท็บ
-      ?tab=trucks (ค่าเริ่มต้น) : รถบรรทุกในบริษัท
-      ?tab=models              : รุ่นรถ
-      ?tab=brands              : ยี่ห้อ
-
-    ปุ่มเพิ่มของแต่ละแท็บเปิดเป็น modal ในหน้านี้ ไม่ย้ายหน้า
-    วาดเฉพาะ modal ของแท็บที่เปิดอยู่ — ฟอร์มรถกับฟอร์มรุ่นมีช่องชื่อซ้ำกัน (fuel_rate, cubic_capacity)
-    ถ้าวาดพร้อมกัน old() จะไปเติมค่าผิดฟอร์ม
-
-    กรอกผิดแล้ว server ส่งกลับมา → modal เดิมเด้งขึ้นพร้อมค่าที่กรอกไว้ (ดูจาก _modal ที่ฟอร์มส่งไป)
---}}
-
 @php
     $user = auth()->user();
 
-    // modal ของแต่ละแท็บ: [id, ค่า _modal, สิทธิ์แก้ไข, ข้อความปุ่ม]
     $modalOf = [
         'trucks' => ['id' => 'truckCreateModal', 'key' => 'truck', 'module' => 'trucks',       'button' => 'เพิ่มรถบรรทุก'],
         'models' => ['id' => 'modelCreateModal', 'key' => 'model', 'module' => 'truck_models', 'button' => 'เพิ่มรุ่นรถ'],
@@ -25,8 +11,52 @@
     $modal   = $modalOf[$tab];
     $canEdit = (bool) $user?->canEdit($modal['module']);
 
-    // เปิด modal ทันทีตอนโหลดหน้า: กรอกผิดแล้วเด้งกลับ หรือมาจากลิงก์ ?open=
     $openModal = $canEdit && (old('_modal') ?? request('open')) === $modal['key'] ? $modal['id'] : null;
+
+    $truckEditData = fn (\App\Models\Truck $t) => [
+        'id_truck'       => $t->id_truck,
+        'url'            => route('trucks.update', $t->id_truck),
+        'image'          => $t->image ? asset('storage/' . $t->image) : null,
+        'province_truck' => $t->province_truck,
+        'truck_brand_id' => $t->truck_brand_id,
+        'truck_model_id' => $t->truck_model_id,
+        'year_truck'     => $t->year_truck,
+        'status_truck'   => $t->status_truck,
+    ];
+    $truckEditHasOld = $errors->updateTruck->any();
+    $openEditTruckId = $tab === 'trucks' && $canEdit
+        ? ($truckEditHasOld ? (string) old('_truck_id') : (string) request('edit'))
+        : '';
+    $openEditTruck = $openEditTruckId !== '' ? \App\Models\Truck::find($openEditTruckId) : null;
+    $oldEdit = $truckEditHasOld ? \Illuminate\Support\Arr::except(old(), ['_token', '_method', '_truck_id', 'image']) : null;
+
+    // ข้อมูลที่ปุ่ม "แก้ไข" ของแต่ละแถวส่งให้ modal แก้ไขรุ่นรถ / ยี่ห้อ
+    $modelEditData = fn (\App\Models\TruckModel $m) => [
+        'id'     => $m->getKey(),
+        'url'    => route('truck_models.update', $m),
+        'title'  => trim(($m->brand->name_brand ?? '') . ' ' . $m->name_model) . ($m->model_year ? " ({$m->model_year})" : ''),
+        'fields' => [
+            'truck_brand_id' => $m->truck_brand_id,
+            'name_model'     => $m->name_model,
+            'model_year'     => $m->model_year,
+            'truck_type'     => $m->truck_type,
+            'wheels'         => $m->wheels,
+            'cubic_capacity' => $m->cubic_capacity,
+            'load_capacity'  => $m->load_capacity,
+            'curb_weight'    => $m->curb_weight,
+            'tank_capacity'  => $m->tank_capacity,
+            'fuel_rate'      => $m->fuel_rate,
+            'fuel_type'      => $m->fuel_type,
+            'engine_cc'      => $m->engine_cc,
+            'horsepower'     => $m->horsepower,
+            'is_active'      => $m->is_active ? 1 : 0,
+        ],
+    ];
+    $brandEditData = fn (\App\Models\TruckBrand $b) => [
+        'id'         => $b->getKey(),
+        'url'        => route('truck_brands.update', $b),
+        'name_brand' => $b->name_brand,
+    ];
 @endphp
 
 @section('namepage')
@@ -65,7 +95,6 @@
             <div class="alert alert-info shadow-sm">{{ session('info') }}</div>
         @endif
 
-        {{-- ===== แท็บ ===== --}}
         <ul class="nav nav-tabs truck-tabs mb-3">
             @foreach ($tabs as $key => $t)
                 <li class="nav-item">
@@ -79,25 +108,26 @@
             @endforeach
         </ul>
 
-        {{-- ===== แถบค้นหา (แต่ละแท็บมีตัวกรองของตัวเอง) ===== --}}
         @if ($tab === 'trucks')
             <x-search-bar :action="route('trucks.index')"
-                          placeholder="ค้นหาทะเบียน / จังหวัด / ยี่ห้อ / รุ่น / ปี / สถานะ เช่น ซ่อมบำรุง"
+                          placeholder="ทะเบียน / จังหวัด / ยี่ห้อ / รุ่น / ปี"
                           :search="$search" :per-page="$perPage"
                           :statuses="\App\Models\Truck::STATUS_LABELS" :status="$status"
-                          :ranges="$ranges" />
+                          {{-- :ranges="$ranges"  --}}
+                          />
         @elseif ($tab === 'models')
             <x-search-bar :action="route('trucks.index', ['tab' => 'models'])"
-                          placeholder="ค้นหาชื่อรุ่น / ยี่ห้อ / ประเภท / เชื้อเพลิง / ปีรุ่น"
+                          placeholder="ชื่อรุ่น / ยี่ห้อ / ปี"
                           :search="$search" :per-page="$perPage"
-                          :statuses="$statusLabels" :status="$status"
-                          :ranges="$ranges">
-                {{-- GET form ไม่ส่ง query ที่อยู่ใน action ต้องแนบแท็บเป็น hidden เอง --}}
+                          :statuses="$wheelLabels" :status="$wheels"
+                          status-name="wheels" status-label="จำนวนล้อ"
+                          {{-- :ranges="$ranges" --}}
+                          >
                 <input type="hidden" name="tab" value="models">
             </x-search-bar>
         @else
             <x-search-bar :action="route('trucks.index', ['tab' => 'brands'])"
-                          placeholder="ค้นหาชื่อยี่ห้อ"
+                          placeholder="ชื่อยี่ห้อ"
                           :search="$search" :per-page="$perPage">
                 <input type="hidden" name="tab" value="brands">
             </x-search-bar>
@@ -141,11 +171,18 @@
                                     </td>
                                     <td class="text-center">
                                         <x-row-actions :show="route('trucks.show', $t->id_truck)"
-                                                       :edit="$canEdit ? route('trucks.edit', $t->id_truck) : null"
                                                        :delete="$canEdit ? route('trucks.destroy', $t->id_truck) : null"
                                                        :label="$t->id_truck"
                                                        :delete-confirm="'รถบรรทุกทะเบียน ' . $t->id_truck . ' จะถูกลบออกจากระบบ'"
-                                                       delete-title="ยืนยันการลบรถบรรทุก" />
+                                                       delete-title="ยืนยันการลบรถบรรทุก">
+                                            @if ($canEdit)
+                                                <li>
+                                                    <button type="button" class="dropdown-item" data-truck-edit='@json($truckEditData($t))'>
+                                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>แก้ไข
+                                                    </button>
+                                                </li>
+                                            @endif
+                                        </x-row-actions>
                                     </td>
                                 </tr>
                             @empty
@@ -206,7 +243,11 @@
                                                        delete-title="ยืนยันการลบรุ่นรถบรรทุก">
                                             @include('truck_models._view-item', ['m' => $m, 'canEdit' => $canEdit])
                                             @if ($canEdit)
-                                                <x-row-actions.link :href="route('truck_models.edit', $m)" icon="bi-pencil-square">แก้ไข</x-row-actions.link>
+                                                <li>
+                                                    <button type="button" class="dropdown-item" data-model-id="{{ $m->getKey() }}" data-model-edit='@json($modelEditData($m))'>
+                                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>แก้ไข
+                                                    </button>
+                                                </li>
                                             @endif
                                         </x-row-actions>
                                     </td>
@@ -262,12 +303,17 @@
                                     @if ($canEdit)
                                         <td class="text-center">
                                             {{-- มีรุ่นผูกอยู่ ลบไม่ได้ (controller กันไว้อีกชั้น) --}}
-                                            <x-row-actions :edit="route('truck_brands.edit', $brand)"
-                                                           :delete="$brand->models_count > 0 ? null : route('truck_brands.destroy', $brand)"
+                                            <x-row-actions :delete="$brand->models_count > 0 ? null : route('truck_brands.destroy', $brand)"
                                                            :delete-disabled="$brand->models_count > 0 ? 'มีรุ่นรถผูกกับยี่ห้อนี้อยู่' : null"
                                                            :label="$brand->name_brand"
                                                            :delete-confirm="'ยี่ห้อ ' . $brand->name_brand . ' จะถูกลบออกจากระบบ'"
-                                                           delete-title="ยืนยันการลบยี่ห้อรถบรรทุก" />
+                                                           delete-title="ยืนยันการลบยี่ห้อรถบรรทุก">
+                                                <li>
+                                                    <button type="button" class="dropdown-item" data-brand-edit='@json($brandEditData($brand))'>
+                                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>แก้ไข
+                                                    </button>
+                                                </li>
+                                            </x-row-actions>
                                         </td>
                                     @endif
                                 </tr>
@@ -287,6 +333,26 @@
             @include('partials.pagination-footer', ['paginator' => $brands])
         @endif
     </div>
+
+    {{-- ================= Modal แก้ไขรถบรรทุก ================= --}}
+    @if ($tab === 'trucks' && $canEdit)
+        @include('trucks._edit-modal')
+    @endif
+
+    {{-- ================= Modal แก้ไขรุ่นรถ / ยี่ห้อ ================= --}}
+    @if ($tab === 'models' && $canEdit)
+        @include('truck_models._edit-modal')
+    @elseif ($tab === 'brands' && $canEdit)
+        @include('truck_brands._edit-modal')
+    @endif
+
+    {{-- ค่าที่กรอกค้างจาก modal แก้ไข (validate ไม่ผ่าน) ถูกเติมลง modal แก้ไขไปแล้ว
+         ล้างทิ้งตรงนี้ ไม่ให้ไปโผล่ในฟอร์มของ modal เพิ่มด้านล่าง --}}
+    @php
+        if (in_array($tab, ['models', 'brands'], true) && ($errors->updateModel->any() || $errors->updateBrand->any())) {
+            session()->forget('_old_input');
+        }
+    @endphp
 
     {{-- ================= Modal ของแท็บที่เปิดอยู่ ================= --}}
     @if ($canEdit)

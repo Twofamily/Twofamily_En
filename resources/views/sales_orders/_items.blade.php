@@ -51,7 +51,7 @@
                 <option value="">— เลือกสินค้า —</option>
                 @foreach ($products as $product)
                     <option value="{{ $product->id_product }}"
-                            data-price="{{ $product->price_per_unit ?? $product->price ?? 0 }}">
+                            data-price="{{ (float) $product->unit_price }}">
                         {{ $product->name_product }}
                     </option>
                 @endforeach

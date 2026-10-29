@@ -141,11 +141,10 @@ class TruckController extends Controller
         return view('trucks.show', compact('truck'));
     }
 
+    /** แก้ไขรถทำในหน้าต่าง (modal) ของแท็บรถบรรทุก */
     public function edit(Truck $truck)
     {
-        $brands = TruckBrand::with('models')->orderBy('name_brand')->get();
-
-        return view('trucks.edit', compact('truck', 'brands'));
+        return redirect()->route('trucks.index', ['edit' => $truck->id_truck]);
     }
 
     public function update(TruckUpdateRequest $request, Truck $truck)
@@ -160,7 +159,7 @@ class TruckController extends Controller
         $truck->update($data);
 
         return redirect()
-            ->route('trucks.index')
+            ->route('trucks.index', $request->only('page', 'search', 'status', 'per_page'))
             ->with('ok', 'อัปเดตรถเรียบร้อย');
     }
 

@@ -8,13 +8,12 @@
 
 @section('content')
     @php
-        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
         $canEdit = auth()->user()->canEdit('truck_brands');
     @endphp
     <div class="container py-4">
 
         <x-search-bar :action="route('truck_brands.index')"
-                      placeholder="ค้นหาชื่อยี่ห้อ"
+                      placeholder="ชื่อยี่ห้อ"
                       :search="$search" :per-page="$perPage" />
 
         <div class="d-flex justify-content-end mb-3">

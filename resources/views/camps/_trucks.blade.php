@@ -1,18 +1,9 @@
-{{--
-    จัดการรถบรรทุก + คนขับประจำแคมป์ (เพิ่มรถพร้อมคนขับ / เปลี่ยนคนขับ / ถอนรถออก)
-    ใช้ในหน้าแก้ไขแคมป์เท่านั้น — หน้าดูข้อมูล (camps.show) แสดงรายการแบบ read-only
-
-    กติกา: รถ 1 คัน และคนขับ 1 คน ทำงานได้ทีละแคมป์
-
-    ต้องการ: $camp (โหลด trucks มาแล้ว), $availableTrucks, $availableDrivers
---}}
 <div class="card border-0 shadow-sm mt-4" id="camp-trucks">
     <div class="card-body p-4">
         <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">
             รถบรรทุกและคนขับประจำแคมป์
         </h6>
 
-        {{-- เพิ่มรถเข้าแคมป์ (เฉพาะแคมป์ที่เปิดอยู่) --}}
         @if ($camp->status_camp === 'active')
             @if ($availableTrucks->isEmpty())
                 <div class="text-muted small mb-3">
@@ -94,7 +85,6 @@
                             <td>{{ $truck->brand->name_brand ?? '-' }} {{ $truck->model->name_model ?? '' }}</td>
                             <td>
                                 @if (! $truck->pivot->released_date)
-                                    {{-- เปลี่ยน/ใส่คนขับ: ตัวเลือก = คนขับปัจจุบัน + คนขับที่ว่าง --}}
                                     <form method="POST"
                                         action="{{ route('camps.trucks.driver', [$camp->id_camp, $truck->pivot->id_assignment]) }}"
                                         class="d-flex gap-1"

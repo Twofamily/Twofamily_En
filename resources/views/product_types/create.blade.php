@@ -16,7 +16,7 @@
                 <label class="form-label">ชื่อประเภทสินค้า</label>
                 <input type="text" name="name_product_type" value="{{ old('name_product_type') }}"
                     class="form-control @error('name_product_type') is-invalid @enderror"
-                    placeholder="เช่น ดิน, ทราย, หิน" required data-required-msg="กรุณาใส่ประเภทสินค้า">
+                    placeholder="เช่น ดิน, ทราย, หิน" required data-required-msg="กรุณากรอกประเภทสินค้า">
                 @error('name_product_type')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror

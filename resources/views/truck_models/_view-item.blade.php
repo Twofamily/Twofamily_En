@@ -4,6 +4,7 @@
 --}}
 @php
     $detail = [
+        'id'     => $m->getKey(),
         'title'  => trim(($m->brand->name_brand ?? '') . ' ' . $m->name_model)
                     . ($m->model_year ? " ({$m->model_year})" : ''),
         'active' => (bool) $m->is_active,

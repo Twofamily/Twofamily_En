@@ -59,8 +59,13 @@ class TruckBrandController extends Controller
             ->with('ok', 'เพิ่มยี่ห้อเรียบร้อย');
     }
 
-    public function edit(TruckBrand $truckBrand)
+    /** ฟอร์มแก้ไขยี่ห้อย้ายไปเป็น modal ในแท็บยี่ห้อแล้ว — เปิด URL เดิมก็เด้ง modal ให้ */
+    public function edit(Request $request, TruckBrand $truckBrand)
     {
+        if ($request->user()?->canViewModule('trucks')) {
+            return redirect()->route('trucks.index', ['tab' => 'brands', 'edit' => $truckBrand->getKey()]);
+        }
+
         $brand = $truckBrand;
 
         return view('truck_brands.edit', compact('brand'));
@@ -68,12 +73,16 @@ class TruckBrandController extends Controller
 
     public function update(Request $request, TruckBrand $truckBrand)
     {
-        $data = $this->validateData($request, $truckBrand->getKey());
+        // error ของ modal แก้ไขแยกไว้ใน bag "updateBrand" ไม่ปนกับ modal เพิ่ม
+        $data = $this->validateData($request, $truckBrand->getKey(), 'updateBrand');
 
         $truckBrand->update($data);
 
+        // กลับไปหน้าเดิม พร้อมคำค้นหา / เลขหน้าที่ใช้อยู่
+        $keep = array_filter($request->only('page', 'search', 'per_page'), fn ($v) => $v !== null && $v !== '');
+
         return redirect()
-            ->route('trucks.index', ['tab' => 'brands'])
+            ->route('trucks.index', ['tab' => 'brands'] + $keep)
             ->with('ok', 'แก้ไขยี่ห้อเรียบร้อย');
     }
 
@@ -89,13 +98,13 @@ class TruckBrandController extends Controller
         return back()->with('ok', 'ลบยี่ห้อเรียบร้อยแล้ว');
     }
 
-    private function validateData(Request $request, mixed $ignoreId = null): array
+    private function validateData(Request $request, mixed $ignoreId = null, string $errorBag = 'default'): array
     {
         $request->merge([
             'name_brand' => mb_strtoupper(trim((string) $request->name_brand)),
         ]);
 
-        return $request->validate([
+        return $request->validateWithBag($errorBag, [
             'name_brand' => [
                 'required',
                 'string',

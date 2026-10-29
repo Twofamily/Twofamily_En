@@ -367,6 +367,8 @@
         [
             'party' => 'company',
             'label' => 'ผู้รับคำสั่งซื้อ',
+            'user'  => $salesOrder->creator,      // ผู้ออกเอกสาร: มีลายเซ็นแสดงรูป ไม่มีเว้นว่าง
+            'date'  => $salesOrder->order_date,
         ],
     ]])
 

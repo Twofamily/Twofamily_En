@@ -27,11 +27,11 @@
 
         {{-- ==================== ปุ่มสร้าง ==================== --}}
         <div class="d-flex justify-content-end align-items-center mb-3">
-            @if ($canEdit)
-            <a href="{{ route('sales_orders.create') }}" class="btn btn-dark text-nowrap">
-                <i class="bi bi-plus-lg me-1"></i>
-                สร้างใบสั่งขาย
-            </a>
+            @if ($canEdit && $canCreate)
+                <button type="button" class="btn btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#createSalesOrderModal">
+                    <i class="bi bi-plus-lg me-1"></i>
+                    สร้างใบสั่งขาย
+                </button>
             @endif
         </div>
 
@@ -74,6 +74,9 @@
                                     </a>
                                 @else
                                     <span class="text-muted small">สั่งตรง</span>
+                                    @if ($so->status === 'draft')
+                                        <div><span class="badge text-bg-warning">รอผู้ดูแลยืนยัน</span></div>
+                                    @endif
                                 @endif
                             </td>
 
@@ -125,4 +128,15 @@
         @include('partials.pagination-footer', ['paginator' => $salesOrders])
 
     </div>
+    {{-- ==================== หน้าต่างสร้างใบสั่งขาย ==================== --}}
+    @if ($canEdit && $canCreate)
+        @include('sales_orders._create-modal')
+
+        @if ($errors->createSalesOrder->any() || request('modal') === 'create')
+            <script>
+                document.addEventListener('DOMContentLoaded', () =>
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('createSalesOrderModal')).show());
+            </script>
+        @endif
+    @endif
 @endsection

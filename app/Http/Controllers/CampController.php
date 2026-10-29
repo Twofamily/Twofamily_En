@@ -235,9 +235,8 @@ class CampController extends Controller
             ->latest('delivery_date')
             ->get();
 
-        // ใบเสร็จทุกแบบที่ผูกแคมป์นี้ (ชำระตามใบแจ้งหนี้ / รับเงินล่วงหน้า / ขายสด)
+        // ใบเสร็จทุกแบบที่ผูกแคมป์นี้ (ชำระตามใบแจ้งหนี้ / ขายสด)
         $receipts = $camp->receipts()
-            ->with('appliedAdvances')
             ->latest('date_receipt')
             ->get();
 

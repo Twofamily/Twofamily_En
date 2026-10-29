@@ -16,11 +16,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * ใบเสร็จรับเงิน 3 แบบ
+ * ใบเสร็จรับเงิน 2 แบบ
  *
- *   invoice : createFromInvoice() — ปุ่มในหน้าใบแจ้งหนี้ (แบบเดิม)
- *   advance : create/store ?type=advance — รับเงินล่วงหน้า ผูกแคมป์
- *   direct  : create/store ?type=direct  — ขายสด ไม่ต้องมีแคมป์
+ *   invoice : createFromInvoice() — ปุ่มในหน้าใบแจ้งหนี้ (ส่งของ → ออกใบแจ้งหนี้ → ลูกค้าจ่าย → ออกใบเสร็จ)
+ *   direct  : create/store — ขายสด ไม่ต้องมีแคมป์ (กรอกในหน้าต่างของหน้ารายการใบเสร็จ)
  */
 class ReceiptController extends Controller
 {
@@ -31,13 +30,11 @@ class ReceiptController extends Controller
         'issuer',
         'items.product',
         'payments.recordedBy',
-        'appliedAdvances.invoice',
         'invoice.customer',
         'invoice.details.product',
         'invoice.quotation',
         'invoice.deliveryNotes',
         'invoice.payments.recordedBy',
-        'invoice.payments.advanceReceipt',
     ];
 
     /* ==================== แบบที่ 1 : ชำระตามใบแจ้งหนี้ ==================== */
@@ -53,13 +50,6 @@ class ReceiptController extends Controller
                 ->with('warning', 'ใบแจ้งหนี้นี้ออกใบเสร็จไปแล้ว');
         }
 
-        // หักเงินล่วงหน้าครบทั้งใบ → ใบเสร็จรับเงินล่วงหน้าคือใบเสร็จของเงินก้อนนี้แล้ว
-        if ($invoice->isSettledByAdvance()) {
-            return redirect()
-                ->route('invoices.show', $invoice->id_invoice)
-                ->with('warning', 'ใบแจ้งหนี้นี้ชำระครบด้วยเงินรับล่วงหน้าแล้ว ไม่ต้องออกใบเสร็จใหม่');
-        }
-
         // ด่านหลัก: ต้องมีหลักฐานการชำระครบยอด
         if (! $invoice->canIssueReceipt()) {
             return redirect()
@@ -70,7 +60,6 @@ class ReceiptController extends Controller
         }
 
         // ใช้ยอดที่บันทึกไว้ในใบแจ้งหนี้ ไม่คำนวณใหม่จาก quotation
-        // ยอดบนใบเสร็จ = เงินที่จ่ายจริงรอบนี้ (ส่วนที่หักเงินล่วงหน้า ออกใบเสร็จไปแล้วตอนรับเงิน)
         $receipt = Receipt::create([
             'receipt_type'      => Receipt::TYPE_INVOICE,
             'id_invoice'        => $invoice->id_invoice,
@@ -78,8 +67,7 @@ class ReceiptController extends Controller
             'id_camp'           => $invoice->id_camp,
             'subtotal'          => $invoice->itemsSubtotal(),
             'vat_amount'        => $invoice->itemsVat(),
-            'advance_deducted'  => $invoice->advanceAppliedAmount(),
-            'total'             => $invoice->cashPaidAmount(),
+            'total'             => $invoice->paidAmount(),
             'date_receipt'      => now(),
             'issued_by_user_id' => auth()->id(),
         ]);
@@ -89,78 +77,44 @@ class ReceiptController extends Controller
             ->with('success', 'ออกใบเสร็จ ' . $receipt->code_rc . ' เรียบร้อย');
     }
 
-    /* ==================== แบบที่ 2-3 : รับเงินล่วงหน้า / ขายสด ==================== */
+    /* ==================== แบบที่ 2 : ขายสด ==================== */
 
+    /** ขายสดกรอกในหน้าต่าง (modal) ของหน้ารายการใบเสร็จ — เปิด URL เดิมก็เด้งหน้าต่างให้ */
     public function create(Request $request)
     {
-        $type = $request->input('type') === Receipt::TYPE_DIRECT
-            ? Receipt::TYPE_DIRECT
-            : Receipt::TYPE_ADVANCE;
-
-        // ขายสดเท่านั้น: เตรียมลูกค้าทั่วไปไว้ให้กดเลือกได้ทันที
-        // (ต้องสร้างก่อนดึงรายชื่อลูกค้า ไม่งั้นครั้งแรกจะไม่อยู่ใน dropdown)
-        $walkIn = $type === Receipt::TYPE_DIRECT ? Customer::walkIn() : null;
-
-        // รับเงินล่วงหน้าได้ทุกแคมป์ที่ยังไม่ปิด (ลูกค้ามักจ่ายมัดจำตั้งแต่ตอนเตรียมงาน)
-        $camps = Camp::with('customer')
-            ->open()
-            ->latest('id_camp')
-            ->get();
-
-        return view('receipts.create', [
-            'type'         => $type,
-            'camps'        => $camps,
-            'selectedCamp' => $request->input('camp'),
-            'customers'    => Customer::orderBy('name_customer')->get(),
-            'walkIn'       => $walkIn,
-            'products'     => Product::orderBy('name_product')->get(),
-            'requireSlip'  => (bool) Setting::get('payment.require_slip', true),   // ยกเว้นเงินสด (ดู Payment::slipRules)
-        ]);
+        return redirect()->route('receipts.index', array_filter([
+            'modal' => 'create',
+            'camp'  => $request->input('camp'),
+        ]));
     }
 
     public function store(Request $request)
     {
-        $type = $request->input('receipt_type');
-        abort_unless(in_array($type, [Receipt::TYPE_ADVANCE, Receipt::TYPE_DIRECT], true), 422);
-
         $rules = [
-            'receipt_type' => 'required|in:advance,direct',
             'date_receipt' => 'required|date|before_or_equal:today',
             'note'         => 'nullable|string|max:1000',
 
-            // หลักฐานการชำระ (ใช้ร่วมกันทั้งสองแบบ)
-            'method'       => 'required|in:' . implode(',', array_keys(Payment::METHODS)),
-            'bank_name'    => 'nullable|required_if:method,transfer|string|max:100',
-            'reference_no' => 'nullable|string|max:50',
+            'id_customer'        => 'required|exists:customers,id_customer',
+            'id_camp'            => 'nullable|exists:camps,id_camp',
+            'items'              => 'required|array|min:1',
+            'items.*.id_product' => 'required|exists:products,id_product',
+            'items.*.quantity'   => 'required|numeric|gt:0',
+            'items.*.price'      => 'required|numeric|min:0',
+
+            // หลักฐานการชำระ
+            'method'        => 'required|in:' . implode(',', array_keys(Payment::METHODS)),
+            'bank_name'     => 'nullable|required_if:method,transfer|string|max:100',
+            'reference_no'  => 'nullable|string|max:50',
             'cash_received' => 'nullable|numeric|min:0',   // เงินสดที่ลูกค้ายื่นมา (ไว้คิดเงินทอน)
-            'slip'         => Payment::slipRules(),   // บังคับ ยกเว้นเงินสด
+            'slip'          => Payment::slipRules(),   // บังคับ ยกเว้นเงินสด
         ];
 
-        if ($type === Receipt::TYPE_ADVANCE) {
-            $rules += [
-                'id_camp'     => 'required|exists:camps,id_camp',
-                'amount'      => 'required|numeric|min:0.01',
-                'description' => 'nullable|string|max:255',
-            ];
-        } else {
-            $rules += [
-                'id_customer'        => 'required|exists:customers,id_customer',
-                'id_camp'            => 'nullable|exists:camps,id_camp',
-                'items'              => 'required|array|min:1',
-                'items.*.id_product' => 'required|exists:products,id_product',
-                'items.*.quantity'   => 'required|numeric|gt:0',
-                'items.*.price'      => 'required|numeric|min:0',
-            ];
-        }
-
-        $data = $request->validate($rules, [
+        $data = $request->validateWithBag('createReceipt', $rules, [
             'date_receipt.required'        => 'กรุณาระบุวันที่รับเงิน',
             'date_receipt.before_or_equal' => 'วันที่รับเงินต้องไม่เกินวันนี้',
-            'id_camp.required'             => 'กรุณาเลือกแคมป์',
             'id_customer.required'         => 'กรุณาเลือกลูกค้า',
-            'amount.required'              => 'กรุณาระบุยอดเงินที่รับ',
-            'amount.min'                   => 'ยอดเงินต้องมากกว่า 0',
             'items.required'               => 'ต้องมีรายการสินค้าอย่างน้อย 1 รายการ',
+            'items.*.id_product.required'  => 'กรุณาเลือกสินค้าให้ครบทุกแถว',
             'items.*.quantity.gt'          => 'จำนวนต้องมากกว่า 0',
             'method.required'              => 'กรุณาเลือกวิธีชำระ',
             'bank_name.required_if'        => 'กรุณาระบุธนาคาร เมื่อชำระด้วยการโอนเงิน',
@@ -169,49 +123,29 @@ class ReceiptController extends Controller
             'slip.max'                     => 'ไฟล์หลักฐานต้องมีขนาดไม่เกิน 5 MB',
         ]);
 
-        /* ---------- ตรวจแคมป์ ---------- */
+        $type = Receipt::TYPE_DIRECT;
+
+        /* ---------- ตรวจแคมป์ (ไม่บังคับ) ---------- */
         $camp = ! empty($data['id_camp']) ? Camp::find($data['id_camp']) : null;
 
-        if ($type === Receipt::TYPE_ADVANCE && ! $camp?->isOpen()) {
-            return back()->withInput()->with('error', 'รับเงินล่วงหน้าได้เฉพาะแคมป์ที่ยังเปิดอยู่');
-        }
-
-        if ($type === Receipt::TYPE_DIRECT && $camp
-            && (int) $camp->id_customer !== (int) $data['id_customer']) {
-            return back()->withInput()->with('error', 'แคมป์ที่เลือกเป็นของลูกค้ารายอื่น');
+        if ($camp && (int) $camp->id_customer !== (int) $data['id_customer']) {
+            return back()->withInput()->withErrors(['receipt' => 'แคมป์ที่เลือกเป็นของลูกค้ารายอื่น'], 'createReceipt');
         }
 
         /* ---------- คำนวณยอด (เก็บเป็นคอลัมน์) ---------- */
-        if ($type === Receipt::TYPE_ADVANCE) {
-            // ลูกค้าโอนมาเป็นยอดรวม → แยก VAT ออก
-            $total = round((float) $data['amount'], 2);
-            [$subtotal, $vat] = Receipt::splitGross($total);
+        $lines = collect($data['items'])->map(fn ($item) => [
+            'id_product'  => $item['id_product'],
+            'description' => null,
+            'quantity'    => (float) $item['quantity'],
+            'price'       => (float) $item['price'],
+            'total'       => round((float) $item['quantity'] * (float) $item['price'], 2),
+        ])->all();
 
-            $lines = [[
-                'id_product'  => null,
-                'description' => 'รับเงินล่วงหน้า ' . $camp->code_camp . ' ' . $camp->name_camp
-                                 . (! empty($data['description']) ? ' — ' . $data['description'] : ''),
-                'quantity'    => 1,
-                'price'       => $subtotal,
-                'total'       => $subtotal,
-            ]];
+        $subtotal = round(collect($lines)->sum('total'), 2);
+        $vat      = round($subtotal * Invoice::VAT_RATE / 100, 2);
+        $total    = round($subtotal + $vat, 2);
 
-            $idCustomer = $camp->id_customer;
-        } else {
-            $lines = collect($data['items'])->map(fn ($item) => [
-                'id_product'  => $item['id_product'],
-                'description' => null,
-                'quantity'    => (float) $item['quantity'],
-                'price'       => (float) $item['price'],
-                'total'       => round((float) $item['quantity'] * (float) $item['price'], 2),
-            ])->all();
-
-            $subtotal = round(collect($lines)->sum('total'), 2);
-            $vat      = round($subtotal * Invoice::VAT_RATE / 100, 2);
-            $total    = round($subtotal + $vat, 2);
-
-            $idCustomer = $data['id_customer'];
-        }
+        $idCustomer = $data['id_customer'];
 
         /* ---------- เงินสด: รับมาเท่าไร ทอนเท่าไร ---------- */
         $cashNote = null;
@@ -220,8 +154,8 @@ class ReceiptController extends Controller
             $got = round((float) $data['cash_received'], 2);
 
             if ($got < $total) {
-                return back()->withInput()->with('error', 'รับเงินมา ' . number_format($got, 2)
-                    . ' บาท น้อยกว่ายอดรับชำระ ' . number_format($total, 2) . ' บาท');
+                return back()->withInput()->withErrors(['receipt' => 'รับเงินมา ' . number_format($got, 2)
+                    . ' บาท น้อยกว่ายอดรับชำระ ' . number_format($total, 2) . ' บาท'], 'createReceipt');
             }
 
             $cashNote = 'รับเงินสด ' . number_format($got, 2) . ' บาท ทอน ' . number_format($got - $total, 2) . ' บาท';
@@ -236,10 +170,8 @@ class ReceiptController extends Controller
 
             $dup = Payment::with(['invoice', 'receipt'])->where('slip_hash', $hash)->first();
             if ($dup) {
-                return back()->withInput()->with(
-                    'error',
-                    'ไฟล์หลักฐานนี้เคยถูกใช้แล้วในเอกสาร ' . $dup->ownerCode()
-                );
+                return back()->withInput()->withErrors(['receipt' => 'ไฟล์หลักฐานนี้เคยถูกใช้แล้วในเอกสาร ' . $dup->ownerCode()
+                ], 'createReceipt');
             }
 
             $path = $file->store(Payment::SLIP_DIR, 'local');
@@ -309,7 +241,7 @@ class ReceiptController extends Controller
         $search  = $this->searchTerm($request);
         [$dateFrom, $dateTo] = $this->dateRange($request);
 
-        // พิมพ์ "ล่วงหน้า" / "ขายสด" ก็ค้นตามประเภทได้
+        // พิมพ์ "ขายสด" ก็ค้นตามประเภทได้
         $types = $this->statusesMatching($search, Receipt::TYPES);
         // "ยกเลิกแล้ว" อยู่ใน dropdown เดียวกับประเภท
         $type  = $this->statusFilter($request, [...array_keys(Receipt::TYPES), 'cancelled'], 'type');
@@ -319,7 +251,7 @@ class ReceiptController extends Controller
             'total' => ['label' => 'ยอดรับชำระ', 'unit' => 'บาท', 'step' => '0.01'],
         ]);
 
-        $query = Receipt::with(['customer', 'invoice', 'camp', 'cancelledBy', 'appliedAdvances'])
+        $query = Receipt::with(['customer', 'invoice', 'camp', 'cancelledBy'])
             ->cancelledFilter($type === 'cancelled' ? 'cancelled' : null)
             // ช่องค้นหาช่องเดียว: เลขที่ใบเสร็จ ใบแจ้งหนี้ แคมป์ ชื่อลูกค้า และประเภท
             ->when($search !== '', function ($query) use ($search, $types) {
@@ -347,9 +279,19 @@ class ReceiptController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        // หน้าต่างขายสด (เปิดจากปุ่มในหน้านี้)
+        $canCreate = (bool) $request->user()?->canEdit('receipts');
+        $form = $canCreate ? [
+            'walkIn'      => Customer::walkIn(),
+            'customers'   => Customer::orderBy('name_customer')->get(),
+            'camps'       => Camp::with('customer')->open()->latest('id_camp')->get(),
+            'products'    => Product::orderBy('name_product')->get(),
+            'requireSlip' => (bool) Setting::get('payment.require_slip', true),   // ยกเว้นเงินสด (ดู Payment::slipRules)
+        ] : [];
+
         return view('receipts.index', compact(
-            'receipts', 'perPage', 'search', 'dateFrom', 'dateTo', 'sumTotal', 'ranges', 'type'
-        ));
+            'receipts', 'perPage', 'search', 'dateFrom', 'dateTo', 'sumTotal', 'ranges', 'type', 'canCreate'
+        ) + $form);
     }
 
     public function pdf($id)
@@ -366,7 +308,6 @@ class ReceiptController extends Controller
     /**
      * ยกเลิกใบเสร็จ (ไม่ลบ) — เลขที่ หลักฐานการชำระ และไฟล์สลิปยังอยู่ทั้งหมด
      *   invoice : ใบแจ้งหนี้กลับมาแก้ไขรายการชำระ / ออกใบเสร็จใหม่ได้
-     *   advance : เงินล่วงหน้าก้อนนี้ไม่ถูกนับในยอดคงเหลือของแคมป์อีก (ต้องยังไม่ถูกหักไปใช้)
      *   direct  : ไม่นับเป็นเงินรับ
      */
     public function destroy(Request $request, $id)
@@ -376,7 +317,7 @@ class ReceiptController extends Controller
             ['cancel_reason.required' => 'กรุณาระบุเหตุผลที่ยกเลิก', 'cancel_reason.min' => 'เหตุผลสั้นเกินไป'],
         );
 
-        $receipt = Receipt::with(['appliedAdvances'])->findOrFail($id);
+        $receipt = Receipt::findOrFail($id);
 
         if ($reason = $receipt->cancelBlocker()) {
             return back()->with('error', 'ยกเลิกใบเสร็จไม่ได้: ' . $reason);

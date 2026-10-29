@@ -128,12 +128,6 @@ class Camp extends Model
         return $this->hasMany(Receipt::class, 'id_camp', 'id_camp');
     }
 
-    /** ใบเสร็จรับเงินล่วงหน้าของแคมป์นี้ */
-    public function advanceReceipts()
-    {
-        return $this->receipts()->where('receipt_type', Receipt::TYPE_ADVANCE);
-    }
-
     /** รถที่มอบหมายเข้าแคมป์ (pivot มีคนขับของรถคันนั้นด้วย: $truck->pivot->driver) */
     public function trucks()
     {
@@ -237,17 +231,6 @@ class Camp extends Model
         return round((float) ($this->quotation->total_amount ?? 0), 2);
     }
 
-    /* ==================== เงินรับล่วงหน้า ==================== */
-
-    /** เงินรับล่วงหน้าที่ยังไม่ถูกหัก (รวมทุกใบ) */
-    public function advanceBalance(): float
-    {
-        return round(
-            $this->advanceReceipts()->get()->sum(fn (Receipt $r) => $r->advanceRemaining()),
-            2
-        );
-    }
-
     /* ==================== สรุปการเงินของแคมป์ ==================== */
 
     /**
@@ -265,16 +248,8 @@ class Camp extends Model
 
         $invoiced = (float) $this->invoices()->sum('total');
 
-        // เงินที่ลูกค้าจ่ายตามใบแจ้งหนี้จริง (ไม่นับรายการที่หักจากเงินล่วงหน้า กันนับซ้ำ)
-        $paidOnInvoices = (float) Payment::whereIn('id_invoice', $invoiceIds)
-            ->where('method', '!=', Payment::METHOD_ADVANCE)
-            ->sum('amount');
-
-        $advanceApplied = (float) Payment::whereIn('id_invoice', $invoiceIds)
-            ->where('method', Payment::METHOD_ADVANCE)
-            ->sum('amount');
-
-        $advanceReceived = (float) $this->advanceReceipts()->sum('total');
+        // เงินที่ลูกค้าจ่ายตามใบแจ้งหนี้
+        $paidOnInvoices = (float) Payment::whereIn('id_invoice', $invoiceIds)->sum('amount');
 
         // ขายสดที่ระบุแคมป์ไว้
         $directReceived = (float) $this->receipts()
@@ -286,12 +261,9 @@ class Camp extends Model
             'delivered_value'  => round($deliveredValue, 2),   // ก่อน VAT
             'invoiced'         => round($invoiced, 2),
             'paid_on_invoices' => round($paidOnInvoices, 2),
-            'advance_received' => round($advanceReceived, 2),
-            'advance_applied'  => round($advanceApplied, 2),
-            'advance_balance'  => round(max($advanceReceived - $advanceApplied, 0), 2),
             'direct_received'  => round($directReceived, 2),
-            'cash_received'    => round($paidOnInvoices + $advanceReceived + $directReceived, 2),
-            'outstanding'      => round(max($invoiced - $paidOnInvoices - $advanceApplied, 0), 2),
+            'cash_received'    => round($paidOnInvoices + $directReceived, 2),
+            'outstanding'      => round(max($invoiced - $paidOnInvoices, 0), 2),
         ];
     }
 
@@ -303,7 +275,7 @@ class Camp extends Model
         return $query->whereIn('status_camp', self::WORKING_STATUSES);
     }
 
-    /** แคมป์ที่ยังไม่ปิด — รับเงินล่วงหน้า / เพิ่มใบสั่งขาย / ออกใบแจ้งหนี้ได้ */
+    /** แคมป์ที่ยังไม่ปิด — เพิ่มใบสั่งขาย / ออกใบแจ้งหนี้ได้ */
     public function scopeOpen($query)
     {
         return $query->where('status_camp', '!=', 'closed');
@@ -367,8 +339,7 @@ class Camp extends Model
      * ปิดแคมป์ = จบงานทั้งหมดแล้ว จึงต้อง
      *   1. ใบส่งของทุกใบออกใบแจ้งหนี้แล้ว (ไม่มีงานที่ลืมเก็บเงิน)
      *   2. ไม่มียอดค้างชำระ
-     *   3. เงินรับล่วงหน้าหักหมดแล้ว (ถ้าเหลือ ต้องหักในใบแจ้งหนี้ หรือคืนลูกค้าก่อน)
-     *   4. ถอนรถออกจากแคมป์หมดแล้ว
+     *   3. ถอนรถออกจากแคมป์หมดแล้ว
      */
     public function closeBlockers(): array
     {
@@ -383,11 +354,6 @@ class Camp extends Model
 
         if ($summary['outstanding'] > 0) {
             $blockers[] = 'ลูกค้ายังค้างชำระ ' . number_format($summary['outstanding'], 2) . ' บาท';
-        }
-
-        if ($summary['advance_balance'] > 0) {
-            $blockers[] = 'เงินรับล่วงหน้ายังเหลือ ' . number_format($summary['advance_balance'], 2)
-                . ' บาท (หักในใบแจ้งหนี้ หรือคืนลูกค้าก่อน)';
         }
 
         $trucks = $this->activeTrucks()->count();

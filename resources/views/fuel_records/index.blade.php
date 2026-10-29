@@ -57,12 +57,11 @@
 
     <div class="container py-3">
 
+        <x-search-bar :action="route('fuel_records.index')" placeholder="ทะเบียนรถ / ยี่ห้อ / จุดเริ่มต้น / ปลายทาง" :search="$search"
+            :per-page="$perPage" :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่"
+            {{-- :ranges="$ranges"  --}} />
 
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-            <div class="text-muted">
-                พบทั้งหมด {{ number_format($records->total()) }} รายการ
-            </div>
-
+        <div class="d-flex justify-content-end align-items-center mb-3">
             @if (in_array(auth()->user()->role, ['admin', 'staff'], true))
                 <a href="{{ route('fuel_records.create') }}" class="btn btn-dark">
                     <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24"
@@ -74,12 +73,6 @@
                 </a>
             @endif
         </div>
-
-        <x-search-bar :action="route('fuel_records.index')"
-                      placeholder="ค้นหาทะเบียนรถ / ยี่ห้อ / จุดเริ่มต้น / ปลายทาง"
-                      :search="$search" :per-page="$perPage"
-                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่"
-                      :ranges="$ranges" />
 
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0 fuel-table">
@@ -208,11 +201,9 @@
 
                             <td class="text-center">
                                 @php($canEditFuel = in_array(auth()->user()->role, ['admin', 'staff'], true))
-                                <x-row-actions :show="route('fuel_records.show', $record->id_fuel_record)"
-                                               :edit="$canEditFuel ? route('fuel_records.edit', $record->id_fuel_record) : null"
-                                               :delete="$canEditFuel ? route('fuel_records.destroy', $record->id_fuel_record) : null"
-                                               label="บันทึกน้ำมันรายการนี้"
-                                               delete-confirm="ต้องการลบข้อมูลบันทึกน้ำมันรายการนี้หรือไม่" />
+                                <x-row-actions :show="route('fuel_records.show', $record->id_fuel_record)" :edit="$canEditFuel ? route('fuel_records.edit', $record->id_fuel_record) : null" :delete="$canEditFuel ? route('fuel_records.destroy', $record->id_fuel_record) : null"
+                                    label="บันทึกน้ำมันรายการนี้"
+                                    delete-confirm="ต้องการลบข้อมูลบันทึกน้ำมันรายการนี้หรือไม่" />
                             </td>
                         </tr>
                     @empty

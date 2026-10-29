@@ -92,6 +92,37 @@ class Quotation extends Model
         return $this->belongsTo(User::class, 'issued_by_user_id', 'id');
     }
 
+    /**
+     * เหตุผลที่ผู้ใช้คนนี้อนุมัติใบเสนอราคาใบนี้ไม่ได้ (null = อนุมัติได้)
+     *
+     * หลักแบ่งหน้าที่ (Segregation of Duties):
+     *   1. อนุมัติได้เฉพาะผู้ดูแลระบบ / ผู้จัดการ (admin) — พนักงาน (staff) สร้างและแก้ไขใบร่างได้อย่างเดียว
+     *   2. ห้ามอนุมัติใบที่ตัวเองเป็นผู้จัดทำ ต้องให้ผู้อื่นอนุมัติ
+     *   3. ยกเว้น: บริษัทมีผู้ดูแลระบบที่ใช้งานอยู่คนเดียว (เจ้าของ) → อนุมัติใบของตัวเองได้ ไม่งั้นจะไม่มีใครอนุมัติได้เลย
+     */
+    public function approveBlocker(?User $user): ?string
+    {
+        if (! $user || ! $user->isAdmin()) {
+            return 'อนุมัติได้เฉพาะผู้ดูแลระบบ / ผู้จัดการ';
+        }
+
+        if ($this->status !== 'draft') {
+            return 'อนุมัติได้เฉพาะใบเสนอราคาที่เป็นฉบับร่าง';
+        }
+
+        $isOwnDocument = (int) $this->issued_by_user_id === (int) $user->getKey();
+        $otherAdmins   = User::where('role', User::ROLE_ADMIN)
+            ->where('is_active', true)
+            ->whereKeyNot($user->getKey())
+            ->exists();
+
+        if ($isOwnDocument && $otherAdmins) {
+            return 'คุณเป็นผู้จัดทำใบนี้ ต้องให้ผู้อื่นอนุมัติ';
+        }
+
+        return null;
+    }
+
     /** ผู้อนุมัติเอกสาร บันทึกไว้ ณ วันที่อนุมัติ */
     public function approver()
     {

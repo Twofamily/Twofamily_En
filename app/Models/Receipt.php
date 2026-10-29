@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /**
- * ใบเสร็จรับเงิน — ออกได้ 3 แบบ ไม่ต้องรอเอกสารใบอื่นครบ
+ * ใบเสร็จรับเงิน — ออกได้ 2 แบบ
  *
- *   invoice : รับชำระตามใบแจ้งหนี้ (ส่งของแล้ว แจ้งหนี้แล้ว ค่อยจ่าย)
- *   advance : รับเงินล่วงหน้า ผูกแคมป์ (ลูกค้าจ่ายก่อนส่งของ)
+ *   invoice : รับชำระตามใบแจ้งหนี้ (ส่งของแล้ว ออกใบแจ้งหนี้แล้ว ค่อยจ่าย) — งานแคมป์ทั้งหมดใช้แบบนี้
  *   direct  : ขายสด (ลูกค้า walk-in ซื้อแล้วจ่ายทันที ไม่ต้องมีแคมป์)
+ *
+ * (เลิกใช้ "รับเงินล่วงหน้า" แล้ว — คอลัมน์ advance_deducted / payments.id_advance_receipt ยังอยู่ในตาราง แต่ไม่ได้ใช้)
  *
  * ทุกแบบต้องมีหลักฐานการชำระ
  */
@@ -26,12 +27,10 @@ class Receipt extends Model
     protected $primaryKey = 'id_receipt';
 
     public const TYPE_INVOICE = 'invoice';
-    public const TYPE_ADVANCE = 'advance';
     public const TYPE_DIRECT  = 'direct';
 
     public const TYPES = [
         self::TYPE_INVOICE => ['label' => 'ชำระตามใบแจ้งหนี้', 'badge' => 'primary'],
-        self::TYPE_ADVANCE => ['label' => 'รับเงินล่วงหน้า',   'badge' => 'warning'],
         self::TYPE_DIRECT  => ['label' => 'ขายสด',            'badge' => 'success'],
     ];
 
@@ -43,7 +42,6 @@ class Receipt extends Model
         'id_camp',
         'subtotal',
         'vat_amount',
-        'advance_deducted',
         'total',
         'date_receipt',
         'description',
@@ -57,7 +55,6 @@ class Receipt extends Model
             'date_receipt'     => 'datetime',
             'subtotal'         => 'decimal:2',
             'vat_amount'       => 'decimal:2',
-            'advance_deducted' => 'decimal:2',
             'total'            => 'decimal:2',
             'cancelled_at'     => 'datetime',
         ];
@@ -84,24 +81,18 @@ class Receipt extends Model
         return $this->belongsTo(Camp::class, 'id_camp', 'id_camp');
     }
 
-    /** รายการของใบเสร็จ advance / direct (แบบ invoice ใช้รายการของใบแจ้งหนี้) */
+    /** รายการของใบเสร็จขายสด (แบบ invoice ใช้รายการของใบแจ้งหนี้) */
     public function items()
     {
         return $this->hasMany(ReceiptItem::class, 'id_receipt', 'id_receipt');
     }
 
-    /** หลักฐานการชำระของใบเสร็จ advance / direct */
+    /** หลักฐานการชำระของใบเสร็จขายสด */
     public function payments()
     {
         return $this->hasMany(Payment::class, 'id_receipt', 'id_receipt')
                     ->orderBy('paid_at')
                     ->orderBy('id_payment');
-    }
-
-    /** ใบเสร็จล่วงหน้าใบนี้ ถูกหักไปใช้ในใบแจ้งหนี้ใบไหนบ้าง */
-    public function appliedAdvances()
-    {
-        return $this->hasMany(Payment::class, 'id_advance_receipt', 'id_receipt');
     }
 
     public function issuer()
@@ -114,11 +105,6 @@ class Receipt extends Model
     public function isInvoiceType(): bool
     {
         return $this->receipt_type === self::TYPE_INVOICE;
-    }
-
-    public function isAdvance(): bool
-    {
-        return $this->receipt_type === self::TYPE_ADVANCE;
     }
 
     public function isDirect(): bool
@@ -134,32 +120,6 @@ class Receipt extends Model
     public function getTypeBadgeAttribute(): string
     {
         return self::TYPES[$this->receipt_type]['badge'] ?? 'secondary';
-    }
-
-    /* ==================== เงินรับล่วงหน้า ==================== */
-
-    /** ถูกหักไปใช้แล้วเท่าไร (เฉพาะใบเสร็จล่วงหน้า) */
-    public function advanceUsed(): float
-    {
-        if (! $this->isAdvance()) {
-            return 0;
-        }
-
-        $sum = $this->relationLoaded('appliedAdvances')
-            ? $this->appliedAdvances->sum(fn ($p) => (float) $p->amount)
-            : (float) $this->appliedAdvances()->sum('amount');
-
-        return round($sum, 2);
-    }
-
-    /** เหลือให้หักได้อีกเท่าไร */
-    public function advanceRemaining(): float
-    {
-        if (! $this->isAdvance()) {
-            return 0;
-        }
-
-        return round(max((float) $this->total - $this->advanceUsed(), 0), 2);
     }
 
     /* ==================== ข้อมูลสำหรับแสดงผล / PDF ==================== */
@@ -197,15 +157,13 @@ class Receipt extends Model
 
     /**
      * หลักฐานการชำระที่อยู่เบื้องหลังใบเสร็จนี้
-     * invoice → หลักฐานในใบแจ้งหนี้ (ไม่รวมรายการหักเงินล่วงหน้า)
-     * อื่น ๆ  → หลักฐานที่แนบตอนออกใบเสร็จ
+     * invoice → หลักฐานในใบแจ้งหนี้
+     * direct  → หลักฐานที่แนบตอนออกใบเสร็จ
      */
     public function proofPayments(): Collection
     {
         if ($this->isInvoiceType()) {
-            return ($this->invoice?->payments ?? collect())
-                ->reject(fn (Payment $p) => $p->isAdvanceApplication())
-                ->values();
+            return ($this->invoice?->payments ?? collect())->values();
         }
 
         return $this->payments;
@@ -219,19 +177,11 @@ class Receipt extends Model
 
     /* ==================== กฎการยกเลิก ==================== */
 
-    /**
-     * ใบเสร็จล่วงหน้าที่ถูกหักไปใช้แล้ว ห้ามยกเลิก (ต้องลบรายการหักในใบแจ้งหนี้ก่อน)
-     * คืนข้อความเหตุผลถ้ายกเลิกไม่ได้ / null ถ้ายกเลิกได้
-     */
+    /** คืนข้อความเหตุผลถ้ายกเลิกไม่ได้ / null ถ้ายกเลิกได้ */
     public function cancelBlocker(): ?string
     {
         if ($this->isCancelled()) {
             return 'ใบเสร็จนี้ถูกยกเลิกไปแล้ว';
-        }
-        if ($this->isAdvance() && $this->advanceUsed() > 0) {
-            return 'เงินล่วงหน้าถูกหักไปใช้ในใบแจ้งหนี้แล้ว '
-                . number_format($this->advanceUsed(), 2)
-                . ' บาท ต้องลบรายการหักในใบแจ้งหนี้ก่อน';
         }
 
         return null;
@@ -240,19 +190,6 @@ class Receipt extends Model
     public function canCancel(): bool
     {
         return $this->cancelBlocker() === null;
-    }
-
-    /* ==================== คำนวณ VAT ==================== */
-
-    /**
-     * แยกยอดรวม VAT ออกเป็น [ก่อน VAT, VAT]
-     * ใช้กับเงินรับล่วงหน้า ที่ลูกค้าโอนมาเป็นยอดรวม
-     */
-    public static function splitGross(float $gross, float $vatRate = Invoice::VAT_RATE): array
-    {
-        $subtotal = round($gross * 100 / (100 + $vatRate), 2);
-
-        return [$subtotal, round($gross - $subtotal, 2)];
     }
 
     /* ==================== Scopes ==================== */

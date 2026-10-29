@@ -12,18 +12,13 @@
         // เลขที่อ่านจากคอลัมน์ code_rc (สร้างอัตโนมัติตอนบันทึก รูปแบบ RC-2569-0001)
         $rcCode = $receipt->code_rc ?? '-';
 
-        // หัวเอกสารตามประเภท
-        $docTitle = match ($receipt->receipt_type) {
-            'advance' => ['ใบเสร็จรับเงินล่วงหน้า', 'ADVANCE RECEIPT'],
-            default   => ['ใบเสร็จรับเงิน', 'RECEIPT'],
-        };
+        $docTitle = ['ใบเสร็จรับเงิน', 'RECEIPT'];
 
         // ยอดที่บันทึกไว้ในใบเสร็จ (ใบเก่าที่ยังไม่มีคอลัมน์ ถอยไปใช้ยอดของใบแจ้งหนี้)
         $subTotal   = (float) $receipt->subtotal ?: ($inv?->itemsSubtotal() ?? 0);
         $vatRate    = \App\Models\Invoice::VAT_RATE;
         $vat        = (float) $receipt->vat_amount ?: ($inv?->itemsVat() ?? 0);
         $gross      = round($subTotal + $vat, 2);
-        $deducted   = (float) $receipt->advance_deducted;
         $grandTotal = (float) $receipt->total;
 
         // วิธีชำระ: ติ๊กจากหลักฐานการชำระรายการแรก
@@ -305,7 +300,7 @@
         </tr>
         <tr>
             <td class="label">เลขภาษี</td>
-            <td>{{ $customer->tax_id ?? '-' }}</td>
+            <td>{{ customer_tax_line($customer) }}</td>
             <td class="label divider">แคมป์งาน</td>
             <td>{{ $receipt->camp->code_camp ?? '-' }}</td>
         </tr>
@@ -378,9 +373,22 @@
                     <span class="check {{ $isTransfer ? 'on' : '' }}"></span>โอนเงิน
                     &nbsp;&nbsp;
                     <span class="check {{ $isCheque ? 'on' : '' }}"></span>เช็ค
+                    @php
+                        // โอนเข้าบัญชีบริษัท → เลขที่ = เลขบัญชีที่ตั้งไว้ใน ตั้งค่า > การรับชำระเงิน
+                        // เช็ค → เลขที่ = เลขเช็ค (reference_no)
+                        $companyBank = trim((string) \App\Models\Setting::get('payment.bank_name', ''));
+                        $companyAcc  = trim((string) \App\Models\Setting::get('payment.account_no', ''));
+                        $toCompany   = $isTransfer && $companyAcc !== ''
+                                       && ($proof?->bank_name === null || trim($proof->bank_name) === '' || trim($proof->bank_name) === $companyBank);
+                        $bankText    = $proof?->bank_name ?: ($toCompany ? $companyBank : '');
+                        $numberText  = $toCompany ? $companyAcc : ($proof?->reference_no ?: '');
+                    @endphp
                     <div style="margin-top: 5px;" class="muted">
-                        ธนาคาร {{ $proof?->bank_name ?: '.........................' }}
-                        เลขที่ {{ $proof?->reference_no ?: '.........................' }}
+                        ธนาคาร {{ $bankText ?: '.........................' }}
+                        {{ $toCompany ? 'เลขที่บัญชี' : 'เลขที่' }} {{ $numberText ?: '.........................' }}
+                        @if ($toCompany && $proof?->reference_no)
+                            <br>เลขอ้างอิง {{ $proof->reference_no }}
+                        @endif
                         <br>
                         ลงวันที่ {{ $proof?->paid_at?->format('d/m/Y') ?? '.........................' }}
                     </div>
@@ -403,16 +411,6 @@
                         <td>ภาษีมูลค่าเพิ่ม {{ rtrim(rtrim(number_format($vatRate, 2), '0'), '.') }}%</td>
                         <td class="text-right">{{ number_format($vat, 2) }}</td>
                     </tr>
-                    @if ($deducted > 0)
-                        <tr>
-                            <td>รวมทั้งสิ้น</td>
-                            <td class="text-right">{{ number_format($gross, 2) }}</td>
-                        </tr>
-                        <tr>
-                            <td>หัก เงินรับล่วงหน้า</td>
-                            <td class="text-right">-{{ number_format($deducted, 2) }}</td>
-                        </tr>
-                    @endif
                     <tr class="grand">
                         <td>จำนวนเงินที่ได้รับ (บาท)</td>
                         <td class="text-right">{{ number_format($grandTotal, 2) }}</td>
@@ -438,6 +436,8 @@
         [
             'party' => 'company',
             'label' => 'ผู้รับเงิน',
+            'user'  => $receipt->issuer,      // ผู้ออกเอกสาร: มีลายเซ็นแสดงรูป ไม่มีเว้นว่าง
+            'date'  => $receipt->date_receipt,
         ],
     ]])
 

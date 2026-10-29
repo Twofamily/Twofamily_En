@@ -16,10 +16,12 @@ use Illuminate\Validation\ValidationException;
 
 class InvoiceController extends Controller
 {
+    /**
+     * ออกใบแจ้งหนี้ในหน้าต่าง (modal) ของหน้ารายการ — ลิงก์เดิม (?delivery_note= / ?group=) ยังใช้ได้
+     */
     public function create(Request $request)
     {
         $preselect = $request->integer('delivery_note') ?: null;
-        $group     = (string) $request->query('group', '') ?: null;
 
         if ($preselect) {
             $note = DeliveryNote::find($preselect);
@@ -28,8 +30,36 @@ class InvoiceController extends Controller
                 return redirect()->route('invoices.show', $note->id_invoice)
                     ->with('info', 'ใบส่งของ ' . $note->code_delivery . ' ออกใบแจ้งหนี้ไปแล้ว');
             }
+        }
 
-            $group = $note ? $this->groupKeyOf($note) : $group;
+        return redirect()->route('invoices.index', array_filter([
+            'modal'         => 'create',
+            'group'         => $request->query('group'),
+            'delivery_note' => $preselect,
+        ]));
+    }
+
+    /**
+     * ข้อมูลของหน้าต่างออกใบแจ้งหนี้
+     *   ขั้นที่ 1 เลือกแคมป์ / ลูกค้า (?group=)  ขั้นที่ 2 ติ๊กใบส่งของ
+     */
+    private function createFormData(Request $request): array
+    {
+        if (! $request->user()?->canEdit('invoices')) {
+            return ['canCreate' => false];
+        }
+
+        $preselect = $request->integer('delivery_note') ?: null;
+        $group     = (string) $request->query('group', '') ?: null;
+
+        if ($preselect && ($note = DeliveryNote::find($preselect)) && ! $note->id_invoice) {
+            $group = $this->groupKeyOf($note);
+        }
+
+        // กรอกผิดแล้วเด้งกลับ → กลุ่มเดิมของใบส่งของที่ติ๊กไว้
+        if (! $group && ($oldIds = old('delivery_notes'))) {
+            $note  = DeliveryNote::find((int) collect($oldIds)->first());
+            $group = $note ? $this->groupKeyOf($note) : null;
         }
 
         $groups = $this->pendingGroups();
@@ -38,20 +68,19 @@ class InvoiceController extends Controller
             $group = null;
         }
 
-        $notes = $group ? $this->pendingNotesOf($group) : collect();
-
-        return view('invoices.create', [
+        return [
+            'canCreate'  => true,
             'groups'     => $groups,
             'group'      => $group,
-            'notes'      => $notes,
+            'notes'      => $group ? $this->pendingNotesOf($group) : collect(),
             'preselect'  => $preselect,
             'creditDays' => (int) Setting::get('doc.credit_days', 30),
-        ]);
+        ];
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $data = $request->validateWithBag('createInvoice', [
             'delivery_notes'   => ['required', 'array', 'min:1'],
             'delivery_notes.*' => ['integer', 'distinct', 'exists:delivery_notes,id_delivery_note'],
             'invoice_date'     => ['required', 'date', 'before_or_equal:today'],
@@ -65,7 +94,20 @@ class InvoiceController extends Controller
             'credit_days.between'          => 'เครดิตเทอมต้องอยู่ระหว่าง 0–180 วัน',
         ]);
 
-        $invoice = DB::transaction(function () use ($data) {
+        try {
+            $invoice = $this->createInvoice($data);
+        } catch (ValidationException $e) {
+            throw $e->errorBag('createInvoice');
+        }
+
+        return redirect()
+            ->route('invoices.show', $invoice->id_invoice)
+            ->with('ok', 'สร้างใบแจ้งหนี้ ' . $invoice->code_inv . ' เรียบร้อย');
+    }
+
+    private function createInvoice(array $data): Invoice
+    {
+        return DB::transaction(function () use ($data) {
             $notes = DeliveryNote::with(['details', 'camp'])
                 ->whereIn('id_delivery_note', $data['delivery_notes'])
                 ->lockForUpdate()
@@ -109,10 +151,6 @@ class InvoiceController extends Controller
 
             return $invoice;
         });
-
-        return redirect()
-            ->route('invoices.show', $invoice->id_invoice)
-            ->with('ok', 'สร้างใบแจ้งหนี้ ' . $invoice->code_inv . ' เรียบร้อย');
     }
 
     public function createFromDeliveryNote(DeliveryNote $deliveryNote)
@@ -151,7 +189,6 @@ class InvoiceController extends Controller
                 'quotation',
                 'deliveryNotes.details',
                 'payments.recordedBy',
-                'payments.advanceReceipt',
                 'receipt',
                 'camp',
                 'cancelledBy'
@@ -206,7 +243,8 @@ class InvoiceController extends Controller
 
         $pendingNotes = DeliveryNote::pendingInvoice()->count();
 
-        return view('invoices.index', compact('invoices', 'perPage', 'search', 'dateFrom', 'dateTo', 'status', 'ranges', 'pendingNotes'));
+        return view('invoices.index', compact('invoices', 'perPage', 'search', 'dateFrom', 'dateTo', 'status', 'ranges', 'pendingNotes')
+            + $this->createFormData($request));
     }
 
     public function pdf($id)

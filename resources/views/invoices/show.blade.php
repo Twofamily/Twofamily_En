@@ -21,12 +21,6 @@
 
     $showDelete = $canManage && $invoice->canEditPayments();
     $showForm   = $showDelete && $remaining > 0;
-
-    // เงินรับล่วงหน้าของแคมป์ที่หักในใบนี้ได้
-    $advanceAvailable = $invoice->availableAdvance();
-    $showAdvance      = $showForm && $invoice->canApplyAdvance();
-    $advanceMax       = min($remaining, $advanceAvailable);
-    $advanceApplied   = $invoice->advanceAppliedAmount();
 @endphp
 
 @section('content')
@@ -71,11 +65,6 @@
                             </button>
                         </form>
                     @endif
-                @elseif ($invoice->isSettledByAdvance())
-                    <span class="text-success">
-                        <i class="bi bi-check2-all me-1"></i>
-                        ชำระครบด้วยเงินรับล่วงหน้าแล้ว — ใบเสร็จรับเงินล่วงหน้าคือใบเสร็จของยอดนี้ ไม่ต้องออกใหม่
-                    </span>
                 @elseif ($paid > 0)
                     <span class="text-warning">
                         <i class="bi bi-hourglass-split me-1"></i>
@@ -276,13 +265,6 @@
                 <div class="card-body p-4">
                     <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">การชำระเงิน</h6>
 
-                    @if ($advanceApplied > 0)
-                        <div class="alert alert-warning small py-2">
-                            หักจากเงินรับล่วงหน้าแล้ว {{ number_format($advanceApplied, 2) }} บาท
-                            — ใบเสร็จของใบแจ้งหนี้นี้จะออกเฉพาะยอดที่จ่ายเพิ่ม
-                        </div>
-                    @endif
-
                     {{-- สรุปยอด --}}
                     <div class="row g-2 text-center mb-3">
                         <div class="col-4">
@@ -354,12 +336,6 @@
                                                 <span class="badge bg-light text-dark border">
                                                     <i class="bi bi-cash me-1"></i>รับเงินสดโดย {{ $p->recordedBy->name ?? '-' }}
                                                 </span>
-                                            @elseif ($p->advanceReceipt)
-                                                {{-- หักเงินล่วงหน้า: หลักฐานอยู่ที่ใบเสร็จรับเงินล่วงหน้า --}}
-                                                <a href="{{ route('receipts.show', $p->advanceReceipt->id_receipt) }}"
-                                                   class="btn btn-sm btn-outline-warning">
-                                                    {{ $p->advanceReceipt->code_rc }}
-                                                </a>
                                             @else
                                                 <span class="text-muted">-</span>
                                             @endif
@@ -367,9 +343,7 @@
                                         @if ($showDelete)
                                             <td class="text-center">
                                                 <form method="POST" action="{{ route('payments.destroy', $p) }}"
-                                                      data-confirm="{{ $p->isAdvanceApplication()
-                                                          ? 'รายการหักเงินรับล่วงหน้า ' . number_format($p->amount, 2) . ' บาท จะถูกลบ และเงินล่วงหน้าจะกลับไปให้หักได้อีกครั้ง'
-                                                          : 'รายการชำระ ' . number_format($p->amount, 2) . ' บาท และไฟล์หลักฐานจะถูกลบ' }}"
+                                                      data-confirm="{{ 'รายการชำระ ' . number_format($p->amount, 2) . ' บาท และไฟล์หลักฐานจะถูกลบ' }}"
                                                       data-confirm-title="ยืนยันการลบรายการชำระ"
                                                       data-confirm-variant="danger"
                                                       data-confirm-ok="ลบข้อมูล">
@@ -398,37 +372,6 @@
         {{-- ฟอร์มแนบหลักฐาน: แสดงเมื่อมีสิทธิ์ + ยังไม่ออกใบเสร็จ + ยังมียอดค้าง --}}
         @if ($showForm)
             <div class="col-lg-4">
-                {{-- หักเงินรับล่วงหน้าของแคมป์ (ลูกค้าจ่ายมาก่อนส่งของ) --}}
-                @if ($showAdvance)
-                    <div class="card border-warning shadow-sm mb-3">
-                        <div class="card-body p-4">
-                            <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">หักเงินรับล่วงหน้า</h6>
-
-                            <p class="small mb-2">
-                                แคมป์ {{ $invoice->camp->code_camp }} มีเงินรับล่วงหน้าคงเหลือ
-                                <strong>{{ number_format($advanceAvailable, 2) }}</strong> บาท
-                            </p>
-
-                            <form action="{{ route('payments.applyAdvance', $invoice->id_invoice) }}" method="POST"
-                                  data-confirm="ระบบจะหักเงินรับล่วงหน้าเข้าใบแจ้งหนี้นี้ ยอดค้างชำระจะลดลงตามยอดที่หัก"
-                                  data-confirm-title="ยืนยันการหักเงินรับล่วงหน้า"
-                                  data-confirm-ok="หักเงิน"
-                                  data-confirm-variant="warning">
-                                @csrf
-                                <div class="mb-3">
-                                    <label class="form-label">ยอดที่จะหัก (บาท)</label>
-                                    <input type="number" name="amount" class="form-control" step="0.01" min="0.01"
-                                           max="{{ $advanceMax }}" value="{{ old('amount', $advanceMax) }}" required>
-                                    <div class="form-text">หักได้สูงสุด {{ number_format($advanceMax, 2) }} บาท</div>
-                                </div>
-                                <button class="btn btn-warning w-100" type="submit">
-                                    <i class="bi bi-piggy-bank me-1"></i> หักเงินรับล่วงหน้า
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                @endif
-
                 <div class="card border-0 shadow-sm">
                     <div class="card-body p-4">
                         <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">บันทึกการชำระเงิน</h6>
@@ -473,11 +416,7 @@
                                 </select>
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">ธนาคาร <small class="text-muted">(กรณีโอนเงิน)</small></label>
-                                <input type="text" name="bank_name" class="form-control" maxlength="100"
-                                       value="{{ old('bank_name') }}" placeholder="เช่น กสิกรไทย">
-                            </div>
+                            @include('partials.bank-input', ['method' => old('method', 'transfer')])
 
                             <div class="mb-3">
                                 <label class="form-label">เลขอ้างอิง / เลขเช็ค</label>
