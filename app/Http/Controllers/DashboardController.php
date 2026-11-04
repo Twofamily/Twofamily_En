@@ -6,12 +6,6 @@ use App\Services\DashboardFinance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-/**
- * แดชบอร์ดการเงิน: รายได้ ต้นทุน กำไร ลูกหนี้ งานในมือ
- *
- * ช่วงเวลามาจากตัวกรองด้านบน (RevenueReport จัดการ preset / วันที่)
- * แล้วส่งช่วงเดียวกันให้ DashboardFinance คำนวณส่วนที่เหลือ ตัวเลขทั้งหน้าจึงตรงกันเสมอ
- */
 class DashboardController extends Controller
 {
     public function index(Request $request)
@@ -20,7 +14,7 @@ class DashboardController extends Controller
         $finance = new DashboardFinance($report->from(), $report->to());
 
         return view('dashboard', [
-            'revenue'    => $report->toArray(),       // ตัวกรอง + กราฟรายเดือน
+            'revenue'    => $report->toArray(),
             'kpi'        => $finance->kpis(),
             'campProfit' => $finance->campProfit(),
             'aging'      => $finance->receivableAging(),
@@ -30,7 +24,6 @@ class DashboardController extends Controller
         ]);
     }
 
-    /** ตัวเลขการปฏิบัติงาน (ณ วันนี้) แสดงแถวเล็กท้ายหน้า */
     private function operations(): array
     {
         $trucks = DB::table('trucks')

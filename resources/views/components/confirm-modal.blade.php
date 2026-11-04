@@ -12,7 +12,6 @@
                     คุณต้องการดำเนินการต่อหรือไม่
                 </p>
 
-                {{-- ช่องเหตุผล: แสดงเฉพาะฟอร์มที่มี data-confirm-reason (เช่น ยกเลิกเอกสาร) --}}
                 <div class="mt-3 d-none" id="confirmModalReasonWrap">
                     <label for="confirmModalReason" class="form-label fw-semibold">
                         เหตุผล <span class="text-danger">*</span>

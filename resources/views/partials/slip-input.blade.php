@@ -1,14 +1,3 @@
-{{--
-    ช่องแนบหลักฐานการชำระ — ใช้ร่วมกันในหน้าใบแจ้งหนี้ และหน้าต่างออกใบเสร็จขายสด
-
-    กติกา (ตรงกับ Payment::slipRules() ฝั่ง server):
-      - โอนเงิน / เช็ค → บังคับแนบไฟล์
-      - เงินสด        → ไม่บังคับ หลักฐานคือผู้รับเงินที่ระบบบันทึกจากผู้ใช้ที่ล็อกอิน แนบรูปเพิ่มได้ถ้ามี
-      - ปิด "ต้องแนบหลักฐาน" ในหน้าตั้งค่า → ไม่บังคับทุกวิธี
-
-    ต้องมี <select id="method"> อยู่ในฟอร์มเดียวกัน
-    ส่ง: $requireSlip (bool), $method (วิธีชำระที่เลือกอยู่)
---}}
 @php
     $noSlipMethods = \App\Models\Payment::METHODS_WITHOUT_SLIP;
     $slipRequired  = $requireSlip && ! in_array($method, $noSlipMethods, true);
@@ -50,7 +39,6 @@
                 box.querySelector('[data-slip-hint-file]').hidden = !required;
                 box.querySelector('[data-slip-hint-cash]').hidden = required;
                 if (!required) {
-                    // ล้างกรอบแดง/ข้อความของ form-validation.js ที่ค้างจากตอนที่ยังบังคับอยู่
                     input.classList.remove('is-invalid');
                     const msg = box.querySelector('.fv-msg');
                     if (msg) msg.classList.remove('d-block');

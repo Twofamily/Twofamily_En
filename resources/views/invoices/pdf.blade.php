@@ -5,23 +5,15 @@
     <meta charset="utf-8">
 
     @php
-        // เลขที่อ่านจากคอลัมน์ code_inv (สร้างอัตโนมัติตอนบันทึก รูปแบบ INV-2569-0001)
         $invCode = $invoice->code_inv ?? '-';
 
-        /*
-         * ยอดเงิน: ใช้คอลัมน์ที่บันทึกไว้ในตาราง invoices ก่อน
-         * ถ้ายังไม่มีคอลัมน์ จะถอยไปใช้วิธีเดิม (อ่านจากใบเสนอราคาแล้วคำนวณ)
-         * เพื่อไม่ให้ไฟล์นี้พังระหว่างที่ยังไม่ได้เพิ่ม migration
-         */
         $q = $invoice->quotation;
 
-        // ใบแจ้งหนี้ไม่มีส่วนลด — คิดจากรายการในใบนี้ + VAT
         $subTotal   = $invoice->itemsSubtotal();
         $vatRate    = \App\Models\Invoice::VAT_RATE;
         $vat        = $invoice->itemsVat();
         $grandTotal = $invoice->itemsNetTotal();
 
-        /* วันที่: ใช้คอลัมน์ที่บันทึกไว้ก่อน ถ้าไม่มีจึงคำนวณแบบเดิม */
         $issueDate = \Carbon\Carbon::parse($invoice->invoice_date ?? $invoice->created_at);
         $dueDate   = $invoice->due_date
             ? \Carbon\Carbon::parse($invoice->due_date)
@@ -37,7 +29,6 @@
             src: url("{{ public_path('fonts/Sarabun-Regular.ttf') }}") format('truetype');
         }
 
-        {{-- dompdf ทำตัวหนาเองไม่ได้ ต้องมีไฟล์ Bold แยก ถ้าไม่มีไฟล์จะใช้ตัวปกติแทน --}}
         @if (file_exists(public_path('fonts/Sarabun-Bold.ttf')))
         @font-face {
             font-family: 'sarabun';
@@ -66,7 +57,6 @@
         .muted       { color: #666; }
         .small       { font-size: 11.5px; }
 
-        /* ---------- หัวเอกสาร ---------- */
         .company-name {
             font-size: 19px;
             font-weight: bold;
@@ -101,7 +91,6 @@
             margin: 10px 0 12px 0;
         }
 
-        /* ---------- ข้อมูลลูกค้า / อ้างอิง ---------- */
         .info {
             width: 100%;
             border: 1px solid #bfb3a8;
@@ -126,7 +115,6 @@
             border-left: 1px solid #bfb3a8;
         }
 
-        /* ---------- ตารางรายการ ---------- */
         .items {
             width: 100%;
             margin-top: 12px;
@@ -154,7 +142,6 @@
             background-color: #faf7f4;
         }
 
-        /* ---------- สรุปยอด ---------- */
         .summary {
             width: 100%;
         }
@@ -185,7 +172,6 @@
             padding: 6px 8px;
         }
 
-        /* ---------- หมายเหตุเต็มความกว้าง ---------- */
         .note-full {
             border: 1px solid #bfb3a8;
             padding: 5px 8px;
@@ -194,7 +180,6 @@
             line-height: 1.3;
         }
 
-        /* ---------- ท้ายหน้า ---------- */
         .footer {
             position: fixed;
             bottom: -24px;
@@ -220,7 +205,6 @@
         </table>
     </div>
 
-    {{-- ===== หัวเอกสาร: ข้อมูลบริษัท (ซ้าย) / กล่องเลขที่เอกสาร (ขวา) ===== --}}
     <table width="100%">
         <tr>
             <td width="60%" style="vertical-align: top;">
@@ -261,7 +245,6 @@
 
     <div class="rule"></div>
 
-    {{-- ===== ข้อมูลลูกค้า (ซ้าย) / เอกสารอ้างอิง (ขวา) ===== --}}
     <table class="info small">
         <tr>
             <td colspan="2" class="head" width="62%">ลูกค้า</td>
@@ -295,7 +278,6 @@
         </tr>
     </table>
 
-    {{-- ===== ตารางรายการ ===== --}}
     <table class="items small">
         <thead>
             <tr>
@@ -322,7 +304,6 @@
                 </tr>
             @endforeach
 
-            {{-- เติมแถวว่างให้ตารางเต็มหน้า --}}
             @for ($i; $i <= 6; $i++)
                 <tr class="{{ $i % 2 === 0 ? 'row-alt' : '' }}">
                     <td>&nbsp;</td>
@@ -336,14 +317,8 @@
         </tbody>
     </table>
 
-    {{--
-        ===== ส่วนท้าย: สรุปยอด + ลายเซ็น =====
-        ห้ามตัดหน้าตรงกลาง ถ้าที่ไม่พอ ทั้งก้อนจะย้ายไปหน้าถัดไปพร้อมกัน
-        ลายเซ็นจะไม่หลุดไปอยู่หน้าเดียวโดด ๆ
-    --}}
     <div style="page-break-inside: avoid;">
 
-    {{-- ===== ช่องทางชำระเงิน (ซ้าย) / สรุปยอด (ขวา) ===== --}}
     <table width="100%" class="small" style="margin-top: 10px;">
         <tr>
             <td width="55%" style="vertical-align: top; padding-right: 12px;">
@@ -391,7 +366,6 @@
         </tr>
     </table>
 
-    {{-- หมายเหตุเต็มความกว้างหน้า แต่ละข้อจะได้อยู่บรรทัดเดียว ไม่ถูกตัดเป็นสองบรรทัด --}}
     @if (!empty($settings['invoice_note']))
         <div class="note-full">
             <b>หมายเหตุ</b><br>
@@ -412,7 +386,7 @@
         ],
     ]])
 
-    </div>{{-- /keep-together --}}
+    </div>
 
 </body>
 

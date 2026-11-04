@@ -7,24 +7,21 @@
 @endsection
 
 @php
-    // มีค่าค้นหา/ตัวกรองใดก็ได้ (ไม่นับเลขหน้า/จำนวนต่อหน้า)
     $hasFilter = collect(request()->except(['page', 'per_page']))->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
 @endphp
 
 @section('content')
     @php
-        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
         $canEdit = auth()->user()->canEdit('delivery_notes');
     @endphp
     <div class="container py-3">
 
         <x-search-bar :action="route('delivery_notes.index')"
-                      placeholder="ค้นหาเลขที่ใบส่งของ / ลูกค้า / แคมป์ / ใบเสนอราคา / ใบแจ้งหนี้ / สถานะ"
+                      placeholder="เลขที่ใบส่งของ / ชื่อลูกค้า"
                       :search="$search" :per-page="$perPage"
-                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่ส่ง"
+                      {{-- :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่ส่ง" --}}
                       :statuses="\App\Http\Controllers\DeliveryNoteController::INVOICE_STATUSES" :status="$status" />
 
-        {{-- ==================== ปุ่มสร้าง ==================== --}}
         <div class="d-flex justify-content-end align-items-center mb-3">
             @if ($canEdit && $canCreate)
                 <button type="button" class="btn btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#createDeliveryNoteModal">
@@ -34,7 +31,6 @@
             @endif
         </div>
 
-        {{-- ==================== ตาราง ==================== --}}
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -54,7 +50,6 @@
                     @forelse ($deliveryNotes as $deliveryNote)
                         @php $cancelled = $deliveryNote->isCancelled(); @endphp
                         <tr @class(['text-muted' => $cancelled])>
-                            {{-- ลำดับต่อเนื่องข้ามหน้า --}}
                             <td class="text-center text-muted">
                                 {{ $deliveryNotes->firstItem() + $loop->index }}
                             </td>
@@ -101,7 +96,6 @@
                             </td>
 
                             <td class="text-center">
-                                {{-- ยกเลิกได้เฉพาะใบที่ยังไม่ออกใบแจ้งหนี้ (ไม่มีการลบ เลขที่ต้องอยู่ครบ) --}}
                                 @php $blocker = $cancelled ? null : $deliveryNote->cancelBlocker(); @endphp
                                 <x-row-actions :show="route('delivery_notes.show', $deliveryNote)"
                                                :delete="$canEdit ? (($cancelled || $blocker) ? null : route('delivery_notes.destroy', $deliveryNote)) : null"
@@ -136,11 +130,9 @@
             </table>
         </div>
 
-        {{-- ==================== สรุปจำนวน + ปุ่มเปลี่ยนหน้า ==================== --}}
         @include('partials.pagination-footer', ['paginator' => $deliveryNotes])
 
     </div>
-    {{-- ==================== หน้าต่างสร้างใบส่งของ ==================== --}}
     @if ($canEdit && $canCreate)
         @include('delivery_notes._create-modal')
 

@@ -1,12 +1,3 @@
-{{--
-    หน้าต่างแก้ไขยี่ห้อรถ (ใช้ร่วมทุกแถวในแท็บยี่ห้อ)
-    ต้องส่ง: $brandEditData (closure จาก trucks/index)
-    ปุ่มในแถว: <button data-brand-edit='@json($brandEditData($brand))'>
-
-    เปิดอัตโนมัติเมื่อ
-      - บันทึกแล้ว validate ไม่ผ่าน (error อยู่ใน bag "updateBrand")
-      - เปิด URL ?tab=brands&edit={id} (เช่น ลิงก์เดิม truck_brands/{id}/edit)
---}}
 @php
     $be        = $errors->updateBrand;
     $keepQuery = array_filter(request()->only('page', 'search', 'per_page'), fn ($v) => $v !== null && $v !== '');

@@ -8,9 +8,6 @@
 
 @php
     $canEdit = auth()->user()->canEdit('quotations');
-
-    // บริษัทไม่มีส่วนลดแล้ว: ยอดสุทธิ = รวมเป็นเงิน + VAT
-    // (ใบเก่าที่เคยมีส่วนลด ยังแสดงบรรทัดส่วนลดให้ยอดตรงกับเอกสารที่ออกไปแล้ว)
     $subTotal      = $quotation->details->sum('total_price');
     $discount      = (float) ($quotation->discount ?? 0);
     $afterDiscount = max($subTotal - $discount, 0);
@@ -29,18 +26,13 @@
 
 @section('content')
     <div class="container py-3">
-
-        {{-- ==================== ส่วนหัว (ภาพที่ 1) ==================== --}}
         <div class="text-center mb-4">
             <h2>ใบเสนอราคา (Quotation)</h2>
             @include('partials.company-line')
         </div>
-
-        {{-- ==================== แถบสถานะ + ปุ่มจัดการ ==================== --}}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
 
-                {{-- ซ้าย: สถานะ + ขั้นตอนถัดไป --}}
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     @if ($quotation->status === 'draft')
                         <span class="text-secondary fw-semibold">
@@ -55,7 +47,6 @@
                                 <button class="btn btn-success" type="submit">อนุมัติ</button>
                             </form>
                         @else
-                            {{-- อนุมัติไม่ได้: บอกเหตุผล (เช่น เป็นผู้จัดทำเอง / ไม่ใช่ผู้ดูแลระบบ) --}}
                             <span class="small text-muted">
                                 <i class="bi bi-lock me-1"></i>{{ $approveBlock }}
                             </span>
@@ -85,7 +76,6 @@
                     @endif
                 </div>
 
-                {{-- ขวา: ปุ่มจัดการ --}}
                 <div class="d-flex flex-wrap gap-2">
                     <a href="{{ route('quotation.pdf', $quotation->id_quot) }}" target="_blank"
                         class="btn btn-outline-secondary">
@@ -98,7 +88,6 @@
                         </button>
                     @endif
 
-                    {{-- เอกสารไม่มีการลบ — ยกเลิกแทน (เลขที่ไม่หาย) --}}
                     @if ($canEdit && in_array($quotation->status, ['draft', 'approved']) && ! $so)
                         <form method="POST" action="{{ route('quotations.cancel', $quotation) }}" class="d-inline"
                             data-confirm="ใบเสนอราคา {{ $quotation->code_quot }} จะถูกยกเลิก"
@@ -114,10 +103,7 @@
             </div>
         </div>
 
-        {{-- ==================== เนื้อหา 2 คอลัมน์ (ภาพที่ 2) ==================== --}}
         <div class="row g-4 mb-4">
-
-            {{-- ซ้าย: ข้อมูลทั่วไป --}}
             <div class="col-lg-4">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body p-4">
@@ -165,7 +151,6 @@
                 </div>
             </div>
 
-            {{-- ขวา: รายการสินค้า --}}
             <div class="col-lg-8">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body p-4">
@@ -225,7 +210,6 @@
 
         </div>
 
-        {{-- ==================== ย้อนกลับ ==================== --}}
         <a href="{{ route('quotations.index') }}" class="btn btn-outline-secondary">
             ย้อนกลับ
         </a>

@@ -1,16 +1,6 @@
-{{--
-    หน้าต่างออกใบแจ้งหนี้ / ใบวางบิล จากใบส่งของที่ยังไม่ได้เรียกเก็บ (หน้ารายการใบแจ้งหนี้)
-      ขั้นที่ 1 เลือกแคมป์ (หรือลูกค้าที่ซื้อโดยไม่ผ่านแคมป์) → โหลดหน้าใหม่ ?modal=create&group=...
-      ขั้นที่ 2 ติ๊กใบส่งของที่จะรวมในบิลนี้ → ระบบรวมยอด + VAT ให้
-
-    ต้องส่ง: $groups, $group, $notes, $preselect, $creditDays
-    กรอกผิดแล้วเด้งกลับ (error bag createInvoice) → หน้าต่างเปิดเองพร้อมค่าที่เลือกไว้
---}}
 @php
-    // ข้อผิดพลาดของหน้าต่างนี้แยกกล่อง — ใช้ชื่อ $errors เดิมภายในไฟล์นี้ (@error ทำงานตามปกติ)
     $errors = (new \Illuminate\Support\ViewErrorBag())->put('default', $errors->createInvoice);
 
-    // ค่าที่ติ๊กไว้: กรอกผิดแล้วเด้งกลับ → ตามที่เลือกไว้ / มาจากหน้าใบส่งของ → ใบนั้น / อื่น ๆ → ทั้งหมด
     $checked = collect(old('delivery_notes', $preselect ? [$preselect] : $notes->pluck('id_delivery_note')->all()))
         ->map(fn ($id) => (int) $id)
         ->all();
@@ -40,7 +30,6 @@
                     </div>
                 @endif
 
-                {{-- ===== ขั้นที่ 1 เลือกแคมป์ / ลูกค้า ===== --}}
                 <form method="GET" action="{{ route('invoices.index') }}" class="mb-4">
                     <input type="hidden" name="modal" value="create">
                     <label for="group_picker" class="form-label fw-semibold">1. เลือกแคมป์ หรือลูกค้า</label>
@@ -74,7 +63,6 @@
                         @csrf
 
                         <div class="row g-4">
-                            {{-- ===== ขั้นที่ 2 เลือกใบส่งของ ===== --}}
                             <div class="col-lg-8">
                                 <div class="d-flex justify-content-between align-items-end mb-2">
                                     <label class="form-label fw-semibold mb-0">2. เลือกใบส่งของที่จะเรียกเก็บ</label>
@@ -134,7 +122,6 @@
                                 </div>
                             </div>
 
-                            {{-- ===== ขั้นที่ 3 วันที่ / เครดิต / สรุปยอด ===== --}}
                             <div class="col-lg-4">
                                 <div class="card border-0 shadow-sm summary-card">
                                     <div class="card-body p-4">
@@ -214,14 +201,12 @@
 
                                 checks.forEach((c) => c.closest('tr').classList.toggle('table-active', c.checked));
 
-                                // วันที่ออกต้องไม่ก่อนวันส่งของใบล่าสุดที่เลือก
                                 const latest = picked.map((c) => c.dataset.date).sort().pop() || '';
                                 dateEl.min = latest;
                                 document.getElementById('dateHint').textContent = latest
                                     ? 'ย้อนได้ถึง ' + thai(latest) + ' (วันส่งของใบล่าสุดที่เลือก)'
                                     : 'ย้อนได้ถึงวันส่งของใบล่าสุดที่เลือก';
 
-                                // ครบกำหนด = วันที่ออก + เครดิต
                                 const d = dateEl.value ? new Date(dateEl.value + 'T00:00:00') : null;
                                 const days = parseInt(creditEl.value, 10);
                                 if (d && !isNaN(days)) {
@@ -231,7 +216,6 @@
                                 }
                             }
 
-                            // กดที่แถวก็ติ๊กได้ (ไม่ต้องเล็งช่องเล็ก ๆ)
                             document.querySelectorAll('.note-row').forEach((row) => {
                                 row.addEventListener('click', (e) => {
                                     if (e.target.closest('a, input, label')) return;

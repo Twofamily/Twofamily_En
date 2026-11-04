@@ -59,7 +59,7 @@
 
         <x-search-bar :action="route('fuel_records.index')" placeholder="ทะเบียนรถ / ยี่ห้อ / จุดเริ่มต้น / ปลายทาง" :search="$search"
             :per-page="$perPage" :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่"
-            {{-- :ranges="$ranges"  --}} />
+            />
 
         <div class="d-flex justify-content-end align-items-center mb-3">
             @if (in_array(auth()->user()->role, ['admin', 'staff'], true))

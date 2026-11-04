@@ -4,10 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-/**
- * รายการของใบเสร็จขายสด
- * (ใบเสร็จแบบชำระตามใบแจ้งหนี้ใช้รายการจาก invoice_details)
- */
 class ReceiptItem extends Model
 {
     protected $primaryKey = 'id_receipt_item';
@@ -37,7 +33,6 @@ class ReceiptItem extends Model
         return $this->belongsTo(Product::class, 'id_product', 'id_product');
     }
 
-    /** ชื่อรายการ: ข้อความที่พิมพ์เองมาก่อน ไม่มีก็ใช้ชื่อสินค้า */
     public function getDisplayNameAttribute(): string
     {
         return $this->description ?: ($this->product->name_product ?? '-');

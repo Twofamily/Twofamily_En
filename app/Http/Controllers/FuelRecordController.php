@@ -16,9 +16,6 @@ use Illuminate\View\View;
 
 class FuelRecordController extends Controller
 {
-    /**
-     * เมื่อบรรทุกเต็มความจุ ประสิทธิภาพ กม./ลิตร ลดลง 20%
-     */
     private const FULL_LOAD_EFFICIENCY_LOSS = 0.20;
 
     public function index(Request $request): View
@@ -27,7 +24,6 @@ class FuelRecordController extends Controller
         $search  = $this->searchTerm($request);
         [$dateFrom, $dateTo] = $this->dateRange($request);
 
-        // ค้นหาแบบช่วง (ต่ำสุด–สูงสุด) ของคอลัมน์ตัวเลข
         $ranges = $this->numberRanges($request, [
             'distance' => ['label' => 'ระยะทาง',         'unit' => 'กม.',      'step' => '0.01'],
             'price'    => ['label' => 'ราคาน้ำมัน',       'unit' => 'บาท/ลิตร', 'step' => '0.01'],
@@ -35,7 +31,6 @@ class FuelRecordController extends Controller
             'cost'     => ['label' => 'ค่าน้ำมันทั้งหมด', 'unit' => 'บาท',      'step' => '0.01'],
         ]);
 
-        // ช่องค้นหาช่องเดียว: ทะเบียนรถ ยี่ห้อ จุดเริ่มต้น ปลายทาง (รวมปลายทางทุกช่วง)
         $records = FuelRecord::query()
             ->with([
                 'truck.brand',
@@ -81,7 +76,7 @@ class FuelRecordController extends Controller
 
         $dieselPrice = $this->getDieselPrice();
 
-        [$jobCamps, $truckCampMap] = $this->campChoices();
+        [$jobCamps, $campTruckMap] = $this->campChoices();
 
         return view(
             'fuel_records.create',
@@ -90,7 +85,7 @@ class FuelRecordController extends Controller
                 'camps',
                 'dieselPrice',
                 'jobCamps',
-                'truckCampMap'
+                'campTruckMap'
             )
         );
     }
@@ -217,7 +212,7 @@ class FuelRecordController extends Controller
         $dieselPrice =
             $fuel_record->cost_fuel;
 
-        [$jobCamps, $truckCampMap] = $this->campChoices($fuel_record);
+        [$jobCamps, $campTruckMap] = $this->campChoices($fuel_record);
 
         return view(
             'fuel_records.create',
@@ -227,7 +222,7 @@ class FuelRecordController extends Controller
                 'camps',
                 'dieselPrice',
                 'jobCamps',
-                'truckCampMap'
+                'campTruckMap'
             )
         );
     }
@@ -323,20 +318,10 @@ class FuelRecordController extends Controller
             );
     }
 
-    /**
-     * ตัวเลือกแคมป์ในฟอร์ม + แคมป์ที่รถแต่ละคันประจำอยู่ตอนนี้
-     *
-     * - แคมป์ที่เปิดอยู่ทั้งหมด (ไม่ต้องมีพิกัด ต่างจาก $camps ที่ใช้กับแผนที่)
-     * - ตอนแก้ไข ถ้าแคมป์เดิมถูกปิดไปแล้ว ยังต้องโชว์ให้เลือกค้างไว้ได้
-     * - $truckCampMap ใช้เลือกแคมป์ให้อัตโนมัติเมื่อเลือกรถ (ผู้ใช้เปลี่ยนเองได้)
-     *
-     * @return array{0: \Illuminate\Support\Collection, 1: array<string,int>}
-     */
     private function campChoices(?FuelRecord $fuelRecord = null): array
     {
         $jobCamps = Camp::query()
             ->where(function ($query) use ($fuelRecord) {
-                // แคมป์ที่ยังไม่ปิด (เตรียมงาน / ดำเนินงาน / รอเก็บเงิน — รถอาจยังวิ่งเก็บงาน)
                 $query->where('status_camp', '!=', 'closed');
 
                 if ($fuelRecord?->id_camp) {
@@ -347,15 +332,15 @@ class FuelRecordController extends Controller
             ->orderBy('name_camp')
             ->get();
 
-        $truckCampMap = CampTruck::query()
+        $campTruckMap = CampTruck::query()
             ->whereNull('released_date')
             ->whereIn('id_camp', $jobCamps->pluck('id_camp'))
-            ->orderBy('assigned_date')
-            ->pluck('id_camp', 'id_truck')   // ถ้ามีหลายแถว แถวล่าสุดทับ
-            ->map(fn ($id) => (int) $id)
+            ->get(['id_camp', 'id_truck'])
+            ->groupBy('id_camp')
+            ->map(fn ($rows) => $rows->pluck('id_truck')->map(fn ($id) => (string) $id)->unique()->values()->all())
             ->all();
 
-        return [$jobCamps, $truckCampMap];
+        return [$jobCamps, $campTruckMap];
     }
 
     private function validateFuelRecord(
@@ -399,11 +384,36 @@ class FuelRecordController extends Controller
                 $truckRule,
             ],
 
-            // ไม่บังคับ: บางรอบไม่ได้วิ่งให้แคมป์ (ส่งสินค้าตรง)
             'id_camp' => [
                 'nullable',
                 'integer',
                 Rule::exists('camps', 'id_camp')->whereNull('deleted_at'),
+
+                function ($attribute, $value, $fail) use ($request, $fuelRecord) {
+                    if (! $value) {
+                        return;
+                    }
+
+                    $truckId = (string) $request->input('trucks_id_truck');
+
+                    if (
+                        $fuelRecord
+                        && (string) $fuelRecord->trucks_id_truck === $truckId
+                        && (int) $fuelRecord->id_camp === (int) $value
+                    ) {
+                        return;
+                    }
+
+                    $assigned = CampTruck::query()
+                        ->where('id_camp', $value)
+                        ->where('id_truck', $truckId)
+                        ->whereNull('released_date')
+                        ->exists();
+
+                    if (! $assigned) {
+                        $fail('รถคันนี้ไม่ได้ประจำอยู่ในแคมป์ที่เลือก');
+                    }
+                },
             ],
 
             'cost_fuel' => [

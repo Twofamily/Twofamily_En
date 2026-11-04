@@ -16,7 +16,7 @@
         'image' => $p->image ? asset('storage/' . $p->image) : null,
         'name_product' => $p->name_product,
         'product_type_id' => $p->product_type_id,
-        'unit_price' => (float) $p->unit_price,
+        'unit_price' => (int) round((float) $p->unit_price),
         'detail_product' => $p->detail_product,
     ];
     $typeEditData = fn(\App\Models\ProductType $t) => [
@@ -105,7 +105,7 @@
 
         @if ($tab === 'products')
             <x-search-bar :action="route('products.index')" placeholder="ชื่อสินค้า / รายละเอียด / ราคา" :search="$search" :per-page="$perPage"
-                :statuses="$types->pluck('name_product_type', 'id_product_type')" :status="$typeId" status-name="type" status-label="ประเภท" {{-- :ranges="$ranges"  --}} />
+                :statuses="$types->pluck('name_product_type', 'id_product_type')" :status="$typeId" status-name="type" status-label="ประเภท" />
 
             @if ($canEditProduct)
                 <div class="d-flex justify-content-end align-items-center mb-3">
@@ -154,7 +154,7 @@
 
                                 <td>{{ $p->type->name_product_type ?? '-' }}</td>
 
-                                <td class="text-end">{{ number_format((float) $p->unit_price, 2) }}</td>
+                                <td class="text-end">{{ number_format((float) $p->unit_price) }}</td>
 
                                 @if ($canEditProduct)
                                     <td class="text-center">
@@ -340,7 +340,8 @@
                                     <input type="number" name="unit_price" id="unit_price"
                                         value="{{ old('_modal') === 'product' ? old('unit_price') : '' }}"
                                         class="form-control @error('unit_price') is-invalid @enderror"
-                                        placeholder="เช่น 390" min="0" step="0.01" required
+                                        placeholder="เช่น 390" min="0" step="1" inputmode="numeric" required
+                                        data-step-msg="กรุณากรอกราคาเป็นจำนวนเต็ม ไม่มีทศนิยม"
                                         data-required-msg="กรุณากรอกราคาต่อหน่วย">
                                     @error('unit_price')
                                         <div class="invalid-feedback">{{ $message }}</div>
@@ -433,7 +434,8 @@
                                 <div class="mb-3">
                                     <label class="form-label" for="e_unit_price">ราคาต่อหน่วย (บาท / คิว)</label>
                                     <input type="number" name="unit_price" id="e_unit_price" min="0"
-                                        step="0.01" required
+                                        step="1" inputmode="numeric" required
+                                        data-step-msg="กรุณากรอกราคาเป็นจำนวนเต็ม ไม่มีทศนิยม"
                                         class="form-control {{ $pe->has('unit_price') ? 'is-invalid' : '' }}"
                                         data-required-msg="กรุณากรอกราคาต่อหน่วย">
                                 </div>

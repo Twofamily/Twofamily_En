@@ -1,15 +1,3 @@
-{{--
-    ตารางกำหนดสิทธิ์รายหน้า — วางไว้ "ข้างใน <form>" เดียวกับช่องเลือก role
-    ใช้ได้หลายที่ในหน้าเดียว (หน้าต่างเพิ่ม + หน้าต่างแก้ไข) เพราะไม่ใช้ id
-
-    @include('users._permissions', [
-        'savedPerms'  => [...],     // ค่าที่เลือกไว้ [module => none|view|edit]
-        'currentRole' => 'staff',
-    ])
-
-    สคริปต์ตั้งค่าจากภายนอกได้ (หน้าต่างแก้ไขเติมค่าของผู้ใช้แต่ละคน):
-        window.PermissionBox.set(boxElement, {camps: 'edit', ...}, 'staff')
---}}
 @php
     $savedPerms  = $savedPerms ?? [];
     $currentRole = $currentRole ?? \App\Models\User::ROLE_STAFF;
@@ -82,7 +70,6 @@
 @once
     <script>
         window.PermissionBox = (function () {
-            // ค่าเริ่มต้นตาม role เมื่อหน้านั้นยังไม่เคยตั้ง (ตรงกับ Permission::defaultFor)
             var DEFAULTS = { admin: 'edit', staff: 'edit', viewer: 'view' };
 
             function radio(box, module, level) {
@@ -101,7 +88,6 @@
                 return select ? select.value : 'staff';
             }
 
-            // ปรับตารางตาม role: admin ซ่อนตาราง · viewer ปิดช่อง "ดูและแก้ไข"
             function applyRole(box) {
                 var role = roleOf(box);
                 box.querySelector('[data-perm-table]').classList.toggle('d-none', role === 'admin');
@@ -116,7 +102,6 @@
                 });
             }
 
-            // ตั้งค่าทั้งตาราง (ใช้ตอนเปิดหน้าต่างแก้ไขของผู้ใช้แต่ละคน)
             function set(box, perms, role) {
                 perms = perms || {};
                 modules(box).forEach(function (m) {

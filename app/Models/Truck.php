@@ -47,9 +47,6 @@ class Truck extends Model
         return 'id_truck';
     }
 
-    /**
-     * ดึง URL รูปภาพรถบรรทุก (ถ้าไม่มีรูปจะส่งคืน null หรือเปลี่ยนเป็น URL รูป Placeholder ได้)
-     */
     protected function imageUrl(): Attribute
     {
         return Attribute::make(
@@ -117,7 +114,6 @@ class Truck extends Model
                     ->withTimestamps();
     }
 
-    /** รถคันนี้กำลังทำงานอยู่ที่แคมป์ไหนหรือไม่ */
     public function scopeNotInActiveCamp($query)
     {
         return $query->whereNotIn('id_truck', CampTruck::query()

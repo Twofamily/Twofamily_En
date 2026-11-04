@@ -10,6 +10,16 @@
 
 @section('content')
     @php
+        $campPlaces = collect($jobCamps ?? [])->mapWithKeys(
+            fn($c) => [
+                $c->id_camp => [
+                    'label' => \Illuminate\Support\Str::limit(trim($c->name_camp . ' ' . $c->full_address), 250, ''),
+                    'lat' => $c->latitude !== null ? (float) $c->latitude : null,
+                    'lng' => $c->longitude !== null ? (float) $c->longitude : null,
+                ],
+            ],
+        );
+
         $oldSegments = old('segments');
 
         if (is_array($oldSegments) && count($oldSegments) > 0) {
@@ -26,11 +36,7 @@
                     ];
                 })
                 ->all();
-        } elseif (
-            isset($fuel_record) &&
-            isset($fuel_record->segments) &&
-            $fuel_record->segments->count() > 0
-        ) {
+        } elseif (isset($fuel_record) && isset($fuel_record->segments) && $fuel_record->segments->count() > 0) {
             $initialSegments = $fuel_record->segments
                 ->sortBy('sequence')
                 ->values()
@@ -48,24 +54,12 @@
         } else {
             $initialSegments = [
                 [
-                    'destination' => old(
-                        'destination',
-                        $fuel_record->destination ?? ''
-                    ),
-                    'load_weight' => old(
-                        'load_weight',
-                        $fuel_record->current_weight ?? 0
-                    ),
-                    'distance' => old(
-                        'distance',
-                        $fuel_record->distance ?? ''
-                    ),
+                    'destination' => old('destination', $fuel_record->destination ?? ''),
+                    'load_weight' => old('load_weight', $fuel_record->current_weight ?? 0),
+                    'distance' => old('distance', $fuel_record->distance ?? ''),
                     'fuel_rate' => '',
                     'fuel_liters' => '',
-                    'fuel_cost' => old(
-                        'cost_fuel_total',
-                        $fuel_record->cost_fuel_total ?? ''
-                    ),
+                    'fuel_cost' => old('cost_fuel_total', $fuel_record->cost_fuel_total ?? ''),
                 ],
             ];
         }
@@ -270,13 +264,12 @@
             </div>
         @endif
 
-        <form
-            id="fuel_record_form"
-            method="POST"
+        <form id="fuel_record_form" method="POST"
             action="{{ isset($fuel_record)
                 ? route('fuel_records.update', $fuel_record->id_fuel_record)
                 : route('fuel_records.store') }}"
-            data-confirm="{{ isset($fuel_record) ? 'ต้องการบันทึกการแก้ไขต้นทุนค่าน้ำมันรายการนี้หรือไม่' : 'ต้องการบันทึกต้นทุนค่าน้ำมันรายการนี้หรือไม่' }}" data-confirm-title="ยืนยันการบันทึกต้นทุนค่าน้ำมัน" data-confirm-ok="บันทึก" data-confirm-variant="success">
+            data-confirm="{{ isset($fuel_record) ? 'ต้องการบันทึกการแก้ไขต้นทุนค่าน้ำมันรายการนี้หรือไม่' : 'ต้องการบันทึกต้นทุนค่าน้ำมันรายการนี้หรือไม่' }}"
+            data-confirm-title="ยืนยันการบันทึกต้นทุนค่าน้ำมัน" data-confirm-ok="บันทึก" data-confirm-variant="success">
             @csrf
 
             @if (isset($fuel_record))
@@ -290,20 +283,45 @@
                             วันที่
                         </label>
 
-                        <input
-                            type="date"
-                            id="date_record"
-                            name="date_record"
+                        <input type="date" id="date_record" name="date_record"
                             class="form-control @error('date_record') is-invalid @enderror"
                             value="{{ old(
                                 'date_record',
-                                isset($fuel_record)
-                                    ? $fuel_record->date_record?->format('Y-m-d')
-                                    : now()->format('Y-m-d')
+                                isset($fuel_record) ? $fuel_record->date_record?->format('Y-m-d') : now()->format('Y-m-d'),
                             ) }}"
                             required data-required-msg="กรุณาใส่วันที่">
 
                         @error('date_record')
+                            <div class="invalid-feedback">
+                                {{ $message }}
+                            </div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="camp_select" class="form-label">
+                            แคมป์งาน
+                        </label>
+
+                        <select id="camp_select" name="id_camp" class="form-select @error('id_camp') is-invalid @enderror"
+                            data-camp-trucks='@json($campTruckMap ?? [])' data-camp-places='@json($campPlaces)'>
+                            <option value="">— ไม่ได้วิ่งให้แคมป์ (เช่น ส่งสินค้าตรง) —</option>
+                            @foreach ($jobCamps ?? [] as $jobCamp)
+                                <option value="{{ $jobCamp->id_camp }}" @selected(old('id_camp', $fuel_record->id_camp ?? '') == $jobCamp->id_camp)>
+                                    {{ $jobCamp->code_camp }} · {{ $jobCamp->name_camp }}
+                                    @if ($jobCamp->customer)
+                                        ({{ $jobCamp->customer->name_customer }})
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <div class="form-text" id="camp_hint">
+                            เลือกแคมป์แล้ว รถบรรทุกจะเหลือเฉพาะรถที่ประจำอยู่ในแคมป์นั้น
+                            และปลายทางจุดสุดท้ายจะใช้ที่ตั้งแคมป์ให้
+                        </div>
+
+                        @error('id_camp')
                             <div class="invalid-feedback">
                                 {{ $message }}
                             </div>
@@ -318,18 +336,10 @@
                         <select id="truck_select" name="trucks_id_truck"
                             class="form-select @error('trucks_id_truck') is-invalid @enderror" required
                             data-required-msg="กรุณาเลือกรถบรรทุก">
+                            <option value="" disabled hidden data-no-truck>— แคมป์นี้ยังไม่มีรถประจำ —</option>
                             @forelse ($trucks as $truck)
-                                <option
-                                    value="{{ $truck->id_truck }}"
-                                    data-fuel-rate="{{ $truck->fuel_rate }}"
-                                    data-max-load="{{ $truck->weight_truck }}"
-                                    @selected(
-                                        old(
-                                            'trucks_id_truck',
-                                            $fuel_record->trucks_id_truck ?? ''
-                                        ) == $truck->id_truck
-                                    )
-                                >
+                                <option value="{{ $truck->id_truck }}" data-fuel-rate="{{ $truck->fuel_rate }}"
+                                    data-max-load="{{ $truck->weight_truck }}" @selected(old('trucks_id_truck', $fuel_record->trucks_id_truck ?? '') == $truck->id_truck)>
                                     {{ $truck->brand_truck ?? ($truck->brand?->name_brand ?? 'รถบรรทุก') }}
                                     ({{ $truck->id_truck }})
                                 </option>
@@ -347,38 +357,6 @@
                         @enderror
                     </div>
 
-                    {{-- แคมป์ที่รอบนี้วิ่งให้ — ใช้คิดต้นทุนรายแคมป์บนแดชบอร์ด --}}
-                    <div class="mb-3">
-                        <label for="camp_select" class="form-label">
-                            แคมป์งาน
-                        </label>
-
-                        <select id="camp_select" name="id_camp"
-                            class="form-select @error('id_camp') is-invalid @enderror"
-                            data-truck-camps='@json($truckCampMap ?? [])'>
-                            <option value="">— ไม่ได้วิ่งให้แคมป์ (เช่น ส่งสินค้าตรง) —</option>
-                            @foreach ($jobCamps ?? [] as $jobCamp)
-                                <option value="{{ $jobCamp->id_camp }}"
-                                    @selected(old('id_camp', $fuel_record->id_camp ?? '') == $jobCamp->id_camp)>
-                                    {{ $jobCamp->code_camp }} · {{ $jobCamp->name_camp }}
-                                    @if ($jobCamp->customer)
-                                        ({{ $jobCamp->customer->name_customer }})
-                                    @endif
-                                </option>
-                            @endforeach
-                        </select>
-
-                        <div class="form-text" id="camp_hint">
-                            เลือกรถแล้ว ระบบจะเลือกแคมป์ที่รถคันนั้นประจำอยู่ให้ เปลี่ยนเองได้
-                        </div>
-
-                        @error('id_camp')
-                            <div class="invalid-feedback">
-                                {{ $message }}
-                            </div>
-                        @enderror
-                    </div>
-
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="max_load_weight" class="form-label">
@@ -386,13 +364,8 @@
                             </label>
 
                             <div class="input-group">
-                                <input
-                                    type="number"
-                                    id="max_load_weight"
-                                    class="form-control bg-light"
-                                    step="0.01"
-                                    readonly
-                                >
+                                <input type="number" id="max_load_weight" class="form-control bg-light" step="0.01"
+                                    readonly>
 
                                 <span class="input-group-text">กก.</span>
                             </div>
@@ -404,13 +377,8 @@
                             </label>
 
                             <div class="input-group">
-                                <input
-                                    type="number"
-                                    id="show_fuel_rate"
-                                    class="form-control bg-light"
-                                    step="0.01"
-                                    readonly
-                                >
+                                <input type="number" id="show_fuel_rate" class="form-control bg-light" step="0.01"
+                                    readonly>
 
                                 <span class="input-group-text">
                                     กม./ลิตร
@@ -429,20 +397,11 @@
                         </label>
 
                         <div class="input-group">
-                            <input
-                                type="number"
-                                id="cost_fuel"
-                                name="cost_fuel"
-                                class="form-control bg-light @error('cost_fuel') is-invalid @enderror"
-                                min="0"
+                            <input type="number" id="cost_fuel" name="cost_fuel"
+                                class="form-control bg-light @error('cost_fuel') is-invalid @enderror" min="0"
                                 step="0.01"
-                                value="{{ old(
-                                    'cost_fuel',
-                                    $fuel_record->cost_fuel ?? ($dieselPrice ?? '')
-                                ) }}"
-                                readonly
-                                required
-                            >
+                                value="{{ old('cost_fuel', $fuel_record->cost_fuel ?? ($dieselPrice ?? '')) }}"
+                                readonly required>
 
                             <span class="input-group-text">บาท/ลิตร</span>
 
@@ -461,14 +420,10 @@
                             จุดเริ่มต้น <span class="text-danger">*</span>
                         </label>
 
-                        <input
-                            type="text"
-                            id="start_point"
-                            name="start_point"
-                            class="form-control @error('start_point') is-invalid @enderror"
-                            placeholder="ค้นหาจุดเริ่มต้น"
-                            value="{{ old('start_point', $fuel_record->start_point ?? '') }}"
-                            autocomplete="off" required data-required-msg="กรุณาใส่จุดเริ่มต้น">
+                        <input type="text" id="start_point" name="start_point"
+                            class="form-control @error('start_point') is-invalid @enderror" placeholder="ค้นหาจุดเริ่มต้น"
+                            value="{{ old('start_point', $fuel_record->start_point ?? '') }}" autocomplete="off" required
+                            data-required-msg="กรุณาใส่จุดเริ่มต้น">
 
                         <small class="text-muted">
                             พิมพ์ชื่อสถานที่ หรือคลิกเลือกตำแหน่งบนแผนที่
@@ -481,52 +436,24 @@
                         @enderror
                     </div>
 
-                    <div
-                        id="segments_container"
-                        class="d-flex flex-column gap-3"
-                    ></div>
+                    <div id="segments_container" class="d-flex flex-column gap-3"></div>
 
                     <div class="d-flex flex-wrap gap-2 my-3 justify-content-end">
-                        <button
-                            type="button"
-                            id="add_segment_button"
-                            class="btn btn-outline-primary"
-                        >
+                        <button type="button" id="add_segment_button" class="btn btn-outline-primary">
                             + เพิ่มปลายทางถัดไป
                         </button>
 
-                        <button
-                            type="button"
-                            id="calculate_all_routes_button"
-                            class="btn btn-primary"
-                        >
+                        <button type="button" id="calculate_all_routes_button" class="btn btn-primary">
                             คำนวณทุกช่วง
                         </button>
 
-                        {{--
-                        <button
-                            type="button"
-                            id="clear_routes_button"
-                            class="btn btn-outline-secondary"
-                        >
-                            ล้างเส้นทาง
-                        </button>
-                        --}}
                     </div>
 
-                    <input
-                        type="hidden"
-                        id="legacy_destination"
-                        name="destination"
-                        value="{{ old('destination', $fuel_record->destination ?? '') }}"
-                    >
+                    <input type="hidden" id="legacy_destination" name="destination"
+                        value="{{ old('destination', $fuel_record->destination ?? '') }}">
 
-                    <input
-                        type="hidden"
-                        id="legacy_load_weight"
-                        name="load_weight"
-                        value="{{ old('load_weight', $fuel_record->current_weight ?? 0) }}"
-                    >
+                    <input type="hidden" id="legacy_load_weight" name="load_weight"
+                        value="{{ old('load_weight', $fuel_record->current_weight ?? 0) }}">
 
                     <div class="fuel-summary mb-3">
                         <div class="fw-semibold mb-2">
@@ -563,17 +490,10 @@
                             </label>
 
                             <div class="input-group">
-                                <input
-                                    type="number"
-                                    id="distance"
-                                    name="distance"
-                                    class="form-control bg-light @error('distance') is-invalid @enderror"
-                                    min="0"
-                                    step="0.01"
-                                    value="{{ old('distance', $fuel_record->distance ?? '') }}"
-                                    readonly
-                                    required
-                                >
+                                <input type="number" id="distance" name="distance"
+                                    class="form-control bg-light @error('distance') is-invalid @enderror" min="0"
+                                    step="0.01" value="{{ old('distance', $fuel_record->distance ?? '') }}" readonly
+                                    required>
 
                                 <span class="input-group-text">กม.</span>
 
@@ -591,20 +511,11 @@
                             </label>
 
                             <div class="input-group">
-                                <input
-                                    type="number"
-                                    id="cost_fuel_total"
-                                    name="cost_fuel_total"
+                                <input type="number" id="cost_fuel_total" name="cost_fuel_total"
                                     class="form-control bg-light @error('cost_fuel_total') is-invalid @enderror"
-                                    min="0"
-                                    step="0.01"
-                                    value="{{ old(
-                                        'cost_fuel_total',
-                                        $fuel_record->cost_fuel_total ?? ''
-                                    ) }}"
-                                    readonly
-                                    required
-                                >
+                                    min="0" step="0.01"
+                                    value="{{ old('cost_fuel_total', $fuel_record->cost_fuel_total ?? '') }}"
+                                    readonly required>
 
                                 <span class="input-group-text">บาท</span>
 
@@ -617,25 +528,15 @@
                         </div>
                     </div>
 
-                    <input
-                        type="hidden"
-                        id="total_fuel_liters"
-                        name="total_fuel_liters"
-                        value="{{ old(
-                            'total_fuel_liters',
-                            $fuel_record->total_fuel_liters ?? ''
-                        ) }}"
-                    >
+                    <input type="hidden" id="total_fuel_liters" name="total_fuel_liters"
+                        value="{{ old('total_fuel_liters', $fuel_record->total_fuel_liters ?? '') }}">
 
                     <div class="d-flex gap-2 justify-content-end">
                         <button type="submit" class="btn btn-success">
                             บันทึก
                         </button>
 
-                        <a
-                            href="{{ route('fuel_records.index') }}"
-                            class="btn btn-outline-secondary"
-                        >
+                        <a href="{{ route('fuel_records.index') }}" class="btn btn-outline-secondary">
                             ย้อนกลับ
                         </a>
                     </div>
@@ -646,17 +547,9 @@
 
                     <div id="map_legend" class="map-legend mt-3"></div>
 
-                    <div
-                        id="map_status"
-                        class="alert alert-info mt-3 d-none"
-                        role="status"
-                    ></div>
+                    <div id="map_status" class="alert alert-info mt-3 d-none" role="status"></div>
 
-                    <div
-                        id="map_error"
-                        class="alert alert-danger mt-3 d-none"
-                        role="alert"
-                    ></div>
+                    <div id="map_error" class="alert alert-danger mt-3 d-none" role="alert"></div>
                 </div>
             </div>
         </form>
@@ -670,10 +563,7 @@
                     <span class="segment-title-text">ช่วงที่ 1</span>
                 </div>
 
-                <button
-                    type="button"
-                    class="btn btn-sm btn-outline-danger remove-segment-button"
-                >
+                <button type="button" class="btn btn-sm btn-outline-danger remove-segment-button">
                     ลบ
                 </button>
             </div>
@@ -718,14 +608,8 @@
                     <label class="form-label">ระยะทาง</label>
 
                     <div class="input-group">
-                        <input
-                            type="number"
-                            class="form-control bg-light segment-distance"
-                            min="0"
-                            step="0.01"
-                            readonly
-                            required
-                        >
+                        <input type="number" class="form-control bg-light segment-distance" min="0"
+                            step="0.01" readonly required>
 
                         <span class="input-group-text">กม.</span>
                     </div>
@@ -864,10 +748,6 @@
                 return '#0d6efd';
             }
 
-            /*
-             * อ่าน fuel_rate จาก Truck ของรถที่เลือกโดยตรง
-             * ไม่มีการปรับลดตามอายุรถ
-             */
             function getSelectedTruckInformation() {
                 const selectedOption = truckSelect.selectedOptions[0];
 
@@ -898,13 +778,13 @@
                     Number.isFinite(information.fuelRate) &&
                     information.fuelRate > 0;
 
-                maximumLoadInput.value = hasMaximumLoad
-                    ? information.maximumLoad.toFixed(2)
-                    : '';
+                maximumLoadInput.value = hasMaximumLoad ?
+                    information.maximumLoad.toFixed(2) :
+                    '';
 
-                emptyFuelRateInput.value = hasFuelRate
-                    ? information.fuelRate.toFixed(2)
-                    : '';
+                emptyFuelRateInput.value = hasFuelRate ?
+                    information.fuelRate.toFixed(2) :
+                    '';
 
                 if (!information) {
                     fuelRateHelp.textContent = 'กรุณาเลือกรถบรรทุก';
@@ -1143,9 +1023,9 @@
                     const originText = getSegmentOriginText(index);
 
                     segment.originBox.textContent = originText || (
-                        index === 0
-                            ? 'กรุณาเลือกจุดเริ่มต้น'
-                            : 'กรุณาเลือกปลายทางของช่วงก่อนหน้า'
+                        index === 0 ?
+                        'กรุณาเลือกจุดเริ่มต้น' :
+                        'กรุณาเลือกปลายทางของช่วงก่อนหน้า'
                     );
 
                     segment.startPointInput.value = originText;
@@ -1268,7 +1148,6 @@
 
                 const maximumLoad = truckInformation.maximumLoad;
 
-                // ค่าอัตราสิ้นเปลืองจาก Truck โดยตรง
                 const emptyFuelRate = truckInformation.fuelRate;
 
                 if (
@@ -1311,7 +1190,6 @@
 
                 const loadRatio = loadWeight / maximumLoad;
 
-                // ใช้ค่าจาก Truck เป็นค่าตั้งต้น แล้วปรับตามน้ำหนักเดิม
                 const fuelRate = emptyFuelRate * (
                     1 - (loadRatio * FULL_LOAD_EFFICIENCY_LOSS)
                 );
@@ -1512,17 +1390,17 @@
                 totalCostDisplay.textContent =
                     `${totalFuelCost.toFixed(2)} บาท`;
 
-                distanceInput.value = totalDistance > 0
-                    ? totalDistance.toFixed(2)
-                    : '';
+                distanceInput.value = totalDistance > 0 ?
+                    totalDistance.toFixed(2) :
+                    '';
 
-                totalFuelLitersInput.value = calculatedSegments > 0
-                    ? totalFuelLiters.toFixed(2)
-                    : '';
+                totalFuelLitersInput.value = calculatedSegments > 0 ?
+                    totalFuelLiters.toFixed(2) :
+                    '';
 
-                fuelTotalInput.value = calculatedSegments > 0
-                    ? totalFuelCost.toFixed(2)
-                    : '';
+                fuelTotalInput.value = calculatedSegments > 0 ?
+                    totalFuelCost.toFixed(2) :
+                    '';
 
                 updateLegacyFields();
             }
@@ -1739,9 +1617,9 @@
 
             function getPolylineStyle(segmentIndex, isSelected) {
                 return {
-                    strokeColor: isSelected
-                        ? getRouteColor(segmentIndex)
-                        : '#9aa4af',
+                    strokeColor: isSelected ?
+                        getRouteColor(segmentIndex) :
+                        '#9aa4af',
                     strokeOpacity: isSelected ? 0.90 : 0.45,
                     strokeWeight: isSelected ? 7 : 4,
                     zIndex: isSelected ? 100 + segmentIndex : 10,
@@ -1800,7 +1678,7 @@
                         button.classList.toggle(
                             'active',
                             Number(button.dataset.routeIndex) ===
-                                segment.selectedRouteIndex
+                            segment.selectedRouteIndex
                         );
                     });
             }
@@ -2222,8 +2100,7 @@
                 }
 
                 startAutocomplete = new google.maps.places.Autocomplete(
-                    startInput,
-                    {
+                    startInput, {
                         componentRestrictions: {
                             country: 'th',
                         },
@@ -2268,8 +2145,7 @@
                 }
 
                 const autocomplete = new google.maps.places.Autocomplete(
-                    segment.destinationInput,
-                    {
+                    segment.destinationInput, {
                         componentRestrictions: {
                             country: 'th',
                         },
@@ -2341,8 +2217,7 @@
                     ...activeField,
                 };
 
-                placesService.getDetails(
-                    {
+                placesService.getDetails({
                         placeId,
                         fields: [
                             'place_id',
@@ -2486,8 +2361,7 @@
 
             window.initGoogleMap = function() {
                 map = new google.maps.Map(
-                    document.getElementById('map'),
-                    {
+                    document.getElementById('map'), {
                         center: defaultCenter,
                         zoom: 11,
                         mapTypeControl: false,
@@ -2590,7 +2464,6 @@
                 calculateAllRoutes
             );
 
-            // ปุ่มนี้อาจถูกคอมเมนต์ไว้ใน HTML
             if (clearRoutesButton) {
                 clearRoutesButton.addEventListener(
                     'click',
@@ -2598,7 +2471,6 @@
                 );
             }
 
-            // เปลี่ยนรถแล้วดึงอัตราสิ้นเปลืองจาก Truck ใหม่
             truckSelect.addEventListener('change', function() {
                 updateTruckInformation();
                 clearError();
@@ -2639,6 +2511,48 @@
                 }
             });
 
+            window.fuelSetCampDestination = function(place, previousLabel) {
+                const segment = segments[segments.length - 1];
+
+                if (!segment) {
+                    return false;
+                }
+
+                const current = segment.destinationInput.value.trim();
+
+                if (current !== '' && current !== previousLabel) {
+                    return false;
+                }
+
+                if (!place) {
+                    if (current !== '') {
+                        segment.destinationInput.value = '';
+                        segment.destinationInput.dispatchEvent(new Event('input'));
+                        refreshMapMarkers();
+                    }
+                    return true;
+                }
+
+                const hasPosition =
+                    Number.isFinite(place.lat) && Number.isFinite(place.lng);
+
+                const location = !hasPosition ?
+                    null :
+                    (window.google && google.maps ?
+                        new google.maps.LatLng(place.lat, place.lng) :
+                        {
+                            lat: place.lat,
+                            lng: place.lng
+                        });
+
+                assignSegmentPlace(segment, place.label, location)
+                    .catch(function(error) {
+                        showError(error.message || 'คำนวณเส้นทางไม่สำเร็จ');
+                    });
+
+                return true;
+            };
+
             updateTruckInformation();
 
             segments.forEach(function(segment) {
@@ -2651,38 +2565,71 @@
         })();
     </script>
 
-    {{-- เลือกแคมป์ให้อัตโนมัติตามรถที่เลือก — ถ้าผู้ใช้เลือกแคมป์เองแล้วจะไม่ทับ --}}
     <script>
-        (function () {
+        (function() {
             const truckSelect = document.getElementById('truck_select');
             const campSelect = document.getElementById('camp_select');
             if (!truckSelect || !campSelect) return;
 
-            let truckCamps = {};
+            let campTrucks = {};
+            let campPlaces = {};
             try {
-                truckCamps = JSON.parse(campSelect.dataset.truckCamps || '{}');
+                campTrucks = JSON.parse(campSelect.dataset.campTrucks || '{}');
+                campPlaces = JSON.parse(campSelect.dataset.campPlaces || '{}');
             } catch (e) {}
 
-            // มีค่าอยู่แล้ว (แก้ไข / กรอกผิดแล้วเด้งกลับ) = ถือว่าผู้ใช้เลือกเอง
-            let pickedByUser = campSelect.value !== '';
-            campSelect.addEventListener('change', () => { pickedByUser = true; });
+            const noTruckOption = truckSelect.querySelector('[data-no-truck]');
 
-            function syncCamp() {
-                if (pickedByUser) return;
-                const campId = truckCamps[truckSelect.value];
-                campSelect.value = campId ? String(campId) : '';
+            const initialCamp = campSelect.value;
+            const initialTruck = truckSelect.value;
+
+            let autoDestination = initialCamp && campPlaces[initialCamp] ? campPlaces[initialCamp].label : '';
+
+            function filterTrucks() {
+                const campId = campSelect.value;
+                const allowed = campId ? (campTrucks[campId] || []).map(String) : null;
+                let firstVisible = null;
+
+                Array.from(truckSelect.options).forEach(function(option) {
+                    if (option === noTruckOption || option.value === '') return;
+
+                    const keepOriginal = campId !== '' && campId === initialCamp && option.value ===
+                        initialTruck;
+                    const show = allowed === null || allowed.includes(option.value) || keepOriginal;
+
+                    option.hidden = !show;
+                    option.disabled = !show;
+                    if (show && !firstVisible) firstVisible = option;
+                });
+
+                if (noTruckOption) noTruckOption.hidden = !!firstVisible;
+
+                const current = truckSelect.selectedOptions[0];
+                if (!current || current.disabled) {
+                    truckSelect.value = firstVisible ? firstVisible.value : '';
+                    truckSelect.dispatchEvent(new Event('change'));
+                }
             }
 
-            truckSelect.addEventListener('change', syncCamp);
-            syncCamp();
+            campSelect.addEventListener('change', function() {
+                filterTrucks();
+
+                if (typeof window.fuelSetCampDestination === 'function') {
+                    const place = campPlaces[campSelect.value] || null;
+                    if (window.fuelSetCampDestination(place, autoDestination)) {
+                        autoDestination = place ? place.label : '';
+                    }
+                }
+            });
+
+            filterTrucks();
         })();
     </script>
 
     @if (config('services.google_maps.key'))
-        <script
-            async
-            src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&libraries=places&callback=initGoogleMap&loading=async&language=th&region=TH"
-        ></script>
+        <script async
+            src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&libraries=places&callback=initGoogleMap&loading=async&language=th&region=TH">
+        </script>
     @else
         <script>
             const mapError = document.getElementById('map_error');

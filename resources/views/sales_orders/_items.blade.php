@@ -1,7 +1,3 @@
-{{--
-    ตารางรายการสินค้า + คำนวณยอดฝั่ง client
-    ต้องส่งเข้ามา: $products, $rows (collection ของ ['id_product','quantity','price'])
---}}
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body p-4">
         <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">รายการสินค้า</h6>
@@ -104,7 +100,6 @@
 
         subtotal = Math.round(subtotal * 100) / 100;
 
-        // บริษัทไม่มีส่วนลด: ยอดสุทธิ = รวมเป็นเงิน + VAT
         const vat = Math.round(subtotal * VAT_RATE * 100) / 100;
 
         document.getElementById('sumSubtotal').textContent = money(subtotal);
@@ -128,7 +123,6 @@
 
     body.addEventListener('input', recalc);
 
-    // เลือกสินค้าแล้วเติมราคาให้ ถ้ายังไม่ได้กรอกเอง
     body.addEventListener('change', e => {
         if (!e.target.classList.contains('product-select')) return;
 
@@ -151,7 +145,6 @@
 
     addButton.addEventListener('click', () => addRow());
 
-    // เติมแถวเริ่มต้น
     const initialRows = @json($rows ?? []);
 
     if (initialRows.length) {

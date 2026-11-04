@@ -8,19 +8,16 @@
 
 @section('content')
     @php
-        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
         $canEdit = auth()->user()->canEdit('quotations');
     @endphp
     <div class="container py-3">
 
         <x-search-bar :action="route('quotations.index')"
-                      placeholder="ค้นหาเลขที่ใบเสนอราคา / ชื่อลูกค้า / สถานะ เช่น อนุมัติ"
+                      placeholder="เลขที่ใบเสนอราคา / ชื่อลูกค้า"
                       :search="$search" :per-page="$perPage"
-                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่ออก"
                       :statuses="\App\Models\Quotation::STATUS_LABELS" :status="$status"
-                      :ranges="$ranges" />
+                      />
 
-        {{-- ==================== ปุ่มสร้าง ==================== --}}
         <div class="d-flex justify-content-end align-items-center mb-3">
             @if ($canEdit)
                 <button type="button" class="btn btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#createQuotationModal">
@@ -30,7 +27,6 @@
             @endif
         </div>
 
-        {{-- ==================== ตาราง ==================== --}}
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -48,7 +44,6 @@
                 <tbody>
                     @forelse ($quotations as $q)
                         <tr>
-                            {{-- ลำดับต่อเนื่องข้ามหน้า เช่น หน้า 2 ที่ 10 ต่อหน้า จะเริ่มที่ 11 --}}
                             <td class="text-center text-muted">
                                 {{ $quotations->firstItem() + $loop->index }}
                             </td>
@@ -74,13 +69,11 @@
                             </td>
 
                             <td class="text-center">
-                                {{-- เอกสารไม่มีการลบ — ยกเลิกแทน (เลขที่ไม่หาย) --}}
                                 <x-row-actions :show="route('quotations.show', $q)" :label="$q->code_quot">
                                     @if ($canEdit && $q->status === 'draft')
                                         <x-row-actions.link :href="route('quotations.show', [$q, 'edit' => 1])" icon="bi-pencil-square">แก้ไข</x-row-actions.link>
                                     @endif
 
-                                    {{-- อนุมัติ (เฉพาะสถานะร่าง · เฉพาะ admin · ห้ามอนุมัติใบของตัวเอง) --}}
                                     @if ($canEdit && $q->status === 'draft')
                                         @php $approveBlock = $q->approveBlocker(auth()->user()); @endphp
                                         @if (! $approveBlock)
@@ -100,7 +93,6 @@
                                         @endif
                                     @endif
 
-                                    {{-- ยกเลิก (สถานะร่างหรืออนุมัติแล้ว) --}}
                                     @if ($canEdit && in_array($q->status, ['draft', 'approved']))
                                         <x-row-actions.form :action="route('quotations.cancel', $q)" method="PATCH"
                                                             icon="bi-slash-circle" variant="warning"
@@ -135,7 +127,6 @@
             </table>
         </div>
 
-        {{-- ==================== สรุปจำนวน + ปุ่มเปลี่ยนหน้า ==================== --}}
         @include('partials.pagination-footer', ['paginator' => $quotations])
 
     </div>

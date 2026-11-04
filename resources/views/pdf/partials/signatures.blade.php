@@ -1,24 +1,3 @@
-{{--
-    กรอบลายเซ็นที่ใช้ร่วมกันทุกเอกสาร (แทนแบบเส้นใต้เดิม)
-
-    วิธีเรียกใช้:
-    @include('pdf.partials.signatures', ['slots' => [
-        ['party' => 'customer', 'label' => 'ผู้รับของ'],
-        ['party' => 'company',  'label' => 'ผู้จัดทำ', 'user' => $doc->issuer, 'date' => $doc->issued_at],
-    ]])
-
-    แต่ละช่องรับค่า:
-      label (บังคับ)  บทบาทของคนเซ็น เช่น "ผู้จัดทำ"
-      party           'customer' หัวกรอบเป็น "ในนามลูกค้า"
-                      'company'  หัวกรอบเป็น "ในนาม <ชื่อบริษัท>" (ค่าเริ่มต้น)
-      user            อ็อบเจกต์ User ถ้ามีลายเซ็นจะแปะรูปให้
-      name            ระบุชื่อเอง กรณีไม่ได้มาจากตาราง users
-      position        ระบุตำแหน่งเอง
-      date            วันที่เซ็น ถ้าไม่ส่งจะเป็นช่องว่างให้กรอกมือ
-
-    ใช้ inline style ทั้งหมด จึงไม่ต้องพึ่ง CSS ของเอกสารแต่ละใบ
---}}
-
 @php
     $slots   = $slots ?? [];
     $count   = max(count($slots), 1);
@@ -34,7 +13,6 @@
             @php
                 $user = $slot['user'] ?? null;
 
-                // ชื่อกับตำแหน่ง ใช้ค่าที่ส่งมาตรง ๆ ก่อน ถ้าไม่มีค่อยเอาจาก user
                 $name     = $slot['name']     ?? ($user->name     ?? null);
                 $position = $slot['position'] ?? ($user->position ?? null);
 
@@ -42,7 +20,6 @@
                     ? 'ในนามลูกค้า'
                     : 'ในนาม ' . $company;
 
-                // รูปลายเซ็น: มีไฟล์ + วาดได้ (PNG ต้องมี GD / JPG ใช้ได้เลย) ไม่มี = เว้นว่างให้เซ็นมือ
                 $signature = $user?->signatureForPdf();
             @endphp
 
@@ -56,7 +33,6 @@
                 </div>
 
                 <div style="text-align: center; padding: 4px 8px 6px 8px; line-height: 1.5;">
-                    {{-- กล่องความสูงคงที่ ให้ทุกกรอบเรียงเสมอกันไม่ว่าจะมีรูปหรือไม่ --}}
                     <div style="height: 34px;">
                         @if ($signature)
                             <img src="{{ $signature }}" style="max-height: 34px; max-width: 90%;">

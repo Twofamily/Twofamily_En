@@ -1,8 +1,3 @@
-{{--
-    หน้าต่างแก้ไขใบสั่งขาย (หน้าดูใบสั่งขาย) — แก้ได้เฉพาะใบที่ยังเป็นร่าง
-    ต้องส่ง: $salesOrder, $products
-    กรอกผิดแล้วเด้งกลับ (error bag updateSalesOrder) หรือมาจากลิงก์ ?edit=1 → หน้าต่างเปิดเอง
---}}
 @php
     $bag    = $errors->updateSalesOrder;
     $hasOld = $bag->any();

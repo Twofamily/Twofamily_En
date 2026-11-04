@@ -7,7 +7,6 @@ use Illuminate\Validation\Rule;
 
 class TruckUpdateRequest extends FormRequest
 {
-    /** ข้อผิดพลาดแยกกล่อง เพื่อเปิดหน้าต่างแก้ไขกลับมาได้ถูกอัน (ไม่ชนกับหน้าต่างเพิ่มรถ) */
     protected $errorBag = 'updateTruck';
 
     public function authorize(): bool

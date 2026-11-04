@@ -1,4 +1,3 @@
-{{-- แท็บทั่วไป --}}
 <div class="row g-3">
     <div class="col-md-4">
         @include('settings._field', [

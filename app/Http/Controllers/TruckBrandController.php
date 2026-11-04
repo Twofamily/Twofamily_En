@@ -8,10 +8,6 @@ use Illuminate\Validation\Rule;
 
 class TruckBrandController extends Controller
 {
-    /**
-     * ยี่ห้อเป็นแท็บหนึ่งในหน้ารถบรรทุกแล้ว → ส่งไปแท็บนั้น (พกคำค้นหาไปด้วย)
-     * ยกเว้นคนที่ไม่มีสิทธิ์ดูหน้ารถบรรทุก → ใช้หน้าเดิม
-     */
     public function index(Request $request)
     {
         if ($request->user()?->canViewModule('trucks')) {
@@ -21,7 +17,6 @@ class TruckBrandController extends Controller
         return view('truck_brands.index', $this->listData($request));
     }
 
-    /** ข้อมูลตารางยี่ห้อ — ใช้ทั้งแท็บในหน้ารถบรรทุก และหน้าเดิม */
     public function listData(Request $request): array
     {
         $perPage = $this->perPage($request);
@@ -36,7 +31,6 @@ class TruckBrandController extends Controller
         return compact('brands', 'search', 'perPage');
     }
 
-    /** ฟอร์มเพิ่มยี่ห้อย้ายไปเป็น modal ในแท็บยี่ห้อแล้ว */
     public function create(Request $request)
     {
         if ($request->user()?->canViewModule('trucks')) {
@@ -59,7 +53,6 @@ class TruckBrandController extends Controller
             ->with('ok', 'เพิ่มยี่ห้อเรียบร้อย');
     }
 
-    /** ฟอร์มแก้ไขยี่ห้อย้ายไปเป็น modal ในแท็บยี่ห้อแล้ว — เปิด URL เดิมก็เด้ง modal ให้ */
     public function edit(Request $request, TruckBrand $truckBrand)
     {
         if ($request->user()?->canViewModule('trucks')) {
@@ -73,12 +66,10 @@ class TruckBrandController extends Controller
 
     public function update(Request $request, TruckBrand $truckBrand)
     {
-        // error ของ modal แก้ไขแยกไว้ใน bag "updateBrand" ไม่ปนกับ modal เพิ่ม
         $data = $this->validateData($request, $truckBrand->getKey(), 'updateBrand');
 
         $truckBrand->update($data);
 
-        // กลับไปหน้าเดิม พร้อมคำค้นหา / เลขหน้าที่ใช้อยู่
         $keep = array_filter($request->only('page', 'search', 'per_page'), fn ($v) => $v !== null && $v !== '');
 
         return redirect()

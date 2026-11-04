@@ -7,13 +7,9 @@
 @endsection
 
 @php
-    /*
-     | เพิ่ม / แก้ไขผู้ใช้ทำในหน้าต่าง (modal) ของหน้านี้ ไม่ต้องย้ายหน้า
-     | กรอกผิดแล้วเด้งกลับมา → เปิดหน้าต่างเดิมให้อัตโนมัติ พร้อมค่าที่กรอกไว้และข้อความแจ้ง
-     */
     $roles = \App\Models\User::roleList();
 
-    $createHasOld = $errors->createUser->any();          // กรอกผิดแล้วเด้งกลับ → ใช้ค่าที่กรอกไว้
+    $createHasOld = $errors->createUser->any();
     $openCreate   = $createHasOld || request('modal') === 'create';
 
     $editBag = match (true) {
@@ -25,7 +21,6 @@
     $openEditId  = $editBag ? (int) old('_user_id') : (int) request('edit');
     $openEditTab = $editBag ?? 'info';
 
-    // ค่าที่กรอกไว้ก่อนเด้งกลับ (เฉพาะแท็บข้อมูลผู้ใช้ / ลายเซ็น)
     $oldEdit = match ($editBag) {
         'info'      => old() ? array_intersect_key(old(), array_flip(['first_name', 'last_name', 'email', 'role', 'permissions'])) : null,
         'signature' => ['position' => old('position')],
@@ -34,7 +29,6 @@
 
     $gdLoaded = extension_loaded('gd');
 
-    // ข้อมูลที่หน้าต่างแก้ไขใช้เติมฟอร์มของผู้ใช้แต่ละคน
     $editDataOf = fn (\App\Models\User $u) => [
         'id'          => $u->id,
         'first_name'  => $u->first_name ?: \App\Models\User::splitName($u->name)[0],
@@ -53,7 +47,6 @@
         ],
     ];
 
-    // ผู้ใช้ที่ต้องเปิดหน้าต่างแก้ไขให้ทันที (อาจอยู่คนละหน้าของตาราง จึงดึงแยก)
     $openEditUser = $openEditId ? \App\Models\User::find($openEditId) : null;
 @endphp
 
@@ -61,7 +54,7 @@
     <div class="container py-3">
 
         <x-search-bar :action="route('users.index')"
-                      placeholder="ค้นหาชื่อ / อีเมล / สิทธิ์การใช้งาน"
+                      placeholder="ชื่อ / อีเมล"
                       :search="$search" :per-page="$perPage"
                       :statuses="$statusLabels" :status="$status" status-label="สถานะบัญชี">
             <div class="col-12 col-md-4 col-xl-2">
@@ -130,7 +123,6 @@
                             </td>
 
                             <td class="text-center">
-                                {{-- ระงับและลบ ไม่แสดงในแถวของตนเอง --}}
                                 <x-row-actions :delete="$isSelf ? null : route('users.destroy', $u)"
                                                :label="$u->name"
                                                delete-label="ลบบัญชี"
@@ -184,7 +176,6 @@
 
     </div>
 
-    {{-- ==================== หน้าต่างเพิ่มผู้ใช้ ==================== --}}
     <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserTitle" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <form class="modal-content" method="POST" action="{{ route('users.store') }}"
@@ -217,14 +208,14 @@
                             <input type="text" id="c_first_name" name="first_name" maxlength="100"
                                    value="{{ $createHasOld ? old('first_name') : '' }}"
                                    class="form-control {{ $ce->has('first_name') ? 'is-invalid' : '' }}"
-                                   placeholder="เช่น สมชาย" required data-required-msg="กรุณาใส่ชื่อ">
+                                   placeholder="เช่น สมชาย" required data-required-msg="กรุณากรอกชื่อ">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="c_last_name">นามสกุล <span class="req-star">*</span></label>
                             <input type="text" id="c_last_name" name="last_name" maxlength="100"
                                    value="{{ $createHasOld ? old('last_name') : '' }}"
                                    class="form-control {{ $ce->has('last_name') ? 'is-invalid' : '' }}"
-                                   placeholder="เช่น ใจดี" required data-required-msg="กรุณาใส่นามสกุล">
+                                   placeholder="เช่น ใจดี" required data-required-msg="กรุณากรอกนามสกุล">
                         </div>
 
                         <div class="col-md-6">
@@ -232,7 +223,7 @@
                             <input type="email" id="c_email" name="email" maxlength="255"
                                    value="{{ $createHasOld ? old('email') : '' }}"
                                    class="form-control {{ $ce->has('email') ? 'is-invalid' : '' }}"
-                                   placeholder="เช่น somchai@twofamily.co.th" required data-required-msg="กรุณาใส่อีเมล">
+                                   placeholder="เช่น somchai@twofamily.co.th" required data-required-msg="กรุณากรอกอีเมล">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="c_role">สิทธิ์การใช้งาน <span class="req-star">*</span></label>
@@ -278,7 +269,6 @@
                 </div>
 
                 <div class="modal-footer">
-                    <span class="small text-muted me-auto"><span class="req-star">*</span> = จำเป็นต้องกรอก</span>
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
                     <button type="submit" class="btn btn-dark"><i class="bi bi-check-lg me-1"></i>บันทึก</button>
                 </div>
@@ -286,7 +276,6 @@
         </div>
     </div>
 
-    {{-- ==================== หน้าต่างแก้ไขผู้ใช้ (ใช้ร่วมทุกแถว) ==================== --}}
     <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserTitle" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
@@ -319,7 +308,6 @@
                 </div>
 
                 <div class="tab-content">
-                    {{-- ---------- แท็บ 1: ข้อมูลผู้ใช้ ---------- --}}
                     <div class="tab-pane fade" id="editTabInfo" role="tabpanel">
                         <form method="POST" action="#" data-edit-form="update"
                               data-confirm="ข้อมูลและสิทธิ์การเข้าถึงจะถูกอัปเดตทันทีหลังบันทึก"
@@ -342,17 +330,17 @@
                                     <div class="col-md-6">
                                         <label class="form-label" for="e_first_name">ชื่อ <span class="req-star">*</span></label>
                                         <input type="text" id="e_first_name" name="first_name" maxlength="100" class="form-control"
-                                               required data-required-msg="กรุณาใส่ชื่อ">
+                                               required data-required-msg="กรุณากรอกชื่อ">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label" for="e_last_name">นามสกุล <span class="req-star">*</span></label>
                                         <input type="text" id="e_last_name" name="last_name" maxlength="100" class="form-control"
-                                               required data-required-msg="กรุณาใส่นามสกุล">
+                                               required data-required-msg="กรุณากรอกนามสกุล">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label" for="e_email">อีเมล (ใช้เข้าสู่ระบบ) <span class="req-star">*</span></label>
                                         <input type="email" id="e_email" name="email" maxlength="255" class="form-control"
-                                               required data-required-msg="กรุณาใส่อีเมล">
+                                               required data-required-msg="กรุณากรอกอีเมล">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label" for="e_role">สิทธิ์การใช้งาน <span class="req-star">*</span></label>
@@ -378,7 +366,6 @@
                         </form>
                     </div>
 
-                    {{-- ---------- แท็บ 2: ลายเซ็น ---------- --}}
                     <div class="tab-pane fade" id="editTabSignature" role="tabpanel">
                         <form method="POST" action="#" enctype="multipart/form-data" data-edit-form="signature">
                             @csrf
@@ -448,7 +435,6 @@
                         </form>
                     </div>
 
-                    {{-- ---------- แท็บ 3: รีเซ็ตรหัสผ่าน ---------- --}}
                     <div class="tab-pane fade" id="editTabPassword" role="tabpanel">
                         <form method="POST" action="#" data-edit-form="password"
                               data-confirm="รหัสผ่านเดิมจะใช้งานไม่ได้ทันที กรุณาแจ้งรหัสผ่านใหม่ให้ผู้ใช้ทราบ"
@@ -500,7 +486,6 @@
             const editModal   = bootstrap.Modal.getOrCreateInstance(editModalEl);
             const $ = (sel) => editModalEl.querySelector(sel);
 
-            // เติมฟอร์มทั้ง 3 แท็บด้วยข้อมูลของผู้ใช้คนนั้น
             function fill(user, old) {
                 const v = Object.assign({}, user, old || {});
 
@@ -543,7 +528,6 @@
                 });
             });
 
-            // เปิดหน้าต่างให้เองเมื่อกรอกผิดแล้วเด้งกลับ หรือมาจากลิงก์ ?modal=create / ?edit=ID
             @if ($openCreate)
                 bootstrap.Modal.getOrCreateInstance(document.getElementById('createUserModal')).show();
             @elseif ($openEditUser)

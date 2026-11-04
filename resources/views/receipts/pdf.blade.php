@@ -9,19 +9,16 @@
         $customer = $receipt->payer();
         $lines    = $receipt->lines();
 
-        // เลขที่อ่านจากคอลัมน์ code_rc (สร้างอัตโนมัติตอนบันทึก รูปแบบ RC-2569-0001)
         $rcCode = $receipt->code_rc ?? '-';
 
         $docTitle = ['ใบเสร็จรับเงิน', 'RECEIPT'];
 
-        // ยอดที่บันทึกไว้ในใบเสร็จ (ใบเก่าที่ยังไม่มีคอลัมน์ ถอยไปใช้ยอดของใบแจ้งหนี้)
         $subTotal   = (float) $receipt->subtotal ?: ($inv?->itemsSubtotal() ?? 0);
         $vatRate    = \App\Models\Invoice::VAT_RATE;
         $vat        = (float) $receipt->vat_amount ?: ($inv?->itemsVat() ?? 0);
         $gross      = round($subTotal + $vat, 2);
         $grandTotal = (float) $receipt->total;
 
-        // วิธีชำระ: ติ๊กจากหลักฐานการชำระรายการแรก
         $proof      = $receipt->proofPayments()->first();
         $method     = $proof?->method;
         $isCash     = $method === 'cash';
@@ -38,7 +35,6 @@
             src: url("{{ public_path('fonts/Sarabun-Regular.ttf') }}") format('truetype');
         }
 
-        {{-- dompdf ทำตัวหนาเองไม่ได้ ต้องมีไฟล์ Bold แยก ถ้าไม่มีไฟล์จะใช้ตัวปกติแทน --}}
         @if (file_exists(public_path('fonts/Sarabun-Bold.ttf')))
         @font-face {
             font-family: 'sarabun';
@@ -67,7 +63,6 @@
         .muted       { color: #666; }
         .small       { font-size: 11.5px; }
 
-        /* ---------- หัวเอกสาร ---------- */
         .company-name {
             font-size: 19px;
             font-weight: bold;
@@ -102,7 +97,6 @@
             margin: 10px 0 12px 0;
         }
 
-        /* ---------- ข้อมูลลูกค้า / อ้างอิง ---------- */
         .info {
             width: 100%;
             border: 1px solid #bfb3a8;
@@ -127,7 +121,6 @@
             border-left: 1px solid #bfb3a8;
         }
 
-        /* ---------- ตารางรายการ ---------- */
         .items {
             width: 100%;
             margin-top: 12px;
@@ -155,7 +148,6 @@
             background-color: #faf7f4;
         }
 
-        /* ---------- สรุปยอด ---------- */
         .summary {
             width: 100%;
         }
@@ -186,7 +178,6 @@
             padding: 6px 8px;
         }
 
-        /* ช่องติ๊ก: ติ๊กแล้วจะเป็นช่องทึบสีน้ำตาล */
         .check {
             display: inline-block;
             width: 9px;
@@ -200,7 +191,6 @@
             border-color: #4a3526;
         }
 
-        /* ---------- หมายเหตุเต็มความกว้าง ---------- */
         .note-full {
             border: 1px solid #bfb3a8;
             padding: 5px 8px;
@@ -209,7 +199,6 @@
             line-height: 1.3;
         }
 
-        /* ---------- ท้ายหน้า ---------- */
         .footer {
             position: fixed;
             bottom: -24px;
@@ -235,7 +224,6 @@
         </table>
     </div>
 
-    {{-- ===== หัวเอกสาร: ข้อมูลบริษัท (ซ้าย) / กล่องเลขที่เอกสาร (ขวา) ===== --}}
     <table width="100%">
         <tr>
             <td width="62%" style="vertical-align: top;">
@@ -276,7 +264,6 @@
 
     <div class="rule"></div>
 
-    {{-- ===== ข้อมูลลูกค้า (ซ้าย) / เอกสารอ้างอิง (ขวา) ===== --}}
     <table class="info small">
         <tr>
             <td colspan="2" class="head" width="62%">ได้รับเงินจาก</td>
@@ -312,7 +299,6 @@
         </tr>
     </table>
 
-    {{-- ===== ตารางรายการ ===== --}}
     <table class="items small">
         <thead>
             <tr>
@@ -339,7 +325,6 @@
                 </tr>
             @endforeach
 
-            {{-- เติมแถวว่างให้ตารางเต็มหน้า --}}
             @for ($i; $i <= 6; $i++)
                 <tr class="{{ $i % 2 === 0 ? 'row-alt' : '' }}">
                     <td>&nbsp;</td>
@@ -353,15 +338,8 @@
         </tbody>
     </table>
 
-    {{--
-        ===== ส่วนท้าย: สรุปยอด + หมายเหตุ + ลายเซ็น =====
-        ห่อไว้ในก้อนเดียวและห้ามตัดหน้าตรงกลาง ถ้าที่เหลือในหน้าไม่พอ
-        ทั้งก้อนจะย้ายไปหน้าถัดไปพร้อมกัน ลายเซ็นจะไม่หลุดไปอยู่หน้าเดียวโดด ๆ
-        ส่วนนี้จึงต้องเตี้ยพอที่จะอยู่หน้าแรกได้
-    --}}
     <div style="page-break-inside: avoid;">
 
-    {{-- ===== วิธีชำระเงิน (ซ้าย) / สรุปยอด (ขวา) ===== --}}
     <table width="100%" class="small" style="margin-top: 10px;">
         <tr>
             <td width="55%" style="vertical-align: top; padding-right: 12px;">
@@ -374,8 +352,6 @@
                     &nbsp;&nbsp;
                     <span class="check {{ $isCheque ? 'on' : '' }}"></span>เช็ค
                     @php
-                        // โอนเข้าบัญชีบริษัท → เลขที่ = เลขบัญชีที่ตั้งไว้ใน ตั้งค่า > การรับชำระเงิน
-                        // เช็ค → เลขที่ = เลขเช็ค (reference_no)
                         $companyBank = trim((string) \App\Models\Setting::get('payment.bank_name', ''));
                         $companyAcc  = trim((string) \App\Models\Setting::get('payment.account_no', ''));
                         $toCompany   = $isTransfer && $companyAcc !== ''
@@ -420,7 +396,6 @@
         </tr>
     </table>
 
-    {{-- หมายเหตุเต็มความกว้างหน้า แต่ละข้อจะได้อยู่บรรทัดเดียว ไม่ถูกตัดเป็นสองบรรทัด --}}
     @if (!empty($settings['receipt_note']))
         <div class="note-full">
             <b>หมายเหตุ</b><br>
@@ -441,7 +416,7 @@
         ],
     ]])
 
-    </div>{{-- /keep-together --}}
+    </div>
 
 </body>
 

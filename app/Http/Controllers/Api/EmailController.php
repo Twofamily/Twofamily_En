@@ -15,7 +15,7 @@ class EmailController extends Controller
             'to'         => 'required|email',
             'subject'    => 'required|string|max:255',
             'body'       => 'required|string',
-            'attachment' => 'nullable|file|max:10240', // max 10 MB
+            'attachment' => 'nullable|file|max:10240',
         ]);
 
         $attachmentPath = null;

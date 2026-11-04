@@ -1,15 +1,3 @@
-/*
- * confirm.js — modal ยืนยันก่อนส่งฟอร์ม ใช้ร่วมกันทั้งระบบ
- *
- * ใส่ data-confirm ที่ <form> (ไม่ใช่ที่ <button>)
- *   data-confirm="ข้อความในกล่อง"
- *   data-confirm-title="หัวข้อ"            (ไม่ใส่ = ยืนยันการทำรายการ)
- *   data-confirm-ok="ข้อความปุ่มยืนยัน"    (ไม่ใส่ = ยืนยัน)
- *   data-confirm-variant="danger|warning|success|primary"
- *   data-confirm-reason="cancel_reason"   ให้กรอกเหตุผลก่อนยืนยัน แล้วส่งไปในชื่อฟิลด์นี้ (เช่น ยกเลิกเอกสาร)
- *
- * ⚠ ต้องโหลด "หลัง" form-validation.js — ฟอร์มที่กรอกไม่ครบจะไม่เด้ง modal
- */
 document.addEventListener('DOMContentLoaded', function () {
 
     const modalEl = document.getElementById('confirmModal');
@@ -34,15 +22,12 @@ document.addEventListener('DOMContentLoaded', function () {
         primary: 'btn-primary',
     };
 
-    // ดักการ submit ของทุกฟอร์มที่มี data-confirm
     document.addEventListener('submit', function (e) {
         const form = e.target.closest('form[data-confirm]');
         if (!form) return;
 
-        // สคริปต์ของหน้านั้นยกเลิกการส่งไปแล้ว (เช่น ตรวจข้อมูลไม่ผ่าน) → ไม่ต้องถาม
         if (e.defaultPrevented) return;
 
-        // ถ้าผ่านการยืนยันแล้ว ให้ปล่อยผ่าน
         if (form.dataset.confirmed === 'true') return;
 
         e.preventDefault();
@@ -55,7 +40,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         okBtn.className = 'btn ' + (variantClass[form.dataset.confirmVariant] || 'btn-dark');
 
-        // ฟอร์มที่ต้องกรอกเหตุผล → แสดงช่องเหตุผล (ล้างค่าเดิมทุกครั้ง)
         if (reasonWrap) {
             const needReason = !!form.dataset.confirmReason;
             reasonWrap.classList.toggle('d-none', !needReason);
@@ -63,8 +47,6 @@ document.addEventListener('DOMContentLoaded', function () {
             reasonEl.classList.remove('is-invalid');
         }
 
-        // ฟอร์มอยู่ใน modal อีกอัน (เช่น เปลี่ยนสถานะรถ) → ปิดอันนั้นก่อน
-        // ถ้ากดยกเลิก จะเปิดกลับมาให้ (Bootstrap ซ้อน modal สองชั้นแล้วโฟกัสตีกัน)
         const parentEl = form.closest('.modal');
         if (parentEl && parentEl !== modalEl && parentEl.classList.contains('show')) {
             parentModal = bootstrap.Modal.getOrCreateInstance(parentEl);
@@ -81,7 +63,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const form = pendingForm;
 
-        // ต้องกรอกเหตุผล → ตรวจก่อน แล้วใส่เป็น hidden ไปกับฟอร์ม
         if (reasonWrap && form.dataset.confirmReason) {
             const reason = reasonEl.value.trim();
             if (reason.length < 3) {
@@ -99,7 +80,6 @@ document.addEventListener('DOMContentLoaded', function () {
             hidden.value = reason;
         }
 
-        // form.submit() ไม่ส่งค่าของปุ่มที่กด → เติมเป็น hidden ให้เอง
         if (pendingSubmitter && pendingSubmitter.name) {
             const hidden = document.createElement('input');
             hidden.type  = 'hidden';
@@ -112,7 +92,6 @@ document.addEventListener('DOMContentLoaded', function () {
         confirmedNow = true;
         modal.hide();
 
-        // กันกดซ้ำระหว่างรอหน้าโหลด
         form.querySelectorAll('button[type="submit"], button:not([type])').forEach(function (b) {
             b.disabled = true;
         });
@@ -123,7 +102,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     modalEl.addEventListener('hidden.bs.modal', function () {
-        // กดยกเลิก → เปิด modal เดิมของฟอร์มกลับมา
         if (!confirmedNow && parentModal) parentModal.show();
         parentModal = null;
         confirmedNow = false;
@@ -131,7 +109,6 @@ document.addEventListener('DOMContentLoaded', function () {
         pendingSubmitter = null;
     });
 
-    // กดย้อนกลับมาหน้านี้ (browser จำหน้าเดิมไว้) → คืนสถานะฟอร์มให้กดใหม่ได้
     window.addEventListener('pageshow', function (e) {
         if (!e.persisted) return;
         document.querySelectorAll('form[data-confirm]').forEach(function (form) {
@@ -140,7 +117,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // เปิดกล่องแล้วโฟกัสปุ่มยืนยัน กด Enter ได้เลย
     modalEl.addEventListener('shown.bs.modal', function () {
         if (reasonWrap && !reasonWrap.classList.contains('d-none')) {
             reasonEl.focus();

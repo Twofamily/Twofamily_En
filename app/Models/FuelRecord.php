@@ -52,7 +52,6 @@ class FuelRecord extends Model
         );
     }
 
-    /** แคมป์ที่รอบนี้วิ่งให้ (ว่าง = ไม่ได้วิ่งให้แคมป์ เช่น ส่งสินค้าตรง) */
     public function camp(): BelongsTo
     {
         return $this->belongsTo(

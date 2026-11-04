@@ -1,19 +1,8 @@
-{{--
-    ช่องธนาคาร — ใช้ร่วมกันในหน้าใบแจ้งหนี้ (บันทึกการชำระเงิน) และหน้าต่างออกใบเสร็จขายสด
-
-    เลือก "โอนเงิน" → เติมธนาคารของบัญชีรับเงินที่ตั้งไว้ใน ตั้งค่า > การรับชำระเงิน ให้เอง (แก้ได้)
-    เลือก "เช็ค"    → ล้างค่าที่เติมให้ออก (ช่องนี้ใช้กรอกธนาคารของเช็คแทน)
-    เลือก "เงินสด"  → ซ่อนช่องนี้ (ไม่มีธนาคาร)
-
-    ต้องมี <select id="method"> อยู่ในฟอร์มเดียวกัน
-    ส่ง: $method (วิธีชำระที่เลือกอยู่)
---}}
 @php
     $companyBank = trim((string) \App\Models\Setting::get('payment.bank_name', ''));
     $accountName = trim((string) \App\Models\Setting::get('payment.account_name', ''));
     $accountNo   = trim((string) \App\Models\Setting::get('payment.account_no', ''));
 
-    // ค่าเริ่มต้น: ค่าที่กรอกไว้ก่อนเด้งกลับ > ธนาคารบริษัท (ถ้าเลือกโอนเงิน)
     $bankValue = old('bank_name', $method === 'transfer' ? $companyBank : '');
 @endphp
 
@@ -41,7 +30,7 @@
 
 <script>
     (() => {
-        const box    = document.currentScript.previousElementSibling;   // [data-bank-box]
+        const box    = document.currentScript.previousElementSibling;
         const form   = box.closest('form');
         const method = form.querySelector('#method');
         const input  = box.querySelector('#bank_name');
@@ -55,9 +44,9 @@
             box.querySelector('[data-bank-hint]').hidden           = m !== 'transfer';
 
             if (m === 'transfer') {
-                if (!input.value.trim() && bank) input.value = bank;   // ไม่ทับค่าที่ผู้ใช้พิมพ์เอง
+                if (!input.value.trim() && bank) input.value = bank;
             } else if (input.value.trim() === bank) {
-                input.value = '';                                       // เช็ค / เงินสด ไม่ใช้ธนาคารบริษัท
+                input.value = '';
             }
         }
 

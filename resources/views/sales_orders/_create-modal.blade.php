@@ -1,13 +1,3 @@
-{{--
-    หน้าต่างสร้างใบสั่งขาย (หน้ารายการใบสั่งขาย) — 2 ทาง
-      ?modal=create&quotation=ID : จากใบเสนอราคาที่อนุมัติแล้ว (ราคาตามใบเสนอราคา)
-      ?modal=create&direct=1     : สั่งตรง ไม่มีใบเสนอราคา — ต้องให้ผู้ดูแลระบบยืนยันราคา
-      ?modal=create              : เลือกว่าจะสร้างแบบไหน
-
-    ต้องส่ง: $quotation (Quotation|null), $direct (bool), $quotations, $customers, $products
-    กรอกผิดแล้วเด้งกลับ (error bag createSalesOrder) → หน้าต่างเปิดเองพร้อมค่าที่กรอกไว้
-    ใบสั่งตรง: ปุ่ม "ลูกค้าใหม่" → หน้าต่างเพิ่มลูกค้า (customers._quick-modal) ไม่ต้องเปิดแท็บใหม่
---}}
 @php
     $errors = $errors->createSalesOrder->any()
         ? (new \Illuminate\Support\ViewErrorBag())->put('default', $errors->createSalesOrder)
@@ -32,10 +22,8 @@
                     </div>
                 @endif
 
-                {{-- ==================== ขั้นที่ 1: เลือกว่าจะสร้างแบบไหน ==================== --}}
-                @if (! $quotation && ! $direct)
+                @if (!$quotation && !$direct)
                     <div class="row g-3">
-                        {{-- จากใบเสนอราคา --}}
                         <div class="col-lg-7">
                             <div class="card h-100">
                                 <div class="card-body p-4">
@@ -43,7 +31,8 @@
                                         <i class="bi bi-file-earmark-text me-1"></i>สร้างจากใบเสนอราคา
                                     </h6>
                                     <p class="small text-muted">
-                                        ลูกค้าตกลงตามใบเสนอราคาที่อนุมัติแล้ว — ราคาดึงมาจากใบเสนอราคา ยืนยันใบสั่งขายได้เลย
+                                        ลูกค้าตกลงตามใบเสนอราคาที่อนุมัติแล้ว — ราคาดึงมาจากใบเสนอราคา
+                                        ยืนยันใบสั่งขายได้เลย
                                     </p>
 
                                     @if ($quotations->isEmpty())
@@ -55,15 +44,18 @@
                                         <div class="list-group">
                                             @foreach ($quotations as $item)
                                                 <a href="{{ route('sales_orders.index', ['modal' => 'create', 'quotation' => $item->id_quot]) }}"
-                                                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                                                     <div>
                                                         <span class="fw-semibold">{{ $item->code_quot }}</span>
-                                                        <span class="text-muted ms-2">{{ $item->customer->name_customer ?? '-' }}</span>
+                                                        <span
+                                                            class="text-muted ms-2">{{ $item->customer->name_customer ?? '-' }}</span>
                                                         <div class="small text-muted">
                                                             ลงวันที่ {{ $item->date_quot?->format('d/m/Y') }}
                                                         </div>
                                                     </div>
-                                                    <span class="fw-semibold">{{ number_format($item->total_amount, 2) }} บาท</span>
+                                                    <span
+                                                        class="fw-semibold">{{ number_format($item->total_amount, 2) }}
+                                                        บาท</span>
                                                 </a>
                                             @endforeach
                                         </div>
@@ -72,7 +64,6 @@
                             </div>
                         </div>
 
-                        {{-- สั่งตรง --}}
                         <div class="col-lg-5">
                             <div class="card h-100">
                                 <div class="card-body p-4 d-flex flex-column">
@@ -84,10 +75,12 @@
                                     </p>
                                     <ul class="small text-muted ps-3">
                                         <li>เลือกลูกค้าและกรอกรายการเอง (ราคาเริ่มต้นดึงจากหน้าสินค้า แก้ได้)</li>
-                                        <li>บันทึกเป็นร่างก่อน แล้ว<strong>ผู้ดูแลระบบ</strong>ต้องตรวจราคาและกดยืนยัน จึงจะเปิดแคมป์ได้</li>
+                                        <li>บันทึกเป็นร่างก่อน แล้ว<strong>ผู้ดูแลระบบ</strong>ต้องตรวจราคาและกดยืนยัน
+                                            จึงจะเปิดแคมป์ได้</li>
                                     </ul>
                                     <div class="mt-auto">
-                                        <a href="{{ route('sales_orders.index', ['modal' => 'create', 'direct' => 1]) }}" class="btn btn-outline-dark w-100">
+                                        <a href="{{ route('sales_orders.index', ['modal' => 'create', 'direct' => 1]) }}"
+                                            class="btn btn-outline-dark w-100">
                                             <i class="bi bi-plus-lg me-1"></i>สร้างใบสั่งตรง
                                         </a>
                                     </div>
@@ -97,16 +90,23 @@
                     </div>
                 @endif
 
-                {{-- ==================== ขั้นที่ 2: กรอกใบสั่งขาย ==================== --}}
                 @if ($quotation || $direct)
                     @php
-                        $rows = old('items', $quotation
-                            ? $quotation->details->map(fn ($d) => [
-                                'id_product' => $d->id_product,
-                                'quantity'   => (float) $d->quantity,
-                                'price'      => (float) $d->price_per_unit,
-                            ])->values()->all()
-                            : []);
+                        $rows = old(
+                            'items',
+                            $quotation
+                                ? $quotation->details
+                                    ->map(
+                                        fn($d) => [
+                                            'id_product' => $d->id_product,
+                                            'quantity' => (float) $d->quantity,
+                                            'price' => (float) $d->price_per_unit,
+                                        ],
+                                    )
+                                    ->values()
+                                    ->all()
+                                : [],
+                        );
                     @endphp
 
                     @if ($quotation)
@@ -115,7 +115,8 @@
                                 สร้างจากใบเสนอราคา <strong>{{ $quotation->code_quot }}</strong>
                                 — {{ $quotation->customer->name_customer ?? '-' }}
                             </div>
-                            <a href="{{ route('sales_orders.index', ['modal' => 'create']) }}" class="btn btn-sm btn-outline-secondary">
+                            <a href="{{ route('sales_orders.index', ['modal' => 'create']) }}"
+                                class="btn btn-sm btn-outline-secondary">
                                 เปลี่ยนใบเสนอราคา
                             </a>
                         </div>
@@ -123,9 +124,11 @@
                         <div class="alert alert-warning d-flex justify-content-between align-items-center gap-3">
                             <div>
                                 <i class="bi bi-telephone-inbound me-1"></i>
-                                <strong>ใบสั่งตรง</strong> — ไม่มีใบเสนอราคา ราคาที่กรอกต้องให้ผู้ดูแลระบบตรวจและยืนยันก่อนเปิดแคมป์
+                                <strong>ใบสั่งตรง</strong> — ไม่มีใบเสนอราคา
+                                ราคาที่กรอกต้องให้ผู้ดูแลระบบตรวจและยืนยันก่อนเปิดแคมป์
                             </div>
-                            <a href="{{ route('sales_orders.index', ['modal' => 'create']) }}" class="btn btn-sm btn-outline-secondary text-nowrap">
+                            <a href="{{ route('sales_orders.index', ['modal' => 'create']) }}"
+                                class="btn btn-sm btn-outline-secondary text-nowrap">
                                 เลือกจากใบเสนอราคาแทน
                             </a>
                         </div>
@@ -133,7 +136,8 @@
 
                     <form method="POST" action="{{ route('sales_orders.store') }}" autocomplete="off"
                         data-confirm="{{ $quotation ? 'ต้องการบันทึกใบสั่งขายนี้หรือไม่' : 'ใบสั่งตรงจะถูกบันทึกเป็นร่าง และรอผู้ดูแลระบบตรวจราคาและยืนยัน' }}"
-                        data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก" data-confirm-variant="primary">
+                        data-confirm-title="ยืนยันการบันทึกข้อมูล" data-confirm-ok="บันทึก"
+                        data-confirm-variant="primary">
                         @csrf
 
                         @if ($quotation)
@@ -153,8 +157,8 @@
                                             <label for="id_customer" class="form-label">ลูกค้า</label>
                                             <div class="d-flex gap-2">
                                                 <select id="id_customer" name="id_customer"
-                                                        class="form-select @error('id_customer') is-invalid @enderror"
-                                                        required data-required-msg="กรุณาเลือกลูกค้า" data-customer-select>
+                                                    class="form-select @error('id_customer') is-invalid @enderror" required
+                                                    data-required-msg="กรุณาเลือกลูกค้า" data-customer-select>
                                                     <option value="">— เลือกลูกค้า —</option>
                                                     @foreach ($customers as $c)
                                                         @continue($c->isWalkIn())
@@ -163,7 +167,8 @@
                                                         </option>
                                                     @endforeach
                                                 </select>
-                                                <button type="button" class="btn btn-outline-secondary text-nowrap" data-quick-customer>
+                                                <button type="button" class="btn btn-outline-secondary text-nowrap"
+                                                    data-quick-customer>
                                                     <i class="bi bi-person-plus me-1"></i>ลูกค้าใหม่
                                                 </button>
                                             </div>
@@ -173,39 +178,40 @@
                                     <div class="col-md-4">
                                         <label for="order_date" class="form-label">วันที่สั่งซื้อ</label>
                                         <input type="date" id="order_date" name="order_date"
-                                               value="{{ old('order_date', now()->toDateString()) }}"
-                                               class="form-control" required>
+                                            value="{{ old('order_date', now()->toDateString()) }}" class="form-control"
+                                            required>
                                     </div>
                                     <div class="col-md-4">
                                         <label for="due_date" class="form-label">
                                             กำหนดส่งมอบ <span class="text-muted fw-normal">(ไม่บังคับ)</span>
                                         </label>
                                         <input type="date" id="due_date" name="due_date"
-                                               value="{{ old('due_date') }}" class="form-control">
+                                            value="{{ old('due_date') }}" class="form-control">
                                     </div>
                                     <div class="col-md-4">
                                         <label for="po_number" class="form-label">
                                             เลขที่ PO ของลูกค้า <span class="text-muted fw-normal">(ไม่บังคับ)</span>
                                         </label>
                                         <input type="text" id="po_number" name="po_number"
-                                               value="{{ old('po_number') }}" class="form-control" maxlength="50">
+                                            value="{{ old('po_number') }}" class="form-control" maxlength="50">
                                     </div>
                                     <div class="col-12">
                                         <label for="note" class="form-label">หมายเหตุ</label>
                                         <textarea id="note" name="note" rows="2" class="form-control"
-                                                  placeholder="{{ $quotation ? '' : 'เช่น ลูกค้าโทรสั่งเพิ่ม ตกลงราคาตามงานเดิม' }}">{{ old('note') }}</textarea>
+                                            placeholder="{{ $quotation ? '' : 'เช่น ลูกค้าโทรสั่งเพิ่ม ตกลงราคาตามงานเดิม' }}">{{ old('note') }}</textarea>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         @include('sales_orders._items', [
-                            'products'      => $products,
-                            'rows'          => $rows,
+                            'products' => $products,
+                            'rows' => $rows,
                         ])
 
                         <div class="d-flex justify-content-end gap-2">
-                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                            <button type="button" class="btn btn-outline-secondary"
+                                data-bs-dismiss="modal">ยกเลิก</button>
                             <button class="btn btn-dark"><i class="bi bi-check-lg me-1"></i>บันทึกเป็นร่าง</button>
                         </div>
                     </form>
@@ -215,7 +221,6 @@
     </div>
 </div>
 
-{{-- ปุ่ม "ลูกค้าใหม่" (ใบสั่งตรง) เปิดหน้าต่างนี้แทน แล้วเลือกลูกค้าที่เพิ่งเพิ่มให้เลย --}}
-@if ($direct && ! $quotation)
+@if ($direct && !$quotation)
     @include('customers._quick-modal', ['action' => route('sales_orders.customers.store')])
 @endif

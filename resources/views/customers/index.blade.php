@@ -7,10 +7,6 @@
 @endsection
 
 @php
-    /*
-     | เพิ่ม / แก้ไขลูกค้าทำในหน้าต่าง (modal) ของหน้านี้ ไม่ต้องย้ายหน้า
-     | กรอกผิดแล้วเด้งกลับมา → เปิดหน้าต่างเดิมให้อัตโนมัติ พร้อมค่าที่กรอกไว้และข้อความแจ้ง
-     */
     $canEdit = auth()->user()->canEdit();
 
     $createHasOld = $errors->createCustomer->any();
@@ -23,7 +19,6 @@
         $openEditCustomer = null;
     }
 
-    // ค่าที่หน้าต่างแก้ไขใช้เติมฟอร์มของลูกค้าแต่ละราย
     $editDataOf = function (\App\Models\Customer $c) {
         $isBranch = $c->isCompany() && $c->branch_code && $c->branch_code !== \App\Models\Customer::HEAD_OFFICE;
 
@@ -54,10 +49,8 @@
         ];
     };
 
-    // ค่าที่กรอกไว้ก่อนเด้งกลับ (หน้าต่างแก้ไข)
     $oldEdit = $editHasOld ? \Illuminate\Support\Arr::except(old(), ['_token', '_method', '_customer_id']) : null;
 
-    // ส่งต่อ หน้า / คำค้น / ตัวกรอง ไปกับฟอร์มแก้ไข จะได้กลับมาหน้าเดิมหลังบันทึก
     $keepQuery = array_filter(request()->only('page', 'search', 'type', 'per_page'), fn ($v) => $v !== null && $v !== '');
 @endphp
 
@@ -78,7 +71,7 @@
     <div class="container py-3">
 
         <x-search-bar :action="route('customers.index')"
-                      placeholder="ค้นหาชื่อ / ผู้ติดต่อ / เลขภาษี / เบอร์โทร / อีเมล / ที่อยู่"
+                      placeholder="ชื่อลูกค้า / ผู้ติดต่อ / เบอร์โทร / อีเมล"
                       :search="$search" :per-page="$perPage"
                       :statuses="$typeLabels" :status="$type" status-name="type" status-label="ประเภทลูกค้า" />
 
@@ -184,7 +177,6 @@
     </div>
 
     @if ($canEdit)
-        {{-- ==================== หน้าต่างเพิ่มลูกค้า ==================== --}}
         <div class="modal fade" id="createCustomerModal" tabindex="-1" aria-labelledby="createCustomerTitle" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <form class="modal-content" method="POST" action="{{ route('customers.store') }}" data-customer-form
@@ -218,7 +210,6 @@
                     </div>
 
                     <div class="modal-footer">
-                        <span class="small text-muted me-auto"><span class="req-star">*</span> = จำเป็นต้องกรอก</span>
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
                         <button type="submit" class="btn btn-dark"><i class="bi bi-check-lg me-1"></i>บันทึก</button>
                     </div>
@@ -226,7 +217,6 @@
             </div>
         </div>
 
-        {{-- ==================== หน้าต่างแก้ไขลูกค้า (ใช้ร่วมทุกแถว) ==================== --}}
         <div class="modal fade" id="editCustomerModal" tabindex="-1" aria-labelledby="editCustomerTitle" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <form class="modal-content" method="POST" action="#" data-customer-form
@@ -276,7 +266,6 @@
         <script>
             document.addEventListener('DOMContentLoaded', function () {
 
-                /* ---------- ที่อยู่: จังหวัด → อำเภอ → ตำบล → รหัสไปรษณีย์ ---------- */
                 let addressData = null;
                 function loadAddress() {
                     addressData = addressData || fetch(@json(asset('data/thai-address.json')))
@@ -293,7 +282,6 @@
                     select.add(new Option(placeholder, ''));
                 }
 
-                // ตั้งค่าที่เลือก ถ้าไม่มีในรายการ (ข้อมูลเก่าสะกดต่างกัน) ก็เพิ่มตัวเลือกนั้นไว้ ไม่ให้ค่าหาย
                 function choose(select, value) {
                     if (!value) { select.value = ''; return; }
                     if (![...select.options].some((o) => o.value === value)) {
@@ -344,7 +332,6 @@
                         data.forEach((p) => prov.add(new Option(p.name_th, p.name_th)));
                     });
 
-                    // ใส่ที่อยู่ที่บันทึกไว้ (หน้าต่างแก้ไข / ค่าที่กรอกไว้ก่อนเด้งกลับ)
                     return function set(v) {
                         return ready.then(() => {
                             choose(prov, v.province || '');
@@ -359,14 +346,12 @@
                     };
                 }
 
-                /* ---------- ประเภทลูกค้า / สาขา: แสดงเฉพาะช่องที่เกี่ยวข้อง ---------- */
                 function applyType(form) {
                     const type = form.querySelector('[data-customer-type]:checked')?.value || 'person';
 
                     form.querySelectorAll('[data-type-block]').forEach((block) => {
                         const active = block.dataset.typeBlock === type;
                         block.classList.toggle('d-none', !active);
-                        // ช่องที่ซ่อนไม่ต้องตรวจ และไม่ส่งไปบันทึก
                         block.querySelectorAll('input, select, textarea').forEach((el) => el.disabled = !active);
                     });
 
@@ -389,7 +374,6 @@
                     setters.set(form, setupAddress(form));
                 });
 
-                /* ---------- หน้าต่างเพิ่ม ---------- */
                 const createForm = document.querySelector('#createCustomerModal form');
                 const createAddr = createForm.querySelector('[data-address]');
                 setters.get(createForm)({
@@ -399,7 +383,6 @@
                     zipcode:     createAddr.querySelector('[data-addr="zipcode"]').value,
                 });
 
-                /* ---------- หน้าต่างแก้ไข ---------- */
                 const editModalEl = document.getElementById('editCustomerModal');
                 const editModal   = bootstrap.Modal.getOrCreateInstance(editModalEl);
                 const editForm    = editModalEl.querySelector('form');
@@ -412,7 +395,7 @@
                     editForm.action = customer.url;
 
                     editForm.querySelector('[data-customer-type][value="' + (v.customer_type || 'person') + '"]').checked = true;
-                    applyType(editForm);   // เปิดช่องทั้งหมดของประเภทนั้นก่อน แล้วค่อยเติมค่า
+                    applyType(editForm);
 
                     ['name_prefix', 'first_name', 'last_name', 'name_customer', 'branch_kind', 'branch_no',
                      'contact_name', 'tax_id', 'phone_customer', 'email_customer',
@@ -431,7 +414,6 @@
                 }
 
                 function open(customer, old) {
-                    // ล้างกรอบแดงจากการเปิดครั้งก่อน (ยกเว้นตอนเด้งกลับพร้อมข้อผิดพลาด)
                     if (!old) {
                         editForm.querySelectorAll('.is-invalid').forEach((el) => el.classList.remove('is-invalid'));
                         editModalEl.querySelector('.alert-danger')?.remove();
@@ -444,7 +426,6 @@
                     btn.addEventListener('click', () => open(JSON.parse(btn.dataset.customerEdit)));
                 });
 
-                // เปิดหน้าต่างให้เองเมื่อกรอกผิดแล้วเด้งกลับ หรือมาจากลิงก์ ?modal=create / ?edit=ID
                 @if ($openCreate)
                     bootstrap.Modal.getOrCreateInstance(document.getElementById('createCustomerModal')).show();
                 @elseif ($openEditCustomer)

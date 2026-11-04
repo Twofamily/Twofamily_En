@@ -9,25 +9,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
-/**
- * สร้างเลขที่เอกสารตามค่าในหน้าตั้งค่า
- *
- *   รายปี   : SO-2569-0004
- *   รายเดือน: SO-2569-10-0004
- *   ไม่รีเซ็ต: SO-000004
- *
- * วิธีใช้:
- *   app(DocumentNumberService::class)->next('sales_order');   // ออกเลขจริง (นับเพิ่ม)
- *   app(DocumentNumberService::class)->peek('sales_order');   // ดูเลขถัดไป (ไม่นับเพิ่ม)
- */
 class DocumentNumberService
 {
-    /**
-     * ออกเลขถัดไป และบันทึกตัวนับ
-     *
-     * ควรเรียกภายใน DB::transaction เดียวกับการสร้างเอกสาร
-     * ถ้าบันทึกเอกสารไม่สำเร็จ ตัวนับจะ rollback ไปด้วย เลขจึงไม่ข้าม
-     */
     public function next(string $type, ?CarbonInterface $date = null): string
     {
         $this->assertType($type);
@@ -37,9 +20,6 @@ class DocumentNumberService
 
         return DB::transaction(function () use ($type, $date, $period) {
 
-            // สร้างแถวตัวนับถ้ายังไม่มี
-            // ใช้ insertOrIgnore + unique index แทนการเช็กก่อนแล้วค่อยสร้าง
-            // เพราะถ้าสองคนเช็กพร้อมกัน จะเห็นว่า "ยังไม่มี" ทั้งคู่แล้วสร้างซ้อน
             DB::table('document_sequences')->insertOrIgnore([
                 'doc_type'    => $type,
                 'period'      => $period,
@@ -48,15 +28,11 @@ class DocumentNumberService
                 'updated_at'  => now(),
             ]);
 
-            // ล็อกแถวนี้ไว้ คนที่สองต้องรอจนคนแรก commit ถึงจะอ่านได้
-            // จึงไม่มีทางได้เลขเดียวกัน
             $sequence = DocumentSequence::where('doc_type', $type)
                 ->where('period', $period)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // เทียบกับเลขสูงสุดที่มีอยู่จริงในตารางเอกสารด้วยทุกครั้ง
-            // กันเลขชนกับข้อมูลเดิม หรือเอกสารที่สร้างด้วยโค้ดเก่าก่อนเปลี่ยนมาใช้ service นี้
             $sequence->last_number = max(
                 $sequence->last_number,
                 $this->highestExisting($type, $date)
@@ -68,7 +44,6 @@ class DocumentNumberService
         });
     }
 
-    /** ดูเลขถัดไปโดยไม่นับเพิ่ม (ใช้แสดงบนหน้าจอ) */
     public function peek(string $type, ?CarbonInterface $date = null): string
     {
         $this->assertType($type);
@@ -84,7 +59,6 @@ class DocumentNumberService
         return $this->format($type, $date, $last + 1);
     }
 
-    /** ประกอบเลขที่เอกสารจากเลขรัน */
     public function format(string $type, CarbonInterface $date, int $number): string
     {
         $digits = Setting::get('doc.running_digits');
@@ -93,9 +67,6 @@ class DocumentNumberService
             . str_pad((string) $number, $digits, '0', STR_PAD_LEFT);
     }
 
-    /* ==================== ส่วนประกอบของเลข ==================== */
-
-    /** ส่วนหน้าของเลข ก่อนเลขรัน เช่น "SO-2569-" */
     private function stem(string $type, CarbonInterface $date): string
     {
         $period = $this->periodLabel($date);
@@ -108,7 +79,6 @@ class DocumentNumberService
         return Setting::get("doc.prefix.{$type}");
     }
 
-    /** ปีตามรูปแบบที่ตั้งไว้ */
     private function year(CarbonInterface $date): int
     {
         return Setting::get('doc.year_format') === 'be'
@@ -116,7 +86,6 @@ class DocumentNumberService
             : $date->year;
     }
 
-    /** ส่วนของช่วงเวลาที่แสดงในเลข: "2569" / "2569-10" / "" */
     private function periodLabel(CarbonInterface $date): string
     {
         return match (Setting::get('doc.reset_period')) {
@@ -126,19 +95,11 @@ class DocumentNumberService
         };
     }
 
-    /** key ของช่วงเวลาในตารางตัวนับ */
     private function periodKey(CarbonInterface $date): string
     {
         return $this->periodLabel($date) ?: 'all';
     }
 
-    /* ==================== เลขที่มีอยู่จริง ==================== */
-
-    /**
-     * เลขรันสูงสุดที่มีอยู่แล้วในตารางเอกสาร (รวมใบที่ถูก soft delete)
-     *
-     * ใบที่ถูกลบต้องนับด้วย เพราะเลขที่ใบกำกับภาษีห้ามนำกลับมาใช้ซ้ำ
-     */
     private function highestExisting(string $type, CarbonInterface $date): int
     {
         $info   = Setting::documentTypes()[$type];
@@ -156,8 +117,6 @@ class DocumentNumberService
         $stem    = $this->stem($type, $date);
         $pattern = '/^' . preg_quote($stem, '/') . '(\d+)$/';
 
-        // แยกเลขรันด้วย regex แทน orderByDesc
-        // เพราะการเรียงแบบข้อความจะผิดเมื่อจำนวนหลักเปลี่ยน (เช่น 9999 กับ 10000)
         return (int) $query
             ->where($column, 'like', $stem . '%')
             ->pluck($column)

@@ -9,12 +9,6 @@
 @section('content')
     <div class="container py-2">
 
-        {{-- @foreach (['ok' => 'success', 'info' => 'info'] as $key => $color)
-            @if (session($key))
-                <div class="alert alert-{{ $color }} shadow-sm">{{ session($key) }}</div>
-            @endif
-        @endforeach --}}
-
         @if ($errors->any())
             <div class="alert alert-danger shadow-sm">
                 <ul class="mb-0 ps-3">
@@ -29,11 +23,9 @@
             กลับหน้ารายการ
         </a>
 
-        {{-- ข้อมูลรถ --}}
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
                 <div class="row align-items-center">
-                    {{-- แสดงรูปภาพรถ (ถ้ามี) --}}
                     @if ($truck->image)
                         <div class="col-md-3 mb-3 mb-md-0 text-center">
                             <img src="{{ asset('storage/' . $truck->image) }}" alt="{{ $truck->id_truck }}"
@@ -79,7 +71,6 @@
             </div>
         </div>
 
-        {{-- งานซ่อมที่ยังไม่ปิด --}}
         @if ($ongoing = $truck->ongoingMaintenance)
             <div class="card border-warning shadow-sm mb-3">
                 <div class="card-body">
@@ -132,7 +123,6 @@
             </div>
         @endif
 
-        {{-- ประวัติการซ่อม --}}
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white fw-semibold py-3">ประวัติการซ่อมบำรุง</div>
 
@@ -188,7 +178,6 @@
         </div>
     </div>
 
-    {{-- Modal เปลี่ยนสถานะ --}}
     <div class="modal fade" id="statusModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <form method="POST" action="{{ route('trucks.status', $truck->id_truck) }}" class="modal-content"
@@ -230,11 +219,6 @@
                                     value="{{ old('start_date', date('Y-m-d')) }}" required
                                     data-required-msg="กรุณาใส่วันที่เริ่มซ่อม">
                             </div>
-                            {{-- <div class="col-6 mb-2">
-                                <label class="form-label">คาดว่าเสร็จ</label>
-                                <input type="date" name="expected_return" class="form-control"
-                                    value="{{ old('expected_return') }}">
-                            </div> --}}
                             <div class="col-6 mb-2">
                                 <label class="form-label">อู่ / ผู้ซ่อม</label>
                                 <input type="text" name="garage" class="form-control" value="{{ old('garage') }}">

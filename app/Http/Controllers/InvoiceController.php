@@ -16,9 +16,6 @@ use Illuminate\Validation\ValidationException;
 
 class InvoiceController extends Controller
 {
-    /**
-     * ออกใบแจ้งหนี้ในหน้าต่าง (modal) ของหน้ารายการ — ลิงก์เดิม (?delivery_note= / ?group=) ยังใช้ได้
-     */
     public function create(Request $request)
     {
         $preselect = $request->integer('delivery_note') ?: null;
@@ -39,10 +36,6 @@ class InvoiceController extends Controller
         ]));
     }
 
-    /**
-     * ข้อมูลของหน้าต่างออกใบแจ้งหนี้
-     *   ขั้นที่ 1 เลือกแคมป์ / ลูกค้า (?group=)  ขั้นที่ 2 ติ๊กใบส่งของ
-     */
     private function createFormData(Request $request): array
     {
         if (! $request->user()?->canEdit('invoices')) {
@@ -56,7 +49,6 @@ class InvoiceController extends Controller
             $group = $this->groupKeyOf($note);
         }
 
-        // กรอกผิดแล้วเด้งกลับ → กลุ่มเดิมของใบส่งของที่ติ๊กไว้
         if (! $group && ($oldIds = old('delivery_notes'))) {
             $note  = DeliveryNote::find((int) collect($oldIds)->first());
             $group = $note ? $this->groupKeyOf($note) : null;
@@ -128,7 +120,6 @@ class InvoiceController extends Controller
                 ->values();
 
             $subtotal = round($lines->sum('total'), 2);
-            // แก้ไขไวยากรณ์การคำนวณ VAT
             $total    = round($subtotal + ($subtotal * Invoice::VAT_RATE / 100), 2);
 
             $invoice = Invoice::create([
@@ -207,22 +198,17 @@ class InvoiceController extends Controller
 
         $statuses = $this->statusesMatching($search, Invoice::STATUSES);
 
-        // dropdown เลือกสถานะ + ช่วงยอดสุทธิ
         $status = $this->statusFilter($request, [...array_keys(Invoice::STATUSES), 'cancelled']);
         $ranges = $this->numberRanges($request, [
             'total' => ['label' => 'ยอดสุทธิ', 'unit' => 'บาท', 'step' => '0.01'],
         ]);
 
         $invoices = Invoice::with(['customer', 'quotation', 'deliveryNotes:id_delivery_note,id_invoice,code_dn,delivery_date'])
-            // ดึงยอดชำระรวม / จำนวนรายการชำระ / มีใบเสร็จไหม มาใน query เดียว
-            // แทนการเรียก paidAmount() ทีละแถว
-            ->withSum('payments', 'amount')     // → payments_sum_amount
-            ->withCount('payments')             // → payments_count
-            ->withExists('receipt')             // → receipt_exists
+            ->withSum('payments', 'amount')
+            ->withCount('payments')
+            ->withExists('receipt')
             ->with('cancelledBy')
-            // แสดงใบที่ยกเลิกแล้วด้วย เลือกกรอง "ยกเลิกแล้ว" ได้
             ->cancelledFilter($status)
-            // ช่องค้นหาช่องเดียว: เลขที่ใบแจ้งหนี้ ลูกค้า ใบส่งของ ใบเสนอราคา และสถานะ
             ->when($search !== '', function ($query) use ($search, $statuses) {
                 $query->where(function ($sub) use ($search, $statuses) {
                     $sub->where('code_inv', 'like', "%{$search}%")
@@ -260,10 +246,6 @@ class InvoiceController extends Controller
         return $pdf->stream($invoice->code_inv . '.pdf');
     }
 
-    /**
-     * ยกเลิกใบแจ้งหนี้ (ไม่ลบ) — เลขที่ยังอยู่ รายการสินค้ายังอยู่ให้ตรวจย้อนหลัง
-     * ใบส่งของที่เคยรวมอยู่กลับไปรอออกใบแจ้งหนี้ (ออกใบใหม่ได้)
-     */
     public function destroy(Request $request, $id)
     {
         $data = $request->validate(
@@ -281,7 +263,6 @@ class InvoiceController extends Controller
             $notes = DeliveryNote::where('id_invoice', $invoice->id_invoice)->lockForUpdate()->pluck('code_dn');
             DeliveryNote::where('id_invoice', $invoice->id_invoice)->update(['id_invoice' => null]);
 
-            // จดใบส่งของที่ปล่อยกลับไว้ในเหตุผล จะได้ตรวจย้อนหลังได้ว่าใบนี้เคยเรียกเก็บอะไร
             $reason = $data['cancel_reason'];
             if ($notes->isNotEmpty()) {
                 $reason = mb_substr($reason . ' (ใบส่งของ: ' . $notes->implode(', ') . ')', 0, 255);
@@ -296,8 +277,6 @@ class InvoiceController extends Controller
             ->with('success', 'ยกเลิกใบแจ้งหนี้ ' . $invoice->code_inv . ' แล้ว'
                 . ($released->isNotEmpty() ? ' ใบส่งของ ' . $released->count() . ' ใบกลับไปรอออกใบแจ้งหนี้' : ''));
     }
-
-    /* ================= helper ================= */
 
     private function assertCanInvoice($notes, string $invoiceDate): void
     {

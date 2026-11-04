@@ -8,15 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
-/**
- * หน้าตั้งค่าระบบ แบ่งเป็นแท็บตาม group ใน config/settings.php
- *
- * รับและบันทึกเฉพาะ key ที่ประกาศไว้ในทะเบียนเท่านั้น
- * field อื่นที่ถูกส่งมาจะถูกทิ้งทั้งหมด
- */
 class SettingController extends Controller
 {
-    /** ข้อความแจ้งเตือนภาษาไทย ใช้ร่วมกับชื่อช่องจากทะเบียน (:attribute) */
     private const MESSAGES = [
         'required' => 'กรุณากรอก:attribute',
         'integer'  => ':attribute ต้องเป็นจำนวนเต็ม',
@@ -65,7 +58,6 @@ class SettingController extends Controller
 
         foreach ($definitions as $key => $def) {
 
-            // ไฟล์รูป: อัปโหลดใหม่ / ลบ / ไม่แตะ
             if ($def['type'] === 'image') {
                 $current = Setting::get($key);
 
@@ -82,8 +74,6 @@ class SettingController extends Controller
 
             $value = data_get($validated, $key);
 
-            // ช่องข้อความที่ถูกลบจนว่าง เก็บเป็น '' ไม่ใช่ null
-            // ถ้าเก็บ null ระบบจะคิดว่า "ยังไม่ได้ตั้ง" แล้วกลับไปใช้ค่า default แทน
             if ($value === null && in_array($def['type'], ['string', 'text'], true)) {
                 $value = '';
             }
@@ -93,7 +83,6 @@ class SettingController extends Controller
 
         Setting::setMany($values);
 
-        // ลบไฟล์เก่าหลังบันทึกสำเร็จแล้วเท่านั้น
         foreach (array_filter($filesToDrop) as $path) {
             Storage::disk('public')->delete($path);
         }
@@ -103,12 +92,8 @@ class SettingController extends Controller
             ->with('ok', 'บันทึกการตั้งค่า' . Setting::groups()[$group]['label'] . 'เรียบร้อย');
     }
 
-    /* ==================== Private helpers ==================== */
-
-    /** จัดรูปแบบค่าก่อนตรวจ ผู้ใช้จะได้ไม่ต้องพิมพ์ให้ตรงเป๊ะ */
     private function normalizeInput(Request $request, string $group): void
     {
-        // เลขผู้เสียภาษี: รับ 0-1234-56789-01-2 ได้ เก็บเป็นตัวเลขล้วน
         if ($group === 'company') {
             $company = $request->input('company', []);
 
@@ -118,7 +103,6 @@ class SettingController extends Controller
             }
         }
 
-        // ตัวย่อเอกสาร: พิมพ์ตัวเล็กมาก็แปลงเป็นตัวใหญ่ให้
         if ($group === 'document') {
             $doc = $request->input('doc', []);
 
@@ -130,11 +114,6 @@ class SettingController extends Controller
         }
     }
 
-    /**
-     * ตัวย่อเอกสารห้ามซ้ำกัน
-     * ถ้าใบแจ้งหนี้กับใบเสร็จใช้ตัวย่อเดียวกัน เลขที่เอกสารสองประเภทจะปนกัน
-     * และระบบตรวจเลขสูงสุดจะนับเอกสารของอีกประเภทเข้ามาด้วย
-     */
     private function duplicatePrefixError(array $validated): ?array
     {
         $seen = [];
@@ -152,7 +131,6 @@ class SettingController extends Controller
         return null;
     }
 
-    /** เลขที่เอกสารถัดไปของทุกประเภท (ตามค่าที่บันทึกแล้ว) */
     private function nextNumbers(DocumentNumberService $numbers): array
     {
         $result = [];

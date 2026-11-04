@@ -14,22 +14,12 @@ use Illuminate\Support\Facades\Storage;
 
 class TruckController extends Controller
 {
-    /** แท็บในหน้ารถบรรทุก => [ชื่อ, ไอคอน, สิทธิ์ที่ต้องมี] */
     private const TABS = [
         'trucks' => ['label' => 'รถบรรทุก', 'icon' => 'bi-truck-front', 'module' => 'trucks'],
         'models' => ['label' => 'รุ่นรถ',    'icon' => 'bi-card-list',   'module' => 'truck_models'],
         'brands' => ['label' => 'ยี่ห้อ',     'icon' => 'bi-award',       'module' => 'truck_brands'],
     ];
 
-    /**
-     * หน้ารถบรรทุก มี 3 แท็บ (?tab=)
-     *   trucks : รถบรรทุกในบริษัท (ค่าเริ่มต้น)
-     *   models : รุ่นรถ — เห็นเฉพาะคนที่มีสิทธิ์ดูหน้ารุ่นรถ
-     *   brands : ยี่ห้อ — เห็นเฉพาะคนที่มีสิทธิ์ดูหน้ายี่ห้อ
-     *
-     * ปุ่มเพิ่มของทุกแท็บเปิดเป็น modal ในหน้านี้ ไม่ย้ายหน้า
-     * query เฉพาะแท็บที่เปิดอยู่ แท็บอื่นนับแค่จำนวนไว้โชว์บนป้าย
-     */
     public function index(Request $request)
     {
         $user = $request->user();
@@ -52,7 +42,6 @@ class TruckController extends Controller
             default  => $this->truckListData($request),
         };
 
-        // dropdown ใน modal เพิ่มรถ (ยี่ห้อ → รุ่น → สเปค) และ modal เพิ่มรุ่น
         $brandOptions = match ($tab) {
             'trucks' => TruckBrand::with('models')->orderBy('name_brand')->get(),
             'models' => TruckBrand::orderBy('name_brand')->get(),
@@ -62,16 +51,13 @@ class TruckController extends Controller
         return view('trucks.index', $data + compact('tab', 'tabs', 'counts', 'brandOptions'));
     }
 
-    /** ข้อมูลตารางรถบรรทุก (แท็บแรก) */
     private function truckListData(Request $request): array
     {
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
 
-        // พิมพ์ "ซ่อม" / "พร้อม" / "ปลด" ก็ค้นตามสถานะได้
         $statuses = $this->statusesMatching($search, Truck::STATUS_LABELS);
 
-        // dropdown เลือกสถานะ + ช่วงปีที่ซื้อ
         $status = $this->statusFilter($request, array_keys(Truck::STATUS_LABELS));
         $ranges = $this->numberRanges($request, [
             'year' => [
@@ -81,7 +67,6 @@ class TruckController extends Controller
             ],
         ]);
 
-        // ช่องค้นหาช่องเดียว: ทะเบียน จังหวัด ปี ยี่ห้อ รุ่น และสถานะ
         $trucks = Truck::with(['brand', 'model'])
             ->when($search !== '', function ($query) use ($search, $statuses) {
                 $query->where(function ($sub) use ($search, $statuses) {
@@ -104,7 +89,6 @@ class TruckController extends Controller
         return compact('trucks', 'search', 'perPage', 'status', 'ranges');
     }
 
-    /** ฟอร์มเพิ่มรถย้ายไปเป็น modal ในหน้ารายการแล้ว — เปิด URL เดิมก็เด้ง modal ให้ */
     public function create()
     {
         return redirect()->route('trucks.index', ['open' => 'truck']);
@@ -141,7 +125,6 @@ class TruckController extends Controller
         return view('trucks.show', compact('truck'));
     }
 
-    /** แก้ไขรถทำในหน้าต่าง (modal) ของแท็บรถบรรทุก */
     public function edit(Truck $truck)
     {
         return redirect()->route('trucks.index', ['edit' => $truck->id_truck]);

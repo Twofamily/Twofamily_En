@@ -1,20 +1,10 @@
-{{--
-    หน้าต่างออกใบเสร็จขายสด (ลูกค้าซื้อแล้วจ่ายทันที ไม่ต้องมีแคมป์ / ใบส่งของ / ใบแจ้งหนี้)
-    ใบเสร็จตามใบแจ้งหนี้ ออกจากปุ่มในหน้าใบแจ้งหนี้
-
-    ต้องส่ง: $customers, $camps, $products, $walkIn, $requireSlip
-    กรอกผิดแล้วเด้งกลับ (error bag createReceipt) → หน้าต่างเปิดเองพร้อมค่าที่กรอกไว้
-    ปุ่ม "ลูกค้าใหม่" → หน้าต่างเพิ่มลูกค้า (customers._quick-modal) ไม่ต้องย้ายหน้า
---}}
 @php
     $vatRate = \App\Models\Invoice::VAT_RATE;
 
-    // ข้อมูลสินค้าไว้เติมราคาอัตโนมัติ (ฝังเป็น JSON ไม่ต้องยิง AJAX)
     $productMap = $products->mapWithKeys(fn ($p) => [
         $p->id_product => ['price' => (float) ($p->unit_price ?? 0)],
     ]);
 
-    // แคมป์ของลูกค้าแต่ละราย ไว้กรอง dropdown แคมป์
     $campMap = $camps->map(fn ($c) => [
         'id'       => $c->id_camp,
         'customer' => $c->id_customer,
@@ -45,7 +35,6 @@
                 @include('partials.modal-errors', ['bag' => $errors->createReceipt])
 
                 <div class="row g-4">
-                    {{-- ==================== ซ้าย: รายละเอียดใบเสร็จ ==================== --}}
                     <div class="col-lg-7">
                         <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">รายละเอียด</h6>
 
@@ -56,7 +45,6 @@
                                    max="{{ now()->format('Y-m-d') }}" required>
                         </div>
 
-                            {{-- ---------- ขายสด ---------- --}}
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="id_customer" class="form-label">ลูกค้า <span class="text-danger">*</span></label>
@@ -172,7 +160,6 @@
                         </div>
                     </div>
 
-                                {{-- ==================== ขวา: หลักฐานการชำระ ==================== --}}
                         <div class="col-lg-5">
                             <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">หลักฐานการชำระเงิน</h6>
 
@@ -185,7 +172,6 @@
                                 </select>
                             </div>
 
-                            {{-- ยอดที่ต้องรับ: คิดจากรายการสินค้า + VAT --}}
                             <div class="mb-3">
                                 <label for="payTotal" class="form-label">ยอดรับชำระ</label>
                                 <div class="input-group">
@@ -196,7 +182,6 @@
                                 <div class="form-text">คำนวณจากรายการสินค้า + VAT {{ $vatRate }}% ให้อัตโนมัติ</div>
                             </div>
 
-                            {{-- เงินสด: กรอกเงินที่ลูกค้ายื่นมา ระบบคิดเงินทอนให้ (ไม่บังคับ) --}}
                             <div class="mb-3" data-cash-box hidden>
                                 <label for="cash_received" class="form-label">
                                     รับเงินมา <small class="text-muted fw-normal">(ไม่บังคับ — ไว้คิดเงินทอน)</small>
@@ -235,7 +220,6 @@
     </div>
 </div>
 
-{{-- ปุ่ม "ลูกค้าใหม่" เปิดหน้าต่างเพิ่มลูกค้า แล้วเลือกลูกค้าที่เพิ่งเพิ่มให้เลย --}}
 @include('customers._quick-modal', ['action' => route('receipts.customers.store')])
 
 <script>
@@ -244,7 +228,6 @@
     const fmt = (n) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const round2 = (n) => Math.round(n * 100) / 100;
 
-    /* ---------- ขายสด: ตารางรายการ ---------- */
     const table = document.getElementById('itemsTable');
     if (!table) return;
 
@@ -273,7 +256,6 @@
 
     tbody.addEventListener('input', recalc);
 
-    // เลือกสินค้าแล้วเติมราคาให้ (ถ้ายังไม่ได้กรอก)
     tbody.addEventListener('change', (e) => {
         if (!e.target.classList.contains('item-product')) return;
         const priceInput = e.target.closest('tr').querySelector('.item-price');
@@ -287,7 +269,7 @@
     tbody.addEventListener('click', (e) => {
         const btn = e.target.closest('.remove-row');
         if (!btn) return;
-        if (tbody.querySelectorAll('.item-row').length <= 1) return; // ต้องเหลืออย่างน้อย 1 แถว
+        if (tbody.querySelectorAll('.item-row').length <= 1) return;
         btn.closest('tr').remove();
         recalc();
     });
@@ -304,7 +286,6 @@
         recalc();
     });
 
-    // แคมป์: แสดงเฉพาะแคมป์ของลูกค้าที่เลือก
     const customerSelect = document.getElementById('id_customer');
     const campSelect     = document.getElementById('id_camp_direct');
 
@@ -321,7 +302,6 @@
     customerSelect.addEventListener('change', fillCamps);
     fillCamps();
 
-    /* ---------- ลูกค้าทั่วไป (ลูกค้าใหม่ → customers._quick-modal) ---------- */
     function pickCustomer(id, name) {
         let opt = Array.from(customerSelect.options).find((o) => o.value === String(id));
         if (!opt) {
@@ -329,7 +309,6 @@
             customerSelect.add(opt);
         }
         customerSelect.value = String(id);
-        // แจ้ง searchable-select ให้แสดงชื่อ + เคลียร์กรอบแดง + เติมแคมป์ของลูกค้า
         customerSelect.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
@@ -341,9 +320,7 @@
     recalc();
 })();
 
-/* ---------- ยอดรับชำระ + เงินทอน ---------- */
 (() => {
-    // ใช้ฟอร์มของช่องวิธีชำระตรง ๆ — ห้ามหาด้วย action$="/receipts" เพราะจะไปเจอฟอร์มค้นหาของหน้ารายการก่อน
     const method   = document.getElementById('method');
     const form     = method.form;
     const payTotal = document.getElementById('payTotal');
@@ -352,7 +329,6 @@
     const change   = document.getElementById('cashChange');
     const fmt      = (n) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    // ยอดปัจจุบัน = ยอดรวมที่ตารางคำนวณไว้
     function currentTotal() {
         const sum = document.getElementById('sumTotal');
         return sum ? parseFloat(sum.textContent.replace(/,/g, '')) || 0 : 0;
@@ -367,7 +343,6 @@
         document.querySelectorAll('[data-noncash]').forEach((el) => { el.hidden = isCash; });
         if (!isCash) { received.value = ''; }
 
-        // รับเงินมาต้องไม่น้อยกว่ายอด (ถ้ากรอก)
         received.min = isCash ? total.toFixed(2) : 0;
 
         const got = parseFloat(received.value);
@@ -382,10 +357,9 @@
         }
     }
 
-    // ฟังที่ระดับฟอร์ม → ทำงานหลังตารางรายการคำนวณยอดเสร็จแล้ว
     form.addEventListener('input', update);
     form.addEventListener('change', update);
-    form.addEventListener('click', () => setTimeout(update));   // เพิ่ม/ลบแถว
+    form.addEventListener('click', () => setTimeout(update));
     update();
 })();
 </script>

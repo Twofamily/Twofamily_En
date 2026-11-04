@@ -9,10 +9,6 @@ use Illuminate\Validation\Rule;
 
 class TruckModelController extends Controller
 {
-    /**
-     * รุ่นรถเป็นแท็บหนึ่งในหน้ารถบรรทุกแล้ว → ส่งไปแท็บนั้น (พกตัวกรองไปด้วย)
-     * ยกเว้นคนที่ไม่มีสิทธิ์ดูหน้ารถบรรทุก → ใช้หน้าเดิม
-     */
     public function index(Request $request)
     {
         if ($request->user()?->canViewModule('trucks')) {
@@ -22,20 +18,16 @@ class TruckModelController extends Controller
         return view('truck_models.index', $this->listData($request));
     }
 
-    /** ข้อมูลตารางรุ่นรถ — ใช้ทั้งแท็บในหน้ารถบรรทุก และหน้าเดิม */
     public function listData(Request $request): array
     {
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
 
-        // dropdown จำนวนล้อ: ตัวเลือก = จำนวนล้อที่มีอยู่จริงในตาราง เช่น [6 => '6 ล้อ', 10 => '10 ล้อ']
         $wheelLabels = TruckModel::whereNotNull('wheels')->distinct()->orderBy('wheels')->pluck('wheels')
             ->mapWithKeys(fn ($w) => [$w => "{$w} ล้อ"])
             ->all();
         $wheels = $this->statusFilter($request, array_map('strval', array_keys($wheelLabels)), 'wheels');
 
-        // ค้นหาแบบช่วงของคอลัมน์ ปี / ล้อ / คิว / กม.ต่อลิตร
-        // ตัวเลือก dropdown = ค่าที่มีอยู่จริงในตาราง (ไม่ต้องพิมพ์เอง)
         $optionsOf = fn (string $col) => TruckModel::whereNotNull($col)->distinct()->orderBy($col)->pluck($col);
 
         $ranges = $this->numberRanges($request, [
@@ -45,8 +37,6 @@ class TruckModelController extends Controller
             'rate'   => ['label' => 'อัตราสิ้นเปลือง', 'unit' => 'กม./ลิตร', 'options' => $optionsOf('fuel_rate')],
         ]);
 
-        // ช่องค้นหาช่องเดียว: ชื่อรุ่น ยี่ห้อ ประเภท เชื้อเพลิง ปีรุ่น
-        // trucks: ใช้แสดงรายชื่อรถในหน้าต่าง "ดู" ของแต่ละรุ่น
         $models = TruckModel::with(['brand', 'trucks:id_truck,truck_model_id,status_truck'])
             ->withCount('trucks')
             ->when($wheels !== null, fn ($query) => $query->where('wheels', (int) $wheels))
@@ -69,7 +59,6 @@ class TruckModelController extends Controller
         return compact('models', 'search', 'perPage', 'wheels', 'wheelLabels', 'ranges');
     }
 
-    /** ฟอร์มเพิ่มรุ่นย้ายไปเป็น modal ในแท็บรุ่นรถแล้ว */
     public function create(Request $request)
     {
         if ($request->user()?->canViewModule('trucks')) {
@@ -93,7 +82,6 @@ class TruckModelController extends Controller
             ->with('ok', 'เพิ่มรุ่นรถเรียบร้อย');
     }
 
-    /** ฟอร์มแก้ไขรุ่นย้ายไปเป็น modal ในแท็บรุ่นรถแล้ว — เปิด URL เดิมก็เด้ง modal ให้ */
     public function edit(Request $request, TruckModel $truck_model)
     {
         if ($request->user()?->canViewModule('trucks')) {
@@ -108,12 +96,10 @@ class TruckModelController extends Controller
 
     public function update(Request $request, TruckModel $truck_model)
     {
-        // error ของ modal แก้ไขแยกไว้ใน bag "updateModel" ไม่ปนกับ modal เพิ่ม
         $data = $this->validateData($request, $truck_model->getKey(), 'updateModel');
 
         $truck_model->update($data);
 
-        // กลับไปหน้าเดิม พร้อมคำค้นหา / ตัวกรอง / เลขหน้าที่ใช้อยู่
         $keep = array_filter($request->only('page', 'search', 'wheels', 'per_page'), fn ($v) => $v !== null && $v !== '');
 
         return redirect()

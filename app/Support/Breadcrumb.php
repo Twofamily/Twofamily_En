@@ -7,11 +7,6 @@ use Illuminate\Support\Str;
 
 class Breadcrumb
 {
-    /**
-     * สร้างรายการ breadcrumb จาก route ปัจจุบัน
-     *
-     * @return array<int, array{label: string, url: ?string, icon: ?string}>
-     */
     public static function build(): array
     {
         $name = Route::currentRouteName();
@@ -26,7 +21,6 @@ class Breadcrumb
             return [];
         }
 
-        // แยกชื่อ route: "quotations.create" → resource = quotations, action = create
         $parts  = explode('.', $name);
         $action = count($parts) > 1 ? array_pop($parts) : 'index';
         $prefix = implode('.', $parts);
@@ -36,7 +30,6 @@ class Breadcrumb
 
         $items = [];
 
-        // 1) หน้าหลัก
         $homeRoute = $cfg['home']['route'] ?? 'dashboard';
         $items[] = [
             'label' => $cfg['home']['label'] ?? 'หน้าหลัก',
@@ -44,7 +37,6 @@ class Breadcrumb
             'icon'  => 'bi-house-door',
         ];
 
-        // 2) หน้ารายการของ resource
         $indexRoute = $prefix . '.index';
         $items[] = [
             'label' => $resourceLabel,
@@ -52,7 +44,6 @@ class Breadcrumb
             'icon'  => null,
         ];
 
-        // 3) หน้าย่อย (create / edit / show ...)
         if ($action !== 'index' && ! empty($cfg['actions'][$action])) {
             $items[] = [
                 'label' => str_replace(':resource', $resourceLabel, $cfg['actions'][$action]),
@@ -61,7 +52,6 @@ class Breadcrumb
             ];
         }
 
-        // ตัวสุดท้ายคือหน้าปัจจุบัน ไม่ต้องเป็นลิงก์
         $items[array_key_last($items)]['url'] = null;
 
         return $items;

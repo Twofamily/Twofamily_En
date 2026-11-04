@@ -1,9 +1,3 @@
-{{--
-    สรุปจำนวนรายการ + ปุ่มเปลี่ยนหน้า — ใช้ร่วมกันทุกหน้ารายการ
-
-    ใช้:  @include('partials.pagination-footer', ['paginator' => $quotations])
-    (ต้องเรียก ->withQueryString() ที่ Controller แล้ว)
---}}
 @if ($paginator->total() > 0)
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3 gap-2">
 

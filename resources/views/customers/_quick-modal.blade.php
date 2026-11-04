@@ -1,18 +1,3 @@
-{{--
-    หน้าต่างเพิ่มลูกค้าใหม่ "ซ้อน" บนหน้าต่างเอกสาร (ใบเสนอราคา / ใบสั่งขาย) — ไม่ต้องย้ายไปหน้าลูกค้า
-
-        @include('customers._quick-modal', ['action' => route('customers.store.ajax')])
-
-    วางไว้ "นอก" <form> ของเอกสาร (ฟอร์มซ้อนฟอร์มไม่ได้)
-    ปุ่มเปิด: <button type="button" data-quick-customer> ที่อยู่ในฟอร์มเดียวกับ <select data-customer-select>
-
-    ลำดับการทำงาน
-        1. กดปุ่ม → ซ่อนหน้าต่างเอกสารไว้ก่อน (ค่าที่กรอกยังอยู่ครบ) แล้วเปิดหน้าต่างนี้
-           (Bootstrap ไม่รองรับ modal ซ้อนกันสองชั้น — focus จะแย่งกัน เลยใช้วิธีสลับแทน)
-        2. บันทึกผ่าน fetch (JSON) → ได้ลูกค้าใหม่กลับมา → เพิ่มลงรายการลูกค้าและเลือกให้เลย
-        3. ปิดหน้าต่างนี้ (บันทึกหรือยกเลิก) → กลับไปหน้าต่างเอกสารเดิม
-    ใช้ช่องกรอกชุดเดียวกับหน้าลูกค้า (customers._fields) และตรวจข้อมูลด้วยกฎเดียวกัน (validateForm)
---}}
 @once
 <div class="modal fade" id="quickCustomerModal" tabindex="-1" aria-labelledby="quickCustomerTitle" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -62,10 +47,9 @@
         const errBox  = form.querySelector('[data-qc-error]');
         const saveBtn = form.querySelector('[data-qc-save]');
 
-        let parentModalEl = null;   // หน้าต่างเอกสารที่ซ่อนไว้
-        let targetSelect  = null;   // <select> ลูกค้าที่จะเติมลูกค้าใหม่ให้
+        let parentModalEl = null;
+        let targetSelect  = null;
 
-        /* ---------- บุคคล / บริษัท: แสดงเฉพาะช่องที่เกี่ยวข้อง (ช่องที่ซ่อน = disabled ไม่ถูกส่ง) ---------- */
         function applyBranch() {
             const kind = form.querySelector('[data-branch-kind]');
             const box  = form.querySelector('[data-branch-no-box]');
@@ -90,7 +74,6 @@
 
         const setAddress = ThaiAddress.setup(form);
 
-        /* ---------- ข้อความผิดพลาด ---------- */
         function showErrors(messages) {
             errBox.innerHTML = '';
             if (!messages.length) { errBox.hidden = true; return; }
@@ -116,7 +99,6 @@
             setAddress({});
         }
 
-        /* ---------- เปิดจากปุ่ม "ลูกค้าใหม่" ในหน้าต่างเอกสาร ---------- */
         document.addEventListener('click', function (e) {
             const btn = e.target.closest('[data-quick-customer]');
             if (!btn) return;
@@ -126,7 +108,6 @@
             resetForm();
 
             if (parentModalEl) {
-                // รอให้หน้าต่างเอกสารปิดสนิทก่อน แล้วค่อยเปิดหน้าต่างลูกค้า
                 parentModalEl.addEventListener('hidden.bs.modal', () => modal.show(), { once: true });
                 bootstrap.Modal.getOrCreateInstance(parentModalEl).hide();
             } else {
@@ -138,14 +119,11 @@
             form.querySelector('[data-type-block]:not(.d-none) input:not([disabled])')?.focus();
         });
 
-        // ปิดหน้าต่างนี้ (บันทึกแล้ว / กดกลับ) → เปิดหน้าต่างเอกสารเดิมคืน
         modalEl.addEventListener('hidden.bs.modal', () => {
             if (parentModalEl) bootstrap.Modal.getOrCreateInstance(parentModalEl).show();
             parentModalEl = null;
         });
 
-        /* ---------- บันทึก ---------- */
-        // ช่องว่าง / รูปแบบผิด → form-validation.js ดักไว้ก่อนแล้ว (กรอบแดง + ข้อความใต้ช่อง) จะมาถึงตรงนี้เมื่อผ่านเท่านั้น
         form.addEventListener('submit', async function (e) {
             e.preventDefault();
             showErrors([]);
@@ -159,7 +137,7 @@
                         'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRF-TOKEN': @json(csrf_token()),
                     },
-                    body: new FormData(form),   // ช่องที่ disabled (ประเภทที่ไม่ได้เลือก) จะไม่ถูกส่ง
+                    body: new FormData(form),
                 });
 
                 if (res.status === 422) {
@@ -174,14 +152,13 @@
 
                 const customer = await res.json();
 
-                // เติมลูกค้าใหม่ลงรายการ แล้วเลือกให้เลย
                 if (targetSelect) {
                     targetSelect.add(new Option(customer.name_customer, customer.id_customer, true, true));
                     targetSelect.classList.remove('is-invalid');
                     targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
                 }
 
-                modal.hide();   // → กลับไปหน้าต่างเอกสาร
+                modal.hide();
             } catch (err) {
                 showErrors(['เชื่อมต่อเซิร์ฟเวอร์ไม่ได้']);
             } finally {

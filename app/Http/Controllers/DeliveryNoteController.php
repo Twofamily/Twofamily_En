@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\DB;
 
 class DeliveryNoteController extends Controller
 {
-    /** ตัวกรองสถานะในหน้ารายการ (อิงจากการออกใบแจ้งหนี้) */
     public const INVOICE_STATUSES = [
         'pending'  => 'รอออกใบแจ้งหนี้',
         'invoiced' => 'ออกใบแจ้งหนี้แล้ว',
@@ -24,16 +23,12 @@ class DeliveryNoteController extends Controller
         $search  = $this->searchTerm($request);
         [$dateFrom, $dateTo] = $this->dateRange($request);
 
-        // ใบส่งของไม่มีคอลัมน์ status → พิมพ์ "รอออก" / "ออกใบแจ้งหนี้แล้ว" แล้วกรองจากการมี/ไม่มีใบแจ้งหนี้
         $statuses = $this->statusesMatching($search, self::INVOICE_STATUSES);
 
-        // dropdown สถานะ (ออกใบแจ้งหนี้แล้ว / ยังไม่ออก)
         $status = $this->statusFilter($request, array_keys(self::INVOICE_STATUSES));
 
-        // หน้ารายการแสดงใบที่ยกเลิกแล้วด้วย (เลขที่ไม่หาย) เลือกกรอง "ยกเลิกแล้ว" ได้
         $deliveryNotes = DeliveryNote::with(['customer', 'camp', 'invoice', 'quotation'])
             ->cancelledFilter($status)
-            // ช่องค้นหาช่องเดียว: เลขที่ใบส่งของ ลูกค้า แคมป์ ใบเสนอราคา ใบแจ้งหนี้ และสถานะ
             ->when($search !== '', function ($query) use ($search, $statuses) {
                 $query->where(function ($sub) use ($search, $statuses) {
                     $sub->where('code_dn', 'like', "%{$search}%")
@@ -67,10 +62,6 @@ class DeliveryNoteController extends Controller
         ] + $this->createFormData($request));
     }
 
-    /**
-     * ข้อมูลของหน้าต่างสร้างใบส่งของ (อยู่ในหน้ารายการ)
-     * เลือกแคมป์ก่อน (?camp=) แล้วค่อยกรอกรายการ — เฉพาะแคมป์ที่เตรียมงาน / กำลังดำเนินงาน
-     */
     private function createFormData(Request $request): array
     {
         if (! $request->user()?->canEdit('delivery_notes')) {
@@ -92,7 +83,6 @@ class DeliveryNoteController extends Controller
         return ['canCreate' => true] + compact('camps', 'camp', 'suggestedItems');
     }
 
-    /** สร้างใบส่งของในหน้าต่าง (modal) ของหน้ารายการ — ลิงก์เดิม ?camp= ยังใช้ได้ */
     public function create(Request $request)
     {
         return redirect()->route('delivery_notes.index', array_filter([
@@ -103,11 +93,6 @@ class DeliveryNoteController extends Controller
 
     public function store(Request $request)
     {
-        /*
-         | ใส่จำนวน 0 (หรือเว้นว่าง) = ไม่ส่งสินค้ารายการนั้นในเที่ยวนี้
-         | ตัดแถวพวกนั้นทิ้งก่อนตรวจ แล้วบังคับว่าต้องเหลืออย่างน้อย 1 รายการ
-         | (ตรวจจากชุดที่ตัดแล้ว แต่ค่าที่กรอกไว้บนหน้าจอยังอยู่ครบเมื่อมี error)
-         */
         $items = collect($request->input('items', []))
             ->filter(fn ($item) => is_array($item)
                 && ($item['quantity'] ?? '') !== ''
@@ -143,10 +128,6 @@ class DeliveryNoteController extends Controller
                 'แคมป์ ' . $camp->code_camp . ' อยู่ในสถานะ "' . $camp->status_label . '" ออกใบส่งของเพิ่มไม่ได้'], 'createDeliveryNote');
         }
 
-        /*
-         | ส่งเกินจำนวนตามสัญญา → เตือนก่อน ถ้าผู้ใช้ติ๊กยืนยันแล้วจึงบันทึกได้
-         | (หน้างานจริงมีส่งเกินได้ เช่น ลูกค้าขอเพิ่มหน้างาน แต่ต้องตั้งใจ ไม่ใช่พิมพ์ผิด)
-         */
         if (! $request->boolean('confirm_over')) {
             $over = $this->overContract($camp, $data['items']);
 
@@ -159,10 +140,8 @@ class DeliveryNoteController extends Controller
 
         $deliveryNote = DB::transaction(function () use ($camp, $data) {
 
-            // เก็บ id_customer / id_quotation เป็นค่าจริง ไม่ไล่ตามสายโซ่ตอนพิมพ์
             $note = DeliveryNote::create([
                 'id_camp'       => $camp->id_camp,
-                // แคมป์แบบใหม่ไม่มี id_quot ของตัวเอง → ใช้ใบเสนอราคาของใบสั่งขายใบแรกในแคมป์
                 'id_quotation'  => $camp->id_quot ?? $camp->contractSalesOrders()->orderBy('id_so')->value('id_quot'),
                 'id_customer'   => $camp->id_customer,
                 'delivery_date' => $data['delivery_date'],
@@ -179,7 +158,6 @@ class DeliveryNoteController extends Controller
                 ]);
             }
 
-            // ใบส่งของใบแรก → แคมป์ที่ยังเตรียมงานอยู่ ถือว่าเริ่มงานแล้ว
             $camp->markStartedIfPreparing();
 
             return $note;
@@ -205,10 +183,6 @@ class DeliveryNoteController extends Controller
             ->stream('delivery-note-' . $deliveryNote->id_delivery_note . '.pdf');
     }
 
-    /**
-     * ยกเลิกใบส่งของ (ไม่ลบ) — เอกสารและรายการยังอยู่ แต่ไม่นับเป็นยอดส่งของ / รายได้อีก
-     * ยอดคงเหลือตามสัญญาของแคมป์จะกลับมาเท่าเดิม
-     */
     public function destroy(Request $request, DeliveryNote $deliveryNote)
     {
         $data = $request->validate(
@@ -226,10 +200,6 @@ class DeliveryNoteController extends Controller
             ->with('ok', 'ยกเลิกใบส่งของ ' . $deliveryNote->code_delivery . ' แล้ว');
     }
 
-    /**
-     * รายการที่จำนวนเกินคงเหลือตามสัญญา → ข้อความ error แยกตามแถว (items.N.quantity)
-     * สินค้าเดียวกันหลายแถว รวมจำนวนก่อนเทียบ
-     */
     private function overContract(Camp $camp, array $items): array
     {
         $remaining = $this->buildSuggestedItems($camp)->keyBy('id_product');
@@ -249,11 +219,6 @@ class DeliveryNoteController extends Controller
         return $errors;
     }
 
-    /**
-     * หัวใจของ auto-fill:
-     * ดึงรายการตามสัญญาของแคมป์ (ใบสั่งขายทุกใบ หรือใบเสนอราคาเดิม)
-     * พร้อมคำนวณว่าส่งไปแล้วเท่าไร เหลือเท่าไร
-     */
     private function buildSuggestedItems(Camp $camp)
     {
         $contract = $camp->contractItems();
@@ -262,7 +227,6 @@ class DeliveryNoteController extends Controller
             return collect();
         }
 
-        // ยอดที่ส่งไปแล้วของแคมป์นี้ แยกตามสินค้า
         $delivered = DeliveryNoteDetail::whereIn(
             'id_delivery_note',
             $camp->deliveryNotes()->pluck('id_delivery_note')

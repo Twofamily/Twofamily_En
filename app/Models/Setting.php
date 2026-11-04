@@ -7,16 +7,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
-/**
- * ค่าตั้งค่าระบบ แบบ key-value
- *
- * รายการ key ทั้งหมด ค่าเริ่มต้น และกฎ validation อยู่ที่ config/settings.php
- *
- * วิธีใช้:
- *   Setting::get('doc.vat_rate')        // 7.0  (แปลงชนิดให้ตาม type)
- *   Setting::get('doc.prefix.invoice')  // 'INV'
- *   Setting::setMany(['doc.vat_rate' => 7]);
- */
 class Setting extends Model
 {
     protected $fillable = ['key', 'value'];
@@ -25,13 +15,9 @@ class Setting extends Model
 
     protected static function booted(): void
     {
-        // ล้าง cache ทุกครั้งที่บันทึกหรือลบ
-        // ครอบคลุมโค้ดเดิมที่เรียก updateOrCreate ตรง ๆ ด้วย
         static::saved(fn () => static::flushCache());
         static::deleted(fn () => static::flushCache());
     }
-
-    /* ==================== ทะเบียน ==================== */
 
     public static function definitions(): array
     {
@@ -43,7 +29,6 @@ class Setting extends Model
         return static::definitions()[$key] ?? null;
     }
 
-    /** key ทั้งหมดในแท็บที่ระบุ */
     public static function definitionsFor(string $group): array
     {
         return array_filter(
@@ -52,10 +37,6 @@ class Setting extends Model
         );
     }
 
-    /**
-     * กฎ validation ของแท็บที่ระบุ
-     * key แบบมีจุด เช่น doc.vat_rate จะตรวจกับ input doc[vat_rate] ได้พอดี
-     */
     public static function rulesFor(string $group): array
     {
         return array_map(
@@ -74,9 +55,6 @@ class Setting extends Model
         return config('settings.document_types', []);
     }
 
-    /* ==================== อ่านค่า ==================== */
-
-    /** ค่าดิบทั้งหมดจากฐานข้อมูล (cache ไว้ ไม่ต้อง query ทุกครั้งที่เรียก) */
     public static function stored(): array
     {
         try {
@@ -85,16 +63,10 @@ class Setting extends Model
                 fn () => static::query()->pluck('value', 'key')->all()
             );
         } catch (QueryException) {
-            // ตารางยังไม่ถูกสร้าง (เช่น ระหว่าง migrate:fresh)
-            // ใช้ค่า default ไปก่อน และไม่ cache ผลลัพธ์ว่างนี้ไว้
             return [];
         }
     }
 
-    /**
-     * อ่านค่าหนึ่ง key พร้อมแปลงชนิดตาม type ในทะเบียน
-     * ถ้ายังไม่มีในฐานข้อมูล จะคืนค่า default จากทะเบียน
-     */
     public static function get(string $key, mixed $default = null): mixed
     {
         $definition = static::definition($key);
@@ -109,8 +81,6 @@ class Setting extends Model
 
         $value = $stored[$key];
 
-        // ช่องตัวเลข/สวิตช์ที่ถูกเว้นว่าง ถือว่ายังไม่ได้ตั้งค่า
-        // (ส่วนช่องข้อความที่เว้นว่าง ถือว่าตั้งใจลบข้อความออก)
         if ($value === '' && in_array($type, ['int', 'decimal', 'bool'], true)) {
             return $fallback;
         }
@@ -118,10 +88,6 @@ class Setting extends Model
         return static::cast($value, $type);
     }
 
-    /**
-     * ค่าทั้งหมดที่ผ่านการแปลงชนิดและเติม default แล้ว
-     * key เก่าที่ไม่ได้อยู่ในทะเบียนยังคงอยู่ เพื่อไม่ให้หน้าตั้งค่าเดิมพัง
-     */
     public static function merged(): array
     {
         $values = static::stored();
@@ -132,8 +98,6 @@ class Setting extends Model
 
         return $values;
     }
-
-    /* ==================== เขียนค่า ==================== */
 
     public static function set(string $key, mixed $value): void
     {
@@ -153,15 +117,9 @@ class Setting extends Model
             }
         });
 
-        // ล้างอีกรอบหลัง commit เผื่อมีคนอ่านค่าเก่าเข้า cache ระหว่าง transaction
         static::flushCache();
     }
 
-    /**
-     * ช่วงเปลี่ยนผ่าน: เขียนค่าเดียวกันลง key ชื่อเดิมด้วย
-     * เพื่อให้ PDF ที่ยังอ่าน key เดิม (เช่น company_name) แสดงค่าล่าสุด
-     * ลบเมธอดนี้ได้เมื่อ PDF ทุกใบเปลี่ยนมาใช้ Setting::get() แล้ว
-     */
     private static function withLegacyKeys(array $values): array
     {
         foreach ($values as $key => $value) {
@@ -178,9 +136,6 @@ class Setting extends Model
         Cache::forget(self::CACHE_KEY);
     }
 
-    /* ==================== โลโก้ ==================== */
-
-    /** path ในเครื่อง สำหรับ dompdf (dompdf ต้องใช้ path ไม่ใช่ URL) */
     public static function logoPath(): ?string
     {
         $path = static::get('company.logo');
@@ -194,15 +149,12 @@ class Setting extends Model
         return is_file($full) ? $full : null;
     }
 
-    /** URL สำหรับแสดงบนหน้าเว็บ */
     public static function logoUrl(): ?string
     {
         return static::logoPath()
             ? asset('storage/' . ltrim(static::get('company.logo'), '/'))
             : null;
     }
-
-    /* ==================== Helpers ==================== */
 
     private static function cast(mixed $value, string $type): mixed
     {
@@ -214,7 +166,6 @@ class Setting extends Model
         };
     }
 
-    /** แปลงค่าก่อนเก็บลงคอลัมน์ text */
     private static function normalize(mixed $value): ?string
     {
         return match (true) {

@@ -7,25 +7,21 @@
 @endsection
 
 @php
-    // มีค่าค้นหา/ตัวกรองใดก็ได้ (ไม่นับเลขหน้า/จำนวนต่อหน้า)
     $hasFilter = collect(request()->except(['page', 'per_page']))->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
 @endphp
 
 @section('content')
     @php
-        // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
         $canEdit = auth()->user()->canEdit('sales_orders');
     @endphp
     <div class="container py-3">
 
         <x-search-bar :action="route('sales_orders.index')"
-                      placeholder="ค้นหาเลขที่ / เลข PO / ลูกค้า / ใบเสนอราคา / แคมป์ / สถานะ"
+                      placeholder="เลขที่ใบสั่งขาย / ชื่อลูกค้า / เลขที่ใบเสนอราคา"
                       :search="$search" :per-page="$perPage"
-                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่สั่ง"
                       :statuses="\App\Models\SalesOrder::STATUS_LABELS" :status="$status"
-                      :ranges="$ranges" />
+                      />
 
-        {{-- ==================== ปุ่มสร้าง ==================== --}}
         <div class="d-flex justify-content-end align-items-center mb-3">
             @if ($canEdit && $canCreate)
                 <button type="button" class="btn btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#createSalesOrderModal">
@@ -35,7 +31,6 @@
             @endif
         </div>
 
-        {{-- ==================== ตาราง ==================== --}}
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -55,7 +50,6 @@
                 <tbody>
                     @forelse ($salesOrders as $so)
                         <tr>
-                            {{-- ลำดับต่อเนื่องข้ามหน้า --}}
                             <td class="text-center text-muted">
                                 {{ $salesOrders->firstItem() + $loop->index }}
                             </td>
@@ -124,11 +118,9 @@
             </table>
         </div>
 
-        {{-- ==================== สรุปจำนวน + ปุ่มเปลี่ยนหน้า ==================== --}}
         @include('partials.pagination-footer', ['paginator' => $salesOrders])
 
     </div>
-    {{-- ==================== หน้าต่างสร้างใบสั่งขาย ==================== --}}
     @if ($canEdit && $canCreate)
         @include('sales_orders._create-modal')
 

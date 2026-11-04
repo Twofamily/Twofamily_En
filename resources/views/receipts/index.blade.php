@@ -7,7 +7,6 @@
 @endsection
 
 @php
-    // มีค่าค้นหา/ตัวกรองใดก็ได้ (ไม่นับเลขหน้า/จำนวนต่อหน้า)
     $hasFilter = collect(request()->except(['page', 'per_page']))->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
     $canManage = in_array(auth()->user()->role, ['admin', 'staff']);
 @endphp
@@ -16,14 +15,14 @@
     <div class="container py-3">
 
         <x-search-bar :action="route('receipts.index')"
-                      placeholder="ค้นหาเลขที่ใบเสร็จ / ใบแจ้งหนี้ / แคมป์ / ชื่อลูกค้า"
+                      placeholder="เลขที่ใบเสร็จ / ชื่อลูกค้า"
                       :statuses="\App\Models\Receipt::TYPES + ['cancelled' => ['label' => 'ยกเลิกแล้ว', 'badge' => 'dark']]" :status="$type"
                       status-name="type" status-label="ประเภท"
                       :search="$search" :per-page="$perPage"
-                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่รับชำระ"
-                      :ranges="$ranges" />
+                      {{-- :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่รับชำระ" --}}
+                      {{-- :ranges="$ranges"  --}}
+                      />
 
-        {{-- ออกใบเสร็จโดยไม่ต้องมีใบแจ้งหนี้ (ใบเสร็จตามใบแจ้งหนี้ ออกจากหน้าใบแจ้งหนี้) --}}
         <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center mb-3">
             @if ($canManage && $canCreate)
                 <button type="button" class="btn btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#createReceiptModal">
@@ -32,7 +31,6 @@
             @endif
         </div>
 
-        {{-- ==================== ตาราง ==================== --}}
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -52,7 +50,6 @@
                     @forelse ($receipts as $r)
                         @php $cancelled = $r->isCancelled(); @endphp
                         <tr @class(['text-muted' => $cancelled])>
-                            {{-- ลำดับต่อเนื่องข้ามหน้า --}}
                             <td class="text-center text-muted">
                                 {{ $receipts->firstItem() + $loop->index }}
                             </td>
@@ -137,11 +134,9 @@
             </table>
         </div>
 
-        {{-- ==================== สรุปจำนวน + ปุ่มเปลี่ยนหน้า ==================== --}}
         @include('partials.pagination-footer', ['paginator' => $receipts])
 
     </div>
-    {{-- ==================== หน้าต่างออกใบเสร็จขายสด ==================== --}}
     @if ($canManage && $canCreate)
         @include('receipts._direct-modal')
 

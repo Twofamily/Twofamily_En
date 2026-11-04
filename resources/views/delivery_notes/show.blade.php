@@ -9,7 +9,6 @@
 @section('content')
 <div class="container py-3">
 
-    {{-- ส่วนหัวเอกสาร (แบบเดียวกับใบเสนอราคา) --}}
     <div class="text-center mb-4">
         <h2>ใบส่งของ (Delivery Note)</h2>
         @include('partials.company-line')
@@ -17,7 +16,6 @@
 
     @include('partials.cancelled-banner', ['doc' => $deliveryNote, 'label' => 'ใบส่งของ'])
 
-    {{-- แถบสถานะการทำงาน --}}
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body d-flex flex-wrap gap-2 justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -36,7 +34,6 @@
                         <i class="bi bi-arrow-right-circle me-1"></i> พร้อมออกใบแจ้งหนี้
                     </span>
                     @if (auth()->user()->canEdit('invoices'))
-                        {{-- ใบแจ้งหนี้ 1 ใบรวมใบส่งของได้หลายใบ → ไปหน้าเลือก โดยติ๊กใบนี้ไว้ให้ --}}
                         <a href="{{ route('invoices.create', ['delivery_note' => $deliveryNote->id_delivery_note]) }}"
                            class="btn btn-sm btn-primary">
                             <i class="bi bi-receipt me-1"></i>ออกใบแจ้งหนี้

@@ -7,26 +7,8 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * ตัวเลขการเงินของแดชบอร์ด — อ่านจากคอลัมน์ที่บันทึกไว้แล้วเท่านั้น ไม่มีค่าสมมติ
- *
- * นิยามที่ใช้ทั้งหน้า (ตรงกับ RevenueReport ที่วาดกราฟ):
- *   รายได้   = มูลค่าใบส่งของ (delivery_note_details.total_price) ก่อน VAT ตามวันส่งของ
- *   ต้นทุน   = ค่าน้ำมัน (fuel_records.cost_fuel_total) + ค่าซ่อม (truck_maintenances.cost)
- *   กำไรขั้นต้น = รายได้ − ต้นทุน  (ยังไม่รวมค่าแรงคนขับ / ราคาทุนวัสดุ เพราะระบบยังไม่เก็บ)
- *
- * ตัวเลขที่เป็น "เงินจริง" (เงินเข้า ลูกหนี้) รวม VAT เพราะเป็นยอดที่ลูกค้าจ่ายจริง
- *
- * ตัวเลขแบ่งเป็น 2 แบบ
- *   - ตามช่วงที่เลือก : รายได้ ต้นทุน กำไร เงินเข้า กำไรรายแคมป์ ต้นทุนรายรถ
- *   - ณ วันนี้        : ลูกหนี้ค้างรับ อายุหนี้ งานในมือ
- */
 class DashboardFinance
 {
-    /**
-     * อายุหนี้นับจาก "วันครบกำหนดชำระ" (ไม่ใช่วันออกบิล) — ตรงกับที่ฝ่ายบัญชีใช้ตามหนี้จริง
-     * ขอบบนของช่วง (วันที่เลยกำหนด) => ป้าย   · ค่า ≤ 0 = ยังไม่ถึงกำหนด
-     */
     private const AGING_BUCKETS = [
         0           => 'ยังไม่ถึงกำหนด',
         30          => 'เกินกำหนด 1–30 วัน',
@@ -38,19 +20,15 @@ class DashboardFinance
 
     private bool $invoiceHasDue;
 
-    /** ใบแจ้งหนี้ค้างชำระ — ใช้ซ้ำทั้งการ์ดและตารางอายุหนี้ ไม่ query สองรอบ */
     private $receivables = null;
 
     public function __construct(
         private CarbonImmutable $from,
         private CarbonImmutable $to,
     ) {
-        // ยังไม่ได้รัน migration เพิ่ม id_camp ให้ fuel_records ก็ยังเปิดหน้าได้
         $this->fuelHasCamp = Schema::hasColumn('fuel_records', 'id_camp');
         $this->invoiceHasDue = Schema::hasColumn('invoices', 'due_date');
     }
-
-    // ==================== การ์ดตัวเลขหลัก ====================
 
     public function kpis(): array
     {
@@ -78,14 +56,13 @@ class DashboardFinance
         ];
     }
 
-    /** ยอดรวมของช่วงใดช่วงหนึ่ง */
     private function totals(CarbonImmutable $from, CarbonImmutable $to): array
     {
         $range = [$from->toDateString(), $to->toDateString()];
 
         $revenue = (float) DB::table('delivery_notes as dn')
             ->join('delivery_note_details as dnd', 'dnd.id_delivery_note', '=', 'dn.id_delivery_note')
-            ->whereNull('dn.cancelled_at')   // ใบส่งของที่ยกเลิกไม่นับ
+            ->whereNull('dn.cancelled_at')
             ->whereBetween('dn.delivery_date', $range)
             ->sum('dnd.total_price');
 
@@ -98,9 +75,7 @@ class DashboardFinance
             ->whereBetween('start_date', $range)
             ->sum('cost');
 
-        // เงินที่เข้าบริษัทจริง = หลักฐานการชำระทุกแบบ (ตามใบแจ้งหนี้ + ขายสด)
         $cashIn = (float) DB::table('payments')
-            // หลักฐานของใบเสร็จขายสดที่ยกเลิกแล้ว ไม่นับเป็นเงินเข้า
             ->whereNotExists(fn ($q) => $q->from('receipts as rc')
                 ->whereColumn('rc.id_receipt', 'payments.id_receipt')
                 ->whereNotNull('rc.cancelled_at'))
@@ -121,11 +96,6 @@ class DashboardFinance
         ];
     }
 
-    /**
-     * ช่วงก่อนหน้าสำหรับเทียบ
-     *   - ช่วงที่เป็นเดือนเต็ม (เดือนนี้ / ปีนี้ / 12 เดือน) → ถอยไปเท่าจำนวนเดือนเดิม
-     *   - ช่วงที่กำหนดเอง → ถอยไปเท่าจำนวนวันเดิม
-     */
     private function previousRange(): array
     {
         $from = $this->from->startOfDay();
@@ -149,27 +119,19 @@ class DashboardFinance
     private function percentChange(float $now, float $before): ?float
     {
         if (abs($before) < 0.01) {
-            return null;   // ช่วงก่อนเป็นศูนย์ เทียบเป็น % ไม่ได้
+            return null;
         }
 
         return round(($now - $before) / abs($before) * 100, 1);
     }
 
-    // ==================== กำไรรายแคมป์ ====================
-
-    /**
-     * รายได้ − ค่าน้ำมัน ของแต่ละแคมป์ ในช่วงที่เลือก
-     *
-     * ค่าซ่อมรถไม่ปันเข้าแคมป์ เพราะรถคันหนึ่งวิ่งหลายแคมป์ ซ่อมครั้งหนึ่งไม่รู้ว่าเป็นของแคมป์ไหน
-     * จึงแสดงแยกไว้ใต้ตาราง พร้อมค่าน้ำมันรอบที่ไม่ได้ระบุแคมป์
-     */
     public function campProfit(): array
     {
         $range = $this->dateRange();
 
         $revenue = DB::table('delivery_notes as dn')
             ->join('delivery_note_details as dnd', 'dnd.id_delivery_note', '=', 'dn.id_delivery_note')
-            ->whereNull('dn.cancelled_at')   // ใบส่งของที่ยกเลิกไม่นับ
+            ->whereNull('dn.cancelled_at')
             ->whereNotNull('dn.id_camp')
             ->whereBetween('dn.delivery_date', $range)
             ->groupBy('dn.id_camp')
@@ -219,7 +181,6 @@ class DashboardFinance
                 'margin'   => $rev > 0 ? round($profit / $rev * 100, 1) : null,
             ];
         })
-            // แคมป์ที่ขาดทุน / กำไรบางที่สุดขึ้นก่อน — ไม่มีรายได้เลยแต่มีค่าน้ำมัน = แย่สุด
             ->sortBy(fn ($r) => $r['margin'] ?? -INF)
             ->values();
 
@@ -236,13 +197,6 @@ class DashboardFinance
         ];
     }
 
-    // ==================== ลูกหนี้ ====================
-
-    /**
-     * ใบแจ้งหนี้ที่ยังมียอดค้าง (ณ วันนี้) พร้อมอายุหนี้
-     * ยอดค้าง = ยอดใบแจ้งหนี้ − ทุกรายการชำระ
-     * ตรงกับ Invoice::remainingAmount()
-     */
     private function receivableRows()
     {
         if ($this->receivables !== null) {
@@ -257,14 +211,13 @@ class DashboardFinance
         return $this->receivables = DB::table('invoices as i')
             ->leftJoinSub($paid, 'p', 'p.id_invoice', '=', 'i.id_invoice')
             ->leftJoin('customers as cu', 'cu.id_customer', '=', 'i.id_customer')
-            ->whereNull('i.cancelled_at')      // ใบแจ้งหนี้ที่ยกเลิกไม่ใช่หนี้
+            ->whereNull('i.cancelled_at')
             ->whereRaw('i.total - COALESCE(p.paid, 0) > 0.005')
             ->get([
                 'i.id_invoice',
                 'i.id_customer',
                 'cu.name_customer',
                 DB::raw('ROUND(i.total - COALESCE(p.paid, 0), 2) as remaining'),
-                // วันที่เลยกำหนด (ติดลบ = ยังไม่ถึงกำหนด) · ใบเก่าที่ไม่มีวันครบกำหนด ใช้วันที่ออกแทน
                 DB::raw('DATEDIFF(CURDATE(), ' . ($this->invoiceHasDue
                     ? 'COALESCE(i.due_date, i.invoice_date)'
                     : 'i.invoice_date') . ') as age_days'),
@@ -289,7 +242,7 @@ class DashboardFinance
                 'label'  => $label,
                 'amount' => round($inBucket->sum('remaining'), 2),
                 'count'  => $inBucket->count(),
-                'late'   => $upper > 0,   // เลยกำหนดแล้ว → สีเตือน
+                'late'   => $upper > 0,
             ];
             $lower = $upper + 1;
         }
@@ -301,7 +254,7 @@ class DashboardFinance
                 'name'     => $items->first()->name_customer ?? '-',
                 'amount'   => round($items->sum('remaining'), 2),
                 'invoices' => $items->count(),
-                'oldest'   => max($items->max('age_days'), 0),   // เลยกำหนดนานสุดกี่วัน (0 = ยังไม่เลย)
+                'oldest'   => max($items->max('age_days'), 0),
             ])
             ->sortByDesc('amount')
             ->take(5)
@@ -310,9 +263,6 @@ class DashboardFinance
         return compact('buckets', 'total', 'topCustomers');
     }
 
-    // ==================== ต้นทุนรายรถ ====================
-
-    /** ค่าน้ำมัน + ค่าซ่อม ของรถแต่ละคันในช่วงที่เลือก และค่าน้ำมันต่อกิโลเมตร */
     public function truckCosts(int $limit = 8): array
     {
         $range = $this->dateRange();
@@ -361,7 +311,6 @@ class DashboardFinance
             ];
         })->sortByDesc('total')->values();
 
-        // ค่าเฉลี่ยของทั้งกอง ไว้เทียบว่าคันไหนกินน้ำมันเกินปกติ
         $distanceAll = $rows->sum('distance');
         $avgPerKm = $distanceAll > 0 ? round($rows->sum('fuel') / $distanceAll, 2) : null;
 
@@ -372,13 +321,6 @@ class DashboardFinance
         ];
     }
 
-    // ==================== งานในมือ ====================
-
-    /**
-     * มูลค่างานตามสัญญาที่ยังไม่ได้ส่ง (ณ วันนี้ ก่อน VAT)
-     * = ยอดใบสั่งขายที่ยืนยันแล้วของแคมป์ − มูลค่าที่ส่งไปแล้วทั้งหมดของแคมป์
-     * แคมป์เก่าที่ยังไม่มีใบสั่งขาย ใช้ยอดใบเสนอราคาแทน (เหมือน Camp::contractItems())
-     */
     public function backlog(int $limit = 5): array
     {
         $contracts = DB::table('sales_orders')
@@ -400,7 +342,7 @@ class DashboardFinance
 
         $delivered = DB::table('delivery_notes as dn')
             ->join('delivery_note_details as dnd', 'dnd.id_delivery_note', '=', 'dn.id_delivery_note')
-            ->whereNull('dn.cancelled_at')   // ใบส่งของที่ยกเลิกไม่นับ
+            ->whereNull('dn.cancelled_at')
             ->whereIn('dn.id_camp', $contracts->keys())
             ->groupBy('dn.id_camp')
             ->selectRaw('dn.id_camp as id_camp, SUM(dnd.total_price) as amount')
@@ -409,7 +351,7 @@ class DashboardFinance
         $camps = DB::table('camps')
             ->whereIn('id_camp', $contracts->keys())
             ->whereNull('deleted_at')
-            ->where('status_camp', '!=', 'closed')   // แคมป์ที่ปิดแล้วไม่นับเป็นงานในมือ
+            ->where('status_camp', '!=', 'closed')
             ->get(['id_camp', 'code_camp', 'name_camp'])
             ->keyBy('id_camp');
 
@@ -434,8 +376,6 @@ class DashboardFinance
             'rows'  => $rows->take($limit),
         ];
     }
-
-    // ==================== helper ====================
 
     private function dateRange(): array
     {

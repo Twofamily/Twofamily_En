@@ -7,31 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * รวมตัวเลขรายได้และต้นทุนสำหรับแดชบอร์ด — อ่านจากฐานข้อมูลอย่างเดียว ไม่มีค่าสมมติ
- *
- * รายได้ใช้ delivery_notes + details (มูลค่างานที่ส่งจริง ก่อน VAT)
- * ไม่ใช้ invoices เพราะ invoices.total รวม VAT 7% ซึ่งไม่ใช่รายได้ของบริษัท
- *
- * แยกเป็น 2 สายตาม delivery_notes.id_camp:
- *   - ขายสินค้า     : ไม่ผูกแคมป์ (ส่งตรงให้ลูกค้า)
- *   - บริการแคมป์   : ผูกแคมป์
- *
- * ฝั่งต้นทุน รวมจาก 2 ทางที่ฐานข้อมูลมีช่องเก็บอยู่แล้ว:
- *   - ค่าน้ำมัน  : fuel_records.cost_fuel_total   → ใช้ตัวแม่เท่านั้น
- *                  (fuel_record_segments.fuel_cost คือตัวย่อยที่ถูกรวมมาแล้ว ถ้าบวกด้วยจะนับซ้ำ)
- *                  รอบที่ระบุแคมป์ (fuel_records.id_camp) → นับเข้าสายแคมป์ตรง ๆ
- *                  รอบที่ไม่ระบุแคมป์ → ปันส่วนตามสัดส่วนรายได้ (ดู splitCost)
- *   - ค่าซ่อมรถ  : truck_maintenances.cost       → ปันส่วนตามสัดส่วนรายได้
- *
- * ทั้งสองเส้นไม่รวม VAT จึงเทียบกันได้ตรง
- *
- * ข้อจำกัด: ต้นทุนนี้ยังไม่รวมราคาทุนสินค้า เพราะ products ไม่มีคอลัมน์ราคาทุน
- * จึงยังคำนวณกำไรที่แท้จริงไม่ได้ (ดู DASHBOARD.md)
- */
 class RevenueReport
 {
-    /** preset ช่วงเวลาที่เลือกได้ พร้อมชื่อไทยที่ใช้แสดงบนปุ่ม */
     public const PRESETS = [
         'this_month' => 'เดือนนี้',
         'last_month' => 'เดือนที่แล้ว',
@@ -46,7 +23,6 @@ class RevenueReport
         'year' => 'รายปี',
     ];
 
-    /** ตัวเลือกบนหน้าจอ — auto ให้ระบบเดาความถี่จากความยาวช่วงที่เลือก */
     public const BUCKET_CHOICES = ['auto' => 'อัตโนมัติ'] + self::BUCKETS;
 
     private const MONTHS_TH = [
@@ -68,25 +44,21 @@ class RevenueReport
     {
         [$this->preset, $this->from, $this->to] = $this->resolveRange($request);
 
-        // เก็บสิ่งที่ผู้ใช้เลือกแยกจากผลลัพธ์จริง เพื่อให้ dropdown ค้างที่ "อัตโนมัติ" ได้
         $choice = (string) $request->query('bucket', 'auto');
         $this->bucketChoice = array_key_exists($choice, self::BUCKET_CHOICES) ? $choice : 'auto';
         $this->bucket = $this->resolveBucket();
     }
 
-    /** วันเริ่มของช่วงที่เลือก — ให้ส่วนอื่นของแดชบอร์ดใช้ช่วงเดียวกัน */
     public function from(): CarbonImmutable
     {
         return $this->from;
     }
 
-    /** วันสุดท้ายของช่วงที่เลือก */
     public function to(): CarbonImmutable
     {
         return $this->to;
     }
 
-    /** ข้อมูลทั้งหมดที่ view ต้องใช้ */
     public function toArray(): array
     {
         $series = $this->series();
@@ -108,9 +80,6 @@ class RevenueReport
         ];
     }
 
-    // ================= ช่วงเวลา =================
-
-    /** @return array{0:string,1:CarbonImmutable,2:CarbonImmutable} */
     private function resolveRange(Request $request): array
     {
         $preset = (string) $request->query('preset', 'last_12m');
@@ -124,7 +93,6 @@ class RevenueReport
             $from = $this->parseDate($request->query('from')) ?? $today->subMonths(11)->startOfMonth();
             $to = $this->parseDate($request->query('to')) ?? $today;
 
-            // กรอกกลับหัวกลับหางก็ยังใช้ได้ สลับให้เอง
             if ($from->greaterThan($to)) {
                 [$from, $to] = [$to, $from];
             }
@@ -156,7 +124,6 @@ class RevenueReport
         }
     }
 
-    /** ถ้าเลือก "อัตโนมัติ" ให้เดาจากความยาวช่วง: ไม่เกิน 3 ปีดูรายเดือน เกินนั้นดูรายปี */
     private function resolveBucket(): string
     {
         if ($this->bucketChoice !== 'auto') {
@@ -173,11 +140,8 @@ class RevenueReport
 
     private function thaiDate(CarbonImmutable $d): string
     {
-        // วัน/เดือน/ปี รูปแบบเดียวกับทุกหน้า
         return $d->format('d/m/Y');
     }
-
-    // ================= กราฟเส้นเวลา =================
 
     private function series(): array
     {
@@ -187,7 +151,6 @@ class RevenueReport
         $campRevenue = $this->align($keys, $this->deliveredByBucket(withCamp: true));
         $productRevenue = $this->align($keys, $this->deliveredByBucket(withCamp: false));
 
-        // ค่าน้ำมันที่ระบุแคมป์ = ต้นทุนสายแคมป์ตามจริง / ที่ไม่ระบุ = ต้องปันส่วน
         $fuelCamp = $this->align($keys, $this->fuelByBucket(withCamp: true));
         $fuelOther = $this->align($keys, $this->fuelByBucket(withCamp: false));
         $fuel = array_map(fn ($a, $b) => round($a + $b, 2), $fuelCamp, $fuelOther);
@@ -201,7 +164,6 @@ class RevenueReport
 
         $split = $this->splitCost($productRevenue, $campRevenue, $fuelOther, $maintenance);
 
-        // บวกค่าน้ำมันที่ระบุแคมป์แล้วเข้าสายแคมป์ตรง ๆ
         foreach ($fuelCamp as $i => $amount) {
             $split['camp']['fuel'][$i] = round($split['camp']['fuel'][$i] + $amount, 2);
             $split['camp']['cost'][$i] = round($split['camp']['cost'][$i] + $amount, 2);
@@ -224,14 +186,12 @@ class RevenueReport
         ];
     }
 
-    /** ค่าน้ำมันต่อ bucket แยกตามว่าระบุแคมป์หรือไม่ */
     private function fuelByBucket(bool $withCamp): array
     {
         $query = DB::table('fuel_records')
             ->whereNull('deleted_at')
             ->whereBetween('date_record', [$this->from->toDateString(), $this->to->toDateString()]);
 
-        // ยังไม่ได้ migrate คอลัมน์ id_camp = ถือว่าทุกรอบไม่ระบุแคมป์
         if (! Schema::hasColumn('fuel_records', 'id_camp')) {
             return $withCamp ? [] : $this->sumByBucket($query, 'date_record', 'cost_fuel_total');
         }
@@ -243,17 +203,11 @@ class RevenueReport
         return $this->sumByBucket($query, 'date_record', 'cost_fuel_total');
     }
 
-    /**
-     * รายได้ต่อ bucket แยกตามว่าใบส่งของผูกกับแคมป์หรือไม่
-     *
-     * delivery_notes.id_camp เป็นช่องเดียวในฐานข้อมูลที่บอกความต่างนี้ได้
-     * มีแคมป์ = งานบริการแคมป์ · ไม่มีแคมป์ = ขายสินค้าส่งตรงให้ลูกค้า
-     */
     private function deliveredByBucket(bool $withCamp): array
     {
         $query = DB::table('delivery_notes as dn')
             ->join('delivery_note_details as dnd', 'dnd.id_delivery_note', '=', 'dn.id_delivery_note')
-            ->whereNull('dn.cancelled_at')   // ใบส่งของที่ยกเลิกไม่นับเป็นรายได้
+            ->whereNull('dn.cancelled_at')
             ->whereBetween('dn.delivery_date', [$this->from->toDateString(), $this->to->toDateString()]);
 
         $withCamp
@@ -263,16 +217,6 @@ class RevenueReport
         return $this->sumByBucket($query, 'dn.delivery_date', 'dnd.total_price');
     }
 
-    /**
-     * ปันส่วนต้นทุนเข้าสองสายตามสัดส่วนรายได้ของแต่ละช่วงเวลา
-     *
-     * ใช้กับต้นทุนที่ไม่รู้ว่าเป็นของสายไหน: ค่าซ่อมรถ และค่าน้ำมันรอบที่ไม่ได้ระบุแคมป์
-     * ตัวเลขส่วนนี้เป็นการประมาณ ไม่ใช่ต้นทุนที่วัดจริง
-     * (ค่าน้ำมันที่ระบุแคมป์แล้ว ไม่ผ่านฟังก์ชันนี้ — series() บวกเข้าสายแคมป์ตรง ๆ)
-     *
-     * ถ้าช่วงไหนไม่มีรายได้เลยแต่มีต้นทุน จะใช้สัดส่วนรายได้ของทั้งช่วงที่เลือกแทน
-     * และถ้าทั้งช่วงก็ไม่มีรายได้ จึงค่อยหารครึ่ง — เพื่อไม่ให้ต้นทุนหายไปจากกราฟ
-     */
     private function splitCost(array $product, array $camp, array $fuel, array $maintenance): array
     {
         $periodProduct = array_sum($product);
@@ -291,7 +235,6 @@ class RevenueReport
             foreach (['fuel' => $fuel[$i], 'maintenance' => $maintenance[$i]] as $name => $amount) {
                 $toProduct = round($amount * $share, 2);
                 $out['product'][$name][$i] = $toProduct;
-                // ที่เหลือยกให้แคมป์ทั้งหมด ผลรวมสองสายจึงเท่ากับต้นทุนจริงเสมอ ไม่หล่นเพราะปัดเศษ
                 $out['camp'][$name][$i] = round($amount - $toProduct, 2);
             }
 
@@ -302,7 +245,6 @@ class RevenueReport
         return $out;
     }
 
-    /** @return array<string,float> key = รหัส bucket เช่น 2026-09 */
     private function sumByBucket($query, string $dateCol, string $valueCol): array
     {
         $expr = $this->bucketExpr($dateCol);
@@ -322,14 +264,12 @@ class RevenueReport
             : "DATE_FORMAT($col, '%Y-%m')";
     }
 
-    /** รายการ bucket ทั้งหมดในช่วง รวมช่องที่ไม่มีข้อมูล เพื่อให้กราฟไม่ขาดช่วง */
     private function bucketKeys(): array
     {
         $keys = [];
         $byYear = $this->bucket === 'year';
         $cursor = $byYear ? $this->from->startOfYear() : $this->from->startOfMonth();
 
-        // กันลูปยาวเกินไปถ้ามีใครยิง custom range ข้ามร้อยปี
         $guard = 0;
         while ($cursor->lessThanOrEqualTo($this->to) && $guard++ < 1200) {
             $keys[] = $cursor->format($byYear ? 'Y' : 'Y-m');

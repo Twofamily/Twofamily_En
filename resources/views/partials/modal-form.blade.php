@@ -1,11 +1,3 @@
-{{--
-    ตัวช่วยหน้าต่างเพิ่ม / แก้ไข (modal) ใช้ร่วมทุกหน้า
-
-        ModalForm.fill(form, data)       เติมค่าให้ทุกช่องที่ชื่อตรงกับ key ของ data
-                                         (ข้ามช่องไฟล์ · checkbox/radio ติ๊กตามค่า · select ที่ไม่มีค่านั้นจะเพิ่มตัวเลือกให้)
-        ModalForm.clearErrors(modalEl)   ล้างกรอบแดง + กล่องข้อผิดพลาดจากการเปิดครั้งก่อน
-        ModalForm.open(modalEl)          เปิดหน้าต่าง
---}}
 @once
     <style>
         .modal-section {

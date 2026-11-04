@@ -32,7 +32,6 @@ class Driver extends Model
         return trim($this->fname_driver . ' ' . $this->lname_driver);
     }
 
-    /** แคมป์ที่คนขับคนนี้เคย/กำลังทำงาน (ผ่านการมอบหมายรถ) */
     public function camps()
     {
         return $this->belongsToMany(Camp::class, 'camp_truck', 'id_driver', 'id_camp')
@@ -41,7 +40,6 @@ class Driver extends Model
             ->withTimestamps();
     }
 
-    /** การมอบหมายที่ยังไม่ถอนออก (คนขับ 1 คน ทำงานได้ทีละแคมป์) */
     public function activeAssignment()
     {
         return $this->hasOne(CampTruck::class, 'id_driver', 'id_driver')
@@ -49,7 +47,6 @@ class Driver extends Model
             ->latestOfMany('id_assignment');
     }
 
-    /** คนขับที่ว่าง = ไม่ได้ประจำแคมป์ไหนอยู่ */
     public function scopeAvailable($query)
     {
         return $query->whereNotIn('id_driver', CampTruck::query()

@@ -36,7 +36,6 @@
     <div class="card detail-card overflow-hidden">
         <div class="card-body p-4 p-lg-5">
             <div class="row g-4 align-items-center">
-                <!-- คอลัมน์ซ้าย: รูปภาพใบขับขี่ -->
                 <div class="col-md-5 text-center">
                     @if ($driver->citizen_image)
                         <img src="{{ asset('storage/' . $driver->citizen_image) }}"
@@ -49,7 +48,6 @@
                     @endif
                 </div>
 
-                <!-- คอลัมน์ขวา: รายละเอียดข้อมูลพนักงาน -->
                 <div class="col-md-7">
                     <div class="mb-3">
                         <div class="label">ชื่อ-สกุล</div>
@@ -82,7 +80,6 @@
                         </div>
                     </div>
 
-                    {{-- แคมป์ที่ทำงาน (ผ่านการมอบหมายรถ) --}}
                     @php $current = $driver->camps->firstWhere('pivot.released_date', null); @endphp
                     <div class="mb-4">
                         <div class="label">ประจำแคมป์ตอนนี้</div>
@@ -112,7 +109,6 @@
         </div>
     </div>
 
-    {{-- ประวัติการทำงานตามแคมป์ --}}
     <div class="card detail-card mt-4">
         <div class="card-body p-4">
             <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">ประวัติการทำงานตามแคมป์</h6>

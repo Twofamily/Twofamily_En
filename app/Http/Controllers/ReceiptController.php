@@ -15,15 +15,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
-/**
- * ใบเสร็จรับเงิน 2 แบบ
- *
- *   invoice : createFromInvoice() — ปุ่มในหน้าใบแจ้งหนี้ (ส่งของ → ออกใบแจ้งหนี้ → ลูกค้าจ่าย → ออกใบเสร็จ)
- *   direct  : create/store — ขายสด ไม่ต้องมีแคมป์ (กรอกในหน้าต่างของหน้ารายการใบเสร็จ)
- */
 class ReceiptController extends Controller
 {
-    /** ความสัมพันธ์ที่หน้าแสดงผลและ PDF ใช้ */
     private const DISPLAY_RELATIONS = [
         'customer',
         'camp',
@@ -37,20 +30,16 @@ class ReceiptController extends Controller
         'invoice.payments.recordedBy',
     ];
 
-    /* ==================== แบบที่ 1 : ชำระตามใบแจ้งหนี้ ==================== */
-
     public function createFromInvoice($id)
     {
         $invoice = Invoice::with(['receipt', 'payments', 'details'])->findOrFail($id);
 
-        // ออกไปแล้ว → พาไปดูใบเดิม ไม่สร้างซ้ำ
         if ($invoice->hasReceipt()) {
             return redirect()
                 ->route('receipts.show', $invoice->receipt->id_receipt)
                 ->with('warning', 'ใบแจ้งหนี้นี้ออกใบเสร็จไปแล้ว');
         }
 
-        // ด่านหลัก: ต้องมีหลักฐานการชำระครบยอด
         if (! $invoice->canIssueReceipt()) {
             return redirect()
                 ->route('invoices.show', $invoice->id_invoice)
@@ -59,7 +48,6 @@ class ReceiptController extends Controller
                     . ' บาท) จึงออกใบเสร็จไม่ได้');
         }
 
-        // ใช้ยอดที่บันทึกไว้ในใบแจ้งหนี้ ไม่คำนวณใหม่จาก quotation
         $receipt = Receipt::create([
             'receipt_type'      => Receipt::TYPE_INVOICE,
             'id_invoice'        => $invoice->id_invoice,
@@ -77,9 +65,6 @@ class ReceiptController extends Controller
             ->with('success', 'ออกใบเสร็จ ' . $receipt->code_rc . ' เรียบร้อย');
     }
 
-    /* ==================== แบบที่ 2 : ขายสด ==================== */
-
-    /** ขายสดกรอกในหน้าต่าง (modal) ของหน้ารายการใบเสร็จ — เปิด URL เดิมก็เด้งหน้าต่างให้ */
     public function create(Request $request)
     {
         return redirect()->route('receipts.index', array_filter([
@@ -101,12 +86,11 @@ class ReceiptController extends Controller
             'items.*.quantity'   => 'required|numeric|gt:0',
             'items.*.price'      => 'required|numeric|min:0',
 
-            // หลักฐานการชำระ
             'method'        => 'required|in:' . implode(',', array_keys(Payment::METHODS)),
             'bank_name'     => 'nullable|required_if:method,transfer|string|max:100',
             'reference_no'  => 'nullable|string|max:50',
-            'cash_received' => 'nullable|numeric|min:0',   // เงินสดที่ลูกค้ายื่นมา (ไว้คิดเงินทอน)
-            'slip'          => Payment::slipRules(),   // บังคับ ยกเว้นเงินสด
+            'cash_received' => 'nullable|numeric|min:0',
+            'slip'          => Payment::slipRules(),
         ];
 
         $data = $request->validateWithBag('createReceipt', $rules, [
@@ -125,14 +109,12 @@ class ReceiptController extends Controller
 
         $type = Receipt::TYPE_DIRECT;
 
-        /* ---------- ตรวจแคมป์ (ไม่บังคับ) ---------- */
         $camp = ! empty($data['id_camp']) ? Camp::find($data['id_camp']) : null;
 
         if ($camp && (int) $camp->id_customer !== (int) $data['id_customer']) {
             return back()->withInput()->withErrors(['receipt' => 'แคมป์ที่เลือกเป็นของลูกค้ารายอื่น'], 'createReceipt');
         }
 
-        /* ---------- คำนวณยอด (เก็บเป็นคอลัมน์) ---------- */
         $lines = collect($data['items'])->map(fn ($item) => [
             'id_product'  => $item['id_product'],
             'description' => null,
@@ -147,7 +129,6 @@ class ReceiptController extends Controller
 
         $idCustomer = $data['id_customer'];
 
-        /* ---------- เงินสด: รับมาเท่าไร ทอนเท่าไร ---------- */
         $cashNote = null;
 
         if ($data['method'] === 'cash' && isset($data['cash_received']) && $data['cash_received'] !== '') {
@@ -161,7 +142,6 @@ class ReceiptController extends Controller
             $cashNote = 'รับเงินสด ' . number_format($got, 2) . ' บาท ทอน ' . number_format($got - $total, 2) . ' บาท';
         }
 
-        /* ---------- ไฟล์หลักฐาน ---------- */
         $file = $request->file('slip');
         $path = $hash = null;
 
@@ -214,7 +194,6 @@ class ReceiptController extends Controller
                 return $receipt;
             });
         } catch (\Throwable $e) {
-            // บันทึก DB ไม่สำเร็จ → ลบไฟล์ที่อัปไปแล้ว ไม่ให้มีไฟล์กำพร้า
             if ($path) {
                 Storage::disk('local')->delete($path);
             }
@@ -225,8 +204,6 @@ class ReceiptController extends Controller
             ->route('receipts.show', $receipt->id_receipt)
             ->with('success', 'ออกใบเสร็จ' . $receipt->type_label . ' ' . $receipt->code_rc . ' เรียบร้อย');
     }
-
-    /* ==================== แสดงผล ==================== */
 
     public function show($id)
     {
@@ -241,19 +218,15 @@ class ReceiptController extends Controller
         $search  = $this->searchTerm($request);
         [$dateFrom, $dateTo] = $this->dateRange($request);
 
-        // พิมพ์ "ขายสด" ก็ค้นตามประเภทได้
         $types = $this->statusesMatching($search, Receipt::TYPES);
-        // "ยกเลิกแล้ว" อยู่ใน dropdown เดียวกับประเภท
         $type  = $this->statusFilter($request, [...array_keys(Receipt::TYPES), 'cancelled'], 'type');
 
-        // ช่วงยอดรับชำระ (ต่ำสุด–สูงสุด)
         $ranges = $this->numberRanges($request, [
             'total' => ['label' => 'ยอดรับชำระ', 'unit' => 'บาท', 'step' => '0.01'],
         ]);
 
         $query = Receipt::with(['customer', 'invoice', 'camp', 'cancelledBy'])
             ->cancelledFilter($type === 'cancelled' ? 'cancelled' : null)
-            // ช่องค้นหาช่องเดียว: เลขที่ใบเสร็จ ใบแจ้งหนี้ แคมป์ ชื่อลูกค้า และประเภท
             ->when($search !== '', function ($query) use ($search, $types) {
                 $query->where(function ($sub) use ($search, $types) {
                     $sub->where('code_rc', 'like', "%{$search}%")
@@ -270,8 +243,6 @@ class ReceiptController extends Controller
             ->tap(fn ($query) => $this->applyNumberRange($query, 'total', $ranges['total']))
             ->tap(fn ($query) => $this->applyDateRange($query, 'date_receipt', $dateFrom, $dateTo));
 
-        // ยอดรวมรับชำระตามเงื่อนไข (ทุกหน้า ไม่ใช่เฉพาะหน้าที่แสดง)
-        // ใบที่ยกเลิกแล้วไม่นับเป็นยอดรับชำระ
         $sumTotal = (clone $query)->whereNull('receipts.cancelled_at')->sum('total');
 
         $receipts = $query
@@ -279,14 +250,13 @@ class ReceiptController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        // หน้าต่างขายสด (เปิดจากปุ่มในหน้านี้)
         $canCreate = (bool) $request->user()?->canEdit('receipts');
         $form = $canCreate ? [
             'walkIn'      => Customer::walkIn(),
             'customers'   => Customer::orderBy('name_customer')->get(),
             'camps'       => Camp::with('customer')->open()->latest('id_camp')->get(),
             'products'    => Product::orderBy('name_product')->get(),
-            'requireSlip' => (bool) Setting::get('payment.require_slip', true),   // ยกเว้นเงินสด (ดู Payment::slipRules)
+            'requireSlip' => (bool) Setting::get('payment.require_slip', true),
         ] : [];
 
         return view('receipts.index', compact(
@@ -305,11 +275,6 @@ class ReceiptController extends Controller
         return $pdf->stream(($receipt->code_rc ?: 'RC-' . $receipt->id_receipt) . '.pdf');
     }
 
-    /**
-     * ยกเลิกใบเสร็จ (ไม่ลบ) — เลขที่ หลักฐานการชำระ และไฟล์สลิปยังอยู่ทั้งหมด
-     *   invoice : ใบแจ้งหนี้กลับมาแก้ไขรายการชำระ / ออกใบเสร็จใหม่ได้
-     *   direct  : ไม่นับเป็นเงินรับ
-     */
     public function destroy(Request $request, $id)
     {
         $data = $request->validate(

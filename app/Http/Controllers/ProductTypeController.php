@@ -7,10 +7,6 @@ use Illuminate\Http\Request;
 
 class ProductTypeController extends Controller
 {
-    /**
-     * ประเภทสินค้าเป็นแท็บหนึ่งในหน้าสินค้าแล้ว → ส่งไปแท็บนั้น (พกคำค้นหาไปด้วย)
-     * ยกเว้นคนที่ดูได้แค่ประเภทสินค้า แต่ไม่มีสิทธิ์ดูหน้าสินค้า → ใช้หน้าเดิม
-     */
     public function index(Request $request)
     {
         if ($request->user()?->canViewModule('products')) {
@@ -29,7 +25,6 @@ class ProductTypeController extends Controller
         return view('product_types.index', compact('types', 'perPage', 'search'));
     }
 
-    /** ฟอร์มเพิ่มประเภทย้ายไปเป็น modal ในแท็บประเภทสินค้าแล้ว */
     public function create(Request $request)
     {
         if ($request->user()?->canViewModule('products')) {
@@ -48,7 +43,6 @@ class ProductTypeController extends Controller
             ->with('ok', 'เพิ่มประเภทสินค้าเรียบร้อย');
     }
 
-    /** แก้ไขประเภทสินค้าทำในหน้าต่าง (modal) ของแท็บประเภทสินค้า */
     public function edit(Request $request, ProductType $product_type)
     {
         if ($request->user()?->canViewModule('products')) {

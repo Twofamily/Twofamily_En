@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Support\Permission;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -15,25 +14,15 @@ class User extends Authenticatable
 {
     use HasApiTokens;
 
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
     use HasProfilePhoto;
     use Notifiable;
     use TwoFactorAuthenticatable;
 
-    /* ============================================================
-     |  ค่าคงที่ของสิทธิ์
-     |  ใช้แทนการพิมพ์ string ตรง ๆ กันพิมพ์ผิด
-     |  เรียกใช้:  User::ROLE_ADMIN
-     ============================================================ */
     public const ROLE_ADMIN  = 'admin';
     public const ROLE_STAFF  = 'staff';
     public const ROLE_VIEWER = 'viewer';
 
-    /**
-     * รายการสิทธิ์ทั้งหมด + ชื่อภาษาไทย
-     * ใช้ทำ dropdown ในหน้าเพิ่ม/แก้ไขผู้ใช้
-     */
     public static function roleList(): array
     {
         return [
@@ -43,29 +32,19 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
-        'name',             // ประกอบจาก first_name + last_name ให้เองตอนบันทึก
+        'name',
         'first_name',
         'last_name',
         'email',
         'password',
         'role',
-        'permissions',      // สิทธิ์รายหน้า (JSON)
+        'permissions',
         'is_active',
-        'signature_path',   // path รูปลายเซ็น สัมพัทธ์จาก public/
-        'position',         // ตำแหน่งที่พิมพ์ใต้ชื่อในเอกสาร
+        'signature_path',
+        'position',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
@@ -73,20 +52,10 @@ class User extends Authenticatable
         'two_factor_secret',
     ];
 
-    /**
-     * The accessors to append to the model's array form.
-     *
-     * @var array<int, string>
-     */
     protected $appends = [
         'profile_photo_url',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -97,11 +66,6 @@ class User extends Authenticatable
         ];
     }
 
-    /* ============================================================
-     |  ชื่อ / นามสกุล
-     |  name เป็นชื่อเต็มที่ระบบส่วนอื่นใช้ (Jetstream, PDF, หน้ารายการ)
-     |  แก้ชื่อ/นามสกุล → ประกอบ name ใหม่ · แก้ name ตรง ๆ (หน้าโปรไฟล์ Jetstream) → แยกกลับเป็นชื่อ/นามสกุล
-     ============================================================ */
     protected static function booted(): void
     {
         static::saving(function (User $user) {
@@ -113,7 +77,6 @@ class User extends Authenticatable
         });
     }
 
-    /** "สมหญิง ขยันงาน" → ['สมหญิง', 'ขยันงาน'] (คำแรก = ชื่อ ที่เหลือ = นามสกุล) */
     public static function splitName(?string $name): array
     {
         $parts = preg_split('/\s+/u', trim((string) $name), 2);
@@ -121,46 +84,26 @@ class User extends Authenticatable
         return [$parts[0] ?? '', $parts[1] ?? null];
     }
 
-    /* ============================================================
-     |  เมธอดช่วยตรวจสอบสิทธิ์
-     |  ใช้ใน Blade เช่น  @if(auth()->user()->isAdmin())
-     ============================================================ */
-
-    /** เป็นผู้ดูแลระบบหรือไม่ */
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
     }
 
-    /** เป็นพนักงานเอกสารหรือไม่ */
     public function isStaff(): bool
     {
         return $this->role === self::ROLE_STAFF;
     }
 
-    /** เป็นผู้บริหาร (ดูอย่างเดียว) หรือไม่ */
     public function isViewer(): bool
     {
         return $this->role === self::ROLE_VIEWER;
     }
 
-    /**
-     * มีสิทธิ์ตรงกับที่ระบุหรือไม่ (ระบุได้หลายตัว)
-     * ตัวอย่าง: $user->hasRole('admin', 'staff')
-     */
     public function hasRole(string ...$roles): bool
     {
         return in_array($this->role, $roles, true);
     }
 
-    /**
-     * มีสิทธิ์เพิ่ม/แก้ไข/ลบข้อมูลหรือไม่
-     * ใช้ครอบปุ่มในหน้า Blade:  @if(auth()->user()->canEdit())
-     *
-     * ถ้าไม่ระบุหน้า จะดูจากหน้าปัจจุบันให้อัตโนมัติ
-     * ปุ่มที่ครอบ canEdit() ไว้แล้วจึงเคารพสิทธิ์รายหน้าทันทีโดยไม่ต้องแก้ view
-     * ระบุเองได้: canEdit('quotations')
-     */
     public function canEdit(?string $module = null): bool
     {
         if (! $this->hasRole(self::ROLE_ADMIN, self::ROLE_STAFF)) {
@@ -172,20 +115,11 @@ class User extends Authenticatable
         return $module ? $this->canEditModule($module) : true;
     }
 
-    /** ชื่อสิทธิ์ภาษาไทย สำหรับแสดงในตาราง */
     public function getRoleNameAttribute(): string
     {
         return self::roleList()[$this->role] ?? 'ไม่ระบุ';
     }
 
-    /* ============================================================
-     |  สิทธิ์รายหน้า
-     ============================================================ */
-
-    /**
-     * ระดับสิทธิ์จริงของหน้านั้น (0 = ไม่มี, 1 = ดู, 2 = แก้ไข)
-     * = ค่าที่ต่ำกว่าระหว่างเพดานของ role กับค่าที่ตั้งรายคน
-     */
     public function permissionLevel(string $module): int
     {
         if ($this->isAdmin()) {
@@ -195,7 +129,6 @@ class User extends Authenticatable
         $cap    = Permission::toInt(Permission::defaultFor($this->role));
         $custom = $this->permissions[$module] ?? null;
 
-        // ยังไม่เคยตั้งหน้านี้ → ใช้ตาม role
         if ($custom === null) {
             return $cap;
         }
@@ -203,43 +136,22 @@ class User extends Authenticatable
         return min($cap, Permission::toInt($custom));
     }
 
-    /** เข้าดูหน้านี้ได้หรือไม่  ใช้ซ่อนเมนู: canViewModule('quotations') */
     public function canViewModule(string $module): bool
     {
         return $this->permissionLevel($module) >= Permission::LEVELS[Permission::VIEW];
     }
 
-    /** แก้ไขข้อมูลในหน้านี้ได้หรือไม่ */
     public function canEditModule(string $module): bool
     {
         return $this->permissionLevel($module) >= Permission::LEVELS[Permission::EDIT];
     }
 
-    /* ============================================================
-     |  ลายเซ็นอิเล็กทรอนิกส์
-     ============================================================ */
-
-    /**
-     * มีไฟล์ลายเซ็นที่ใช้งานได้จริงหรือไม่
-     * เช็คถึงระดับไฟล์ เพราะ path ในฐานข้อมูลอาจชี้ไปหาไฟล์ที่ถูกลบไปแล้ว
-     */
     public function hasSignature(): bool
     {
         return $this->signature_path
             && file_exists(public_path($this->signature_path));
     }
 
-    /**
-     * path เต็มของไฟล์ลายเซ็น สำหรับ dompdf
-     * คืน null ถ้าไม่มีไฟล์ เพื่อให้ Blade ข้ามการแสดงรูปไปเลย
-     *
-     * หมายเหตุ: dompdf อ่าน URL ไม่ได้ ต้องใช้ path ในเครื่องเท่านั้น
-     * จึงใช้ public_path() ไม่ใช่ asset()
-     */
-    /**
-     * path ลายเซ็นที่ dompdf วาดได้จริง (null = ไม่แสดงรูป แต่ PDF ยังออกได้)
-     * PNG ต้องใช้ PHP GD บนเว็บเซิร์ฟเวอร์ · JPG ไม่ต้องใช้
-     */
     public function signatureForPdf(): ?string
     {
         if (! $this->hasSignature()) {

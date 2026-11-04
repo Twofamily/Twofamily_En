@@ -40,7 +40,6 @@
         .muted       { color: #666; }
         .small       { font-size: 11.5px; }
 
-        /* ---------- หัวเอกสาร ---------- */
         .company-name {
             font-size: 19px;
             font-weight: bold;
@@ -75,7 +74,6 @@
             margin: 10px 0 12px 0;
         }
 
-        /* ---------- ข้อมูลลูกค้า ---------- */
         .info {
             width: 100%;
             border: 1px solid #bfb3a8;
@@ -97,7 +95,6 @@
             border-bottom: 1px solid #bfb3a8;
         }
 
-        /* ---------- ตารางรายการ ---------- */
         .items {
             width: 100%;
             margin-top: 12px;
@@ -125,7 +122,6 @@
             background-color: #faf7f4;
         }
 
-        /* ---------- สรุปยอด ---------- */
         .summary {
             width: 100%;
         }
@@ -157,7 +153,6 @@
             min-height: 70px;
         }
 
-        /* ---------- ส่วนลงชื่อท้ายเอกสาร ---------- */
         .signature-table {
             width: 100%;
             margin-top: 20px;
@@ -178,7 +173,6 @@
             font-weight: bold;
         }
 
-        /* ---------- ท้ายหน้า ---------- */
         .footer {
             position: fixed;
             bottom: -24px;
@@ -203,7 +197,6 @@
         </table>
     </div>
 
-    {{-- ===== หัวเอกสาร: ข้อมูลบริษัท (ซ้าย) / กล่องเลขที่เอกสาร (ขวา) ===== --}}
     <table width="100%">
         <tr>
             <td width="62%" style="vertical-align: top;">
@@ -211,7 +204,6 @@
                     <img src="{{ public_path('images/logo.png') }}" style="height: 60px; margin-bottom: 4px;"><br>
                 @endif
                 
-                {{-- เปลี่ยนมาดึงจาก $settings array แทนการใช้ helper setting() --}}
                 <div class="company-name">
                     {{ $settings['company.name'] ?? $settings['company_name'] ?? 'บริษัท ทูแฟมิลี่ เอ็นจิเนียริ่ง จำกัด' }}
                 </div>
@@ -252,7 +244,6 @@
 
     <div class="rule"></div>
 
-    {{-- ===== ข้อมูลลูกค้า ===== --}}
     <table class="info small">
         <tr>
             <td colspan="2" class="head">เสนอราคาให้ (ลูกค้า)</td>
@@ -264,7 +255,6 @@
         <tr>
             <td class="label">ที่อยู่</td>
             <td>
-                {{-- ป้องกัน Error หากไม่มี helper customer_address --}}
                 @if(function_exists('customer_address'))
                     {{ customer_address($quotation->customer) }}
                 @else
@@ -278,7 +268,6 @@
         </tr>
     </table>
 
-    {{-- ===== ตารางรายการ ===== --}}
     <table class="items small">
         <thead>
             <tr>
@@ -318,7 +307,6 @@
         </tbody>
     </table>
 
-    {{-- ===== ส่วนท้าย: สรุปยอด + พิมพ์ชื่อลงชื่อ ===== --}}
     <div style="page-break-inside: avoid;">
 
     <table width="100%" class="small" style="margin-top: 10px;">
@@ -365,7 +353,6 @@
         </div>
     @endif
 
-    {{-- ===== ช่องลงชื่อ: แบบเดียวกับเอกสารอื่นทุกใบ (pdf/partials/signatures) ===== --}}
     @include('pdf.partials.signatures', ['slots' => [
         [
             'party' => 'customer',
@@ -380,12 +367,12 @@
         [
             'party' => 'company',
             'label' => 'ผู้อนุมัติ',
-            'user'  => $quotation->approver,      // ยังไม่อนุมัติ = ว่าง ให้เซ็นมือ
+            'user'  => $quotation->approver,
             'date'  => $quotation->approved_at,
         ],
     ]])
 
-    </div>{{-- /keep-together --}}
+    </div>
 
 </body>
 

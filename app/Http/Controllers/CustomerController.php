@@ -12,16 +12,13 @@ class CustomerController extends Controller
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
 
-        // ช่องค้นหาช่องเดียว ค้นได้ทุกคอลัมน์ที่แสดง รวมถึงพิมพ์ "บริษัท" / "บุคคล"
         $types = collect(['person' => 'บุคคล', 'company' => 'บริษัท'])
             ->filter(fn ($label) => $search !== '' && mb_stripos($label, $search) !== false)
             ->keys();
 
-        // dropdown ประเภทลูกค้า
         $typeLabels = ['person' => 'บุคคล', 'company' => 'บริษัท'];
         $type = $this->statusFilter($request, array_keys($typeLabels), 'type');
 
-        // ลูกค้าทั่วไป (ไม่ระบุชื่อ) เป็นข้อมูลของระบบ ไม่แสดงในรายชื่อ — เลือกได้จากปุ่มในหน้าต่างขายสด
         $customers = Customer::regular()
             ->when($type, fn ($query) => $query->where('customer_type', $type))
             ->when($search !== '', function ($query) use ($search, $types) {
@@ -45,7 +42,6 @@ class CustomerController extends Controller
 
     public function create()
     {
-        // เพิ่มลูกค้าทำในหน้าต่าง (modal) ของหน้ารายการ
         return redirect()->route('customers.index', ['modal' => 'create']);
     }
 
@@ -65,7 +61,6 @@ class CustomerController extends Controller
 
     public function edit(Customer $customer)
     {
-        // แก้ไขลูกค้าทำในหน้าต่าง (modal) ของหน้ารายการ
         return redirect()->route('customers.index', ['edit' => $customer->getKey()]);
     }
 
@@ -95,16 +90,10 @@ class CustomerController extends Controller
             ->with('ok', 'ลบข้อมูลเรียบร้อย');
     }
 
-    /**
-     * เพิ่มลูกค้าจากหน้าต่าง "ลูกค้าใหม่" ในหน้าใบเสนอราคา / ใบสั่งขาย (customers._quick-modal)
-     * ใช้ฟอร์มและกฎตรวจข้อมูลชุดเดียวกับหน้าลูกค้า (validateForm)
-     * กรอกผิด → Laravel ตอบ 422 พร้อม errors เป็น JSON ให้เอง (เพราะ request ขอ JSON)
-     */
     public function storeAjax(Request $request)
     {
         $customer = Customer::create($this->validateForm($request, 'quickCustomer'));
 
-        // name_customer ของบุคคลถูกรวมจาก คำนำหน้า / ชื่อ / นามสกุล ในโมเดล → อ่านค่าล่าสุดกลับมา
         $customer->refresh();
 
         return response()->json([
@@ -113,11 +102,6 @@ class CustomerController extends Controller
         ], 201);
     }
 
-    /**
-     * ฟอร์มเต็มในหน้าต่างเพิ่ม / แก้ไขลูกค้า
-     *   บุคคล  : คำนำหน้า + ชื่อ (+ นามสกุล) → ระบบรวมเป็น name_customer
-     *   บริษัท : name_customer = ชื่อบริษัท + สำนักงานใหญ่/สาขา + ผู้ติดต่อ
-     */
     private function validateForm(Request $request, string $bag): array
     {
         $isCompany = $request->input('customer_type') === 'company';
@@ -165,7 +149,6 @@ class CustomerController extends Controller
                 : Customer::HEAD_OFFICE;
             $data['name_prefix'] = $data['first_name'] = $data['last_name'] = null;
         } else {
-            // ชื่อเต็มรวมจากช่องย่อยในโมเดล
             unset($data['name_customer']);
             $data['branch_code'] = $data['contact_name'] = null;
         }

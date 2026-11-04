@@ -1,7 +1,3 @@
-{{--
-    ช่องกรอกพนักงานขับรถ — ใช้ทั้งหน้าต่างเพิ่มและแก้ไข (วางไว้ "ข้างใน <form>")
-    @include('drivers._fields', ['p' => 'c_', 'v' => [...], 'bag' => $errors->createDriver])
---}}
 @php
     $v   = $v ?? [];
     $bag = $bag ?? new \Illuminate\Support\MessageBag();
@@ -10,7 +6,6 @@
 @endphp
 
 <div class="row g-3">
-    {{-- ---------- รูปใบขับขี่ ---------- --}}
     <div class="col-md-4">
         <label class="form-label" for="{{ $p }}citizen_image">รูปใบขับขี่</label>
         <div class="border rounded bg-light d-flex align-items-center justify-content-center text-muted small mb-2"
@@ -29,13 +24,13 @@
                 <label class="form-label" for="{{ $p }}fname_driver">ชื่อ <span class="req-star">*</span></label>
                 <input type="text" id="{{ $p }}fname_driver" name="fname_driver" maxlength="255"
                        value="{{ $val('fname_driver') }}" class="form-control {{ $bad('fname_driver') }}"
-                       placeholder="เช่น สมชาย" required data-required-msg="กรุณาใส่ชื่อ">
+                       placeholder="เช่น สมชาย" required data-required-msg="กรุณากรอกชื่อ">
             </div>
             <div class="col-md-6">
                 <label class="form-label" for="{{ $p }}lname_driver">นามสกุล <span class="req-star">*</span></label>
                 <input type="text" id="{{ $p }}lname_driver" name="lname_driver" maxlength="255"
                        value="{{ $val('lname_driver') }}" class="form-control {{ $bad('lname_driver') }}"
-                       placeholder="เช่น ใจดี" required data-required-msg="กรุณาใส่นามสกุล">
+                       placeholder="เช่น ใจดี" required data-required-msg="กรุณากรอกนามสกุล">
             </div>
             <div class="col-md-6">
                 <label class="form-label" for="{{ $p }}phone_driver">เบอร์โทร (10 หลัก)</label>

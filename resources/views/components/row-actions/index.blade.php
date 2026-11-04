@@ -1,30 +1,3 @@
-{{--
-    ปุ่มจัดการในตาราง: จุดสามจุด กดแล้วมีเมนู ดู / แก้ไข / (เมนูเพิ่มเติม) / ลบ
-
-    ใช้ร่วมกันทุกหน้ารายการ:
-        <x-row-actions :show="route('camps.show', $camp)"
-                       :edit="route('camps.edit', $camp)"
-                       :delete="route('camps.destroy', $camp)"
-                       :label="$camp->code_camp" />
-
-    ไม่ส่ง URL ไหน = ไม่แสดงเมนูนั้น (เช่น ไม่มีสิทธิ์แก้ไขก็ไม่ต้องส่ง :edit)
-
-    ลบไม่ได้ แต่อยากบอกเหตุผล → ส่ง delete-disabled="มีสินค้าใช้ประเภทนี้อยู่"
-    เอกสารที่ "ยกเลิก" แทนการลบ → delete-label="ยกเลิกเอกสาร" delete-icon="bi-x-octagon" delete-reason="cancel_reason"
-    ข้อความยืนยันการลบเปลี่ยนได้ด้วย delete-confirm / delete-title / delete-ok / delete-label
-
-    เมนูเพิ่มเติม (อนุมัติ ยกเลิก ระงับบัญชี ...) ใส่ไว้ข้างในแท็ก:
-        <x-row-actions ...>
-            <x-row-actions.form :action="route('quotations.approve', $q)" method="PATCH"
-                                icon="bi-check-lg" variant="success"
-                                confirm="..." confirm-title="..." confirm-ok="อนุมัติ">
-                อนุมัติ
-            </x-row-actions.form>
-            <x-row-actions.link :href="..." icon="bi-printer">พิมพ์</x-row-actions.link>
-        </x-row-actions>
-
-    เมนูเปิดแบบ position: fixed จึงไม่โดน .table-responsive ตัดขอบ
---}}
 @props([
     'show'           => null,
     'edit'           => null,
@@ -94,7 +67,6 @@
                             </button>
                         </form>
                     @else
-                        {{-- ลบไม่ได้: แสดงเป็นสีเทาพร้อมเหตุผล ให้รู้ว่าทำไม --}}
                         <span class="dropdown-item disabled row-actions-disabled" aria-disabled="true">
                             <i class="bi {{ $deleteIcon }}" aria-hidden="true"></i>
                             <span>

@@ -14,7 +14,6 @@ class DriverController extends Controller
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
 
-        // ช่องค้นหาช่องเดียว: ชื่อ นามสกุล ชื่อเต็ม เบอร์โทร เลขบัตรประชาชน
         $drivers = Driver::query()
             ->when($search !== '', fn ($query) => $query->where(fn ($sub) =>
                 $sub->where('fname_driver', 'like', "%{$search}%")
@@ -32,7 +31,6 @@ class DriverController extends Controller
 
     public function create()
     {
-        // เพิ่มพนักงานขับรถทำในหน้าต่าง (modal) ของหน้ารายการ
         return redirect()->route('drivers.index', ['modal' => 'create']);
     }
 
@@ -53,7 +51,6 @@ class DriverController extends Controller
 
     public function show(Driver $driver)
     {
-        // ประวัติแคมป์ที่คนขับคนนี้เคย/กำลังทำงาน ล่าสุดขึ้นก่อน
         $driver->load([
             'camps' => fn ($q) => $q->with('customer')->orderByPivot('assigned_date', 'desc'),
         ]);
@@ -63,7 +60,6 @@ class DriverController extends Controller
 
     public function edit(Driver $driver)
     {
-        // แก้ไขทำในหน้าต่าง (modal) ของหน้ารายการ
         return redirect()->route('drivers.index', ['edit' => $driver->getKey()]);
     }
 
@@ -110,8 +106,8 @@ class DriverController extends Controller
                     ->ignore($driverId, 'id_driver'),
             ],
             'lname_driver'     => ['required', 'string', 'max:255'],
-            'address_no'       => ['nullable', 'string', 'max:50'],   // <-- เพิ่ม Validation บ้านเลขที่
-            'moo'              => ['nullable', 'string', 'max:20'],   // <-- เพิ่ม Validation หมู่ที่
+            'address_no'       => ['nullable', 'string', 'max:50'],
+            'moo'              => ['nullable', 'string', 'max:20'],
             'address_detail'   => ['nullable', 'string', 'max:255'],
             'subdistrict'      => ['nullable', 'string', 'max:100'],
             'district'         => ['nullable', 'string', 'max:100'],

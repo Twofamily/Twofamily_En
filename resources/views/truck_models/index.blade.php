@@ -16,7 +16,6 @@
                       :search="$search" :per-page="$perPage"
                       :statuses="$wheelLabels" :status="$wheels"
                       status-name="wheels" status-label="จำนวนล้อ"
-                      {{-- :ranges="$ranges"  --}}
                       />
 
         <div class="d-flex justify-content-end mb-3">

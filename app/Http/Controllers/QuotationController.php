@@ -15,10 +15,8 @@ use Carbon\Carbon;
 
 class QuotationController extends Controller
 {
-    /** อายุใบเสนอราคานับจากวันที่ออก (วัน) */
     private const VALID_DAYS = 30;
 
-    /** สถานะที่ใช้กรองได้ในหน้ารายการ */
     public const FILTERABLE_STATUSES = ['draft', 'approved', 'rejected'];
 
     public function index(Request $request)
@@ -50,7 +48,6 @@ class QuotationController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        // หน้าต่างสร้างใบเสนอราคา (เปิดจากปุ่มในหน้านี้)
         $customers = Customer::orderBy('name_customer')->get();
         $products  = Product::orderBy('name_product')->get();
 
@@ -59,7 +56,6 @@ class QuotationController extends Controller
         ));
     }
 
-    /** สร้างใบเสนอราคาในหน้าต่าง (modal) ของหน้ารายการ */
     public function create()
     {
         return redirect()->route('quotations.index', ['modal' => 'create']);
@@ -98,14 +94,12 @@ class QuotationController extends Controller
     {
         $quotation->load('customer', 'details.product', 'salesOrder.camp', 'issuer', 'approver');
 
-        // หน้าต่างแก้ไข (เฉพาะใบร่าง)
         $customers = $quotation->status === 'draft' ? Customer::orderBy('name_customer')->get() : collect();
         $products  = $quotation->status === 'draft' ? Product::orderBy('name_product')->get() : collect();
 
         return view('quotations.show', compact('quotation', 'customers', 'products'));
     }
 
-    /** แก้ไขใบเสนอราคาในหน้าต่าง (modal) ของหน้าดูใบเสนอราคา */
     public function edit(Quotation $quotation)
     {
         if ($quotation->status !== 'draft') {
@@ -149,7 +143,6 @@ class QuotationController extends Controller
     {
         $q = Quotation::findOrFail($id);
 
-        // ผู้อนุมัติต้องเป็น admin และไม่ใช่ผู้จัดทำใบนี้ (ดูกฎใน Quotation::approveBlocker)
         if ($reason = $q->approveBlocker(auth()->user())) {
             return back()->with('error', 'อนุมัติไม่ได้: ' . $reason);
         }
@@ -186,7 +179,6 @@ class QuotationController extends Controller
 
     public function downloadPDF(Quotation $quotation)
     {
-        // โหลดข้อมูลพนักงานผู้ออก/อนุมัติ + ข้อมูลบริษัทตั้งต้น
         $quotation->load('customer', 'details.product', 'issuer', 'approver');$settings = Setting::pluck('value', 'key');
 
         $pdf = Pdf::loadView('quotations.pdf', compact('quotation', 'settings'))
@@ -194,8 +186,6 @@ class QuotationController extends Controller
 
         return $pdf->stream('quotation.pdf');
     }
-
-    /* ==================== Private helpers ==================== */
 
     private function validateQuotation(Request $request, string $bag): void
     {
@@ -225,7 +215,6 @@ class QuotationController extends Controller
         $afterDiscount =$subtotal;
         $vatRate       = Quotation::DEFAULT_VAT_RATE;
         
-        // แก้ไขไวยากรณ์การคำนวณ VAT
         $vatAmount     = round($afterDiscount * ($vatRate / 100), 2);
 
         return [

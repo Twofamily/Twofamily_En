@@ -5,8 +5,6 @@
 @endsection
 
 @section('content')
-
-    {{-- แท็บ: แต่ละแท็บเป็นหน้าแยก (URL ของตัวเอง) และบันทึกแยกกัน --}}
     <ul class="nav nav-tabs mb-4">
         @foreach ($groups as $key => $info)
             <li class="nav-item">
@@ -19,7 +17,8 @@
     </ul>
 
     <form method="POST" action="{{ route('settings.update', $group) }}" enctype="multipart/form-data"
-            data-confirm="ต้องการบันทึกการตั้งค่าระบบหรือไม่ การเปลี่ยนแปลงจะมีผลกับเอกสารทุกฉบับที่ออกหลังจากนี้" data-confirm-title="ยืนยันการบันทึกการตั้งค่า" data-confirm-ok="บันทึก" data-confirm-variant="primary">
+        data-confirm="ต้องการบันทึกการตั้งค่าระบบหรือไม่ การเปลี่ยนแปลงจะมีผลกับเอกสารทุกฉบับที่ออกหลังจากนี้"
+        data-confirm-title="ยืนยันการบันทึกการตั้งค่า" data-confirm-ok="บันทึก" data-confirm-variant="primary">
         @csrf
         @method('PUT')
 
@@ -34,5 +33,4 @@
             <a href="{{ route('settings.index', $group) }}" class="btn btn-outline-secondary">ยกเลิก</a>
         </div>
     </form>
-
 @endsection

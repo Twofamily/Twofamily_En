@@ -1,4 +1,3 @@
-{{-- ลายน้ำ "ยกเลิก" บน PDF ของเอกสารที่ยกเลิกแล้ว (ใส่ไว้ต้น <body>) --}}
 @if ($doc->isCancelled())
     <div style="position: fixed; top: 38%; left: 0; right: 0; text-align: center;
                 font-size: 110px; font-weight: bold; color: #dc3545; opacity: 0.18;

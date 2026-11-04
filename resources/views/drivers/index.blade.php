@@ -7,11 +7,6 @@
 @endsection
 
 @php
-    /*
-     | เพิ่ม / แก้ไขพนักงานขับรถในหน้าต่าง (modal) ของหน้านี้
-     | กรอกผิดแล้วเด้งกลับ → เปิดหน้าต่างเดิมให้อัตโนมัติ พร้อมค่าที่กรอกไว้
-     */
-    // ผู้ใช้สิทธิ์ดูอย่างเดียว: ไม่แสดงปุ่มเพิ่ม / แก้ไข / ลบ (ฝั่ง server ก็กันไว้แล้ว)
     $canEdit = auth()->user()->canEdit('drivers');
 
     $createHasOld = $errors->createDriver->any();
@@ -47,7 +42,7 @@
     <div class="container py-3">
 
         <x-search-bar :action="route('drivers.index')"
-                      placeholder="ค้นหาชื่อ / นามสกุล / เบอร์โทร / เลขบัตรประชาชน"
+                      placeholder="ชื่อ / นามสกุล / เบอร์โทร / เลขบัตรประชาชน"
                       :search="$search" :per-page="$perPage" />
 
         <div class="d-flex justify-content-end mb-3">
@@ -120,7 +115,6 @@
     </div>
 
     @if ($canEdit)
-        {{-- ==================== หน้าต่างเพิ่ม ==================== --}}
         <div class="modal fade" id="createDriverModal" tabindex="-1" aria-labelledby="createDriverTitle" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <form class="modal-content" method="POST" action="{{ route('drivers.store') }}" enctype="multipart/form-data"
@@ -145,7 +139,6 @@
             </div>
         </div>
 
-        {{-- ==================== หน้าต่างแก้ไข (ใช้ร่วมทุกแถว) ==================== --}}
         <div class="modal fade" id="editDriverModal" tabindex="-1" aria-labelledby="editDriverTitle" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <form class="modal-content" method="POST" action="#" enctype="multipart/form-data" data-driver-form
@@ -183,7 +176,6 @@
             document.addEventListener('DOMContentLoaded', function () {
                 const setAddress = new Map();
 
-                // รูปตัวอย่าง: เลือกไฟล์ใหม่แล้วแสดงทันที
                 function showImage(form, src) {
                     const img = form.querySelector('[data-image-preview]');
                     img.classList.toggle('d-none', !src);

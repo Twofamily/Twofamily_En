@@ -7,21 +7,10 @@ use App\Models\Concerns\HasDocumentCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
-/**
- * ใบเสร็จรับเงิน — ออกได้ 2 แบบ
- *
- *   invoice : รับชำระตามใบแจ้งหนี้ (ส่งของแล้ว ออกใบแจ้งหนี้แล้ว ค่อยจ่าย) — งานแคมป์ทั้งหมดใช้แบบนี้
- *   direct  : ขายสด (ลูกค้า walk-in ซื้อแล้วจ่ายทันที ไม่ต้องมีแคมป์)
- *
- * (เลิกใช้ "รับเงินล่วงหน้า" แล้ว — คอลัมน์ advance_deducted / payments.id_advance_receipt ยังอยู่ในตาราง แต่ไม่ได้ใช้)
- *
- * ทุกแบบต้องมีหลักฐานการชำระ
- */
 class Receipt extends Model
 {
     use HasDocumentCode, Cancellable;
 
-    /** ยกเลิกเอกสาร = ใส่ cancelled_at (SoftDeletes) ไม่ลบแถวทิ้ง */
     public const DELETED_AT = 'cancelled_at';
 
     protected $primaryKey = 'id_receipt';
@@ -64,8 +53,6 @@ class Receipt extends Model
         'receipt_type' => self::TYPE_INVOICE,
     ];
 
-    /* ==================== Relations ==================== */
-
     public function invoice()
     {
         return $this->belongsTo(Invoice::class, 'id_invoice', 'id_invoice')->withTrashed();
@@ -81,13 +68,11 @@ class Receipt extends Model
         return $this->belongsTo(Camp::class, 'id_camp', 'id_camp');
     }
 
-    /** รายการของใบเสร็จขายสด (แบบ invoice ใช้รายการของใบแจ้งหนี้) */
     public function items()
     {
         return $this->hasMany(ReceiptItem::class, 'id_receipt', 'id_receipt');
     }
 
-    /** หลักฐานการชำระของใบเสร็จขายสด */
     public function payments()
     {
         return $this->hasMany(Payment::class, 'id_receipt', 'id_receipt')
@@ -99,8 +84,6 @@ class Receipt extends Model
     {
         return $this->belongsTo(User::class, 'issued_by_user_id');
     }
-
-    /* ==================== ประเภท ==================== */
 
     public function isInvoiceType(): bool
     {
@@ -122,18 +105,11 @@ class Receipt extends Model
         return self::TYPES[$this->receipt_type]['badge'] ?? 'secondary';
     }
 
-    /* ==================== ข้อมูลสำหรับแสดงผล / PDF ==================== */
-
-    /** ลูกค้าของใบเสร็จ (ทุกแบบมี id_customer ของตัวเอง) */
     public function payer(): ?Customer
     {
         return $this->customer ?? $this->invoice?->customer;
     }
 
-    /**
-     * รายการบนใบเสร็จ ในรูปแบบเดียวกันทุกประเภท
-     * [name, quantity, unit, price, total]
-     */
     public function lines(): Collection
     {
         if ($this->isInvoiceType()) {
@@ -155,11 +131,6 @@ class Receipt extends Model
         ]);
     }
 
-    /**
-     * หลักฐานการชำระที่อยู่เบื้องหลังใบเสร็จนี้
-     * invoice → หลักฐานในใบแจ้งหนี้
-     * direct  → หลักฐานที่แนบตอนออกใบเสร็จ
-     */
     public function proofPayments(): Collection
     {
         if ($this->isInvoiceType()) {
@@ -169,15 +140,11 @@ class Receipt extends Model
         return $this->payments;
     }
 
-    /** วิธีชำระหลักของใบเสร็จ ไว้ติ๊กช่องใน PDF */
     public function mainMethod(): ?string
     {
         return $this->proofPayments()->first()?->method;
     }
 
-    /* ==================== กฎการยกเลิก ==================== */
-
-    /** คืนข้อความเหตุผลถ้ายกเลิกไม่ได้ / null ถ้ายกเลิกได้ */
     public function cancelBlocker(): ?string
     {
         if ($this->isCancelled()) {
@@ -191,8 +158,6 @@ class Receipt extends Model
     {
         return $this->cancelBlocker() === null;
     }
-
-    /* ==================== Scopes ==================== */
 
     public function scopeOfType($query, ?string $type)
     {

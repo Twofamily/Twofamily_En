@@ -1,15 +1,3 @@
-{{--
-    สคริปต์เลือกที่อยู่ จังหวัด → อำเภอ → ตำบล → รหัสไปรษณีย์ (ใช้ร่วมหลายหน้า หลายฟอร์มในหน้าเดียว)
-
-    ในฟอร์มให้มี:
-        <select data-addr="province">  <select data-addr="district">
-        <select data-addr="subdistrict">  <input data-addr="zipcode">
-        ใส่ data-value="ค่าเดิม" ไว้ที่ select ได้ (เช่น ค่าที่กรอกไว้ก่อนเด้งกลับ)
-
-    เรียกใช้:
-        const set = ThaiAddress.setup(formElement);   // เติมจังหวัด + ค่าจาก data-value ให้เอง
-        set({province, district, subdistrict, zipcode});  // ตั้งค่าใหม่ภายหลัง (เช่น เปิดหน้าต่างแก้ไข)
---}}
 @once
     <script>
         window.ThaiAddress = (function () {
@@ -25,7 +13,6 @@
                 select.add(new Option(placeholder, ''));
             }
 
-            // ค่าเดิมที่ไม่มีในรายการ (สะกดต่างกัน) ก็เพิ่มไว้ ไม่ให้ค่าหาย
             function choose(select, value) {
                 if (!value) { select.value = ''; return; }
                 if (![...select.options].some((o) => o.value === value)) select.add(new Option(value, value));
@@ -85,7 +72,6 @@
                     });
                 }
 
-                // ค่าเริ่มต้นจาก data-value (ค่าที่กรอกไว้ก่อนเด้งกลับ)
                 set({
                     province: prov.dataset.value, district: dist.dataset.value,
                     subdistrict: sub.dataset.value, zipcode: zip.value,

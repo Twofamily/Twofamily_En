@@ -1,7 +1,6 @@
 @php
     $crumbs = \App\Support\Breadcrumb::build();
 
-    // หน้าไหนอยากเปลี่ยนข้อความตัวสุดท้าย ให้ใส่ @section('breadcrumb_current', '...')
     if (count($crumbs) && $__env->hasSection('breadcrumb_current')) {
         $crumbs[array_key_last($crumbs)]['label'] = trim($__env->yieldContent('breadcrumb_current'));
     }

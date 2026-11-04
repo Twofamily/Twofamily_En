@@ -1,10 +1,3 @@
-{{--
-    แสดง 1 ช่องตั้งค่า ตาม type ในทะเบียน config/settings.php
-    ใช้: @include('settings._field', ['key' => 'doc.vat_rate'])
-
-    ชื่อ input ต้องเป็นแบบ array: doc.vat_rate → doc[vat_rate]
-    ห้ามใช้ name="doc.vat_rate" เพราะ PHP จะแปลงจุดเป็นขีดล่างให้เอง
---}}
 @php
     $def   = $definitions[$key];
     $parts = explode('.', $key);
@@ -14,13 +7,11 @@
     $error = $errors->first($key);
     $hint  = $hint ?? null;
 
-    // ช่องที่ทะเบียนกำหนด rules เป็น required → ติดดาวแดง + กรอบแดงถ้าไม่กรอก (form-validation.js)
     $isRequired  = in_array('required', $def['rules'] ?? [], true) && $def['type'] !== 'image';
     $requiredMsg = ($def['type'] === 'select' ? 'กรุณาเลือก' : 'กรุณากรอก') . $def['label'];
 @endphp
 
 @if ($def['type'] === 'bool')
-    {{-- hidden ส่ง 0 ไว้ก่อน ถ้าติ๊ก checkbox จะส่ง 1 ทับ (checkbox ที่ไม่ติ๊กจะไม่ถูกส่งมาเลย) --}}
     <input type="hidden" name="{{ $name }}" value="0">
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" role="switch" id="{{ $id }}" name="{{ $name }}"

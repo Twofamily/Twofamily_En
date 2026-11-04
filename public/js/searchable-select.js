@@ -1,16 +1,3 @@
-/*
- * searchable-select.js — เปลี่ยน <select> ที่มีตัวเลือกเยอะ (เช่น ลูกค้า) ให้พิมพ์ค้นหาได้
- *
- * วิธีใช้: ใส่ data-searchable ที่ <select> เดิม (ไม่ต้องแก้ controller)
- *   <select name="id_customer" id="id_customer" class="form-select" data-searchable
- *           data-placeholder="พิมพ์ชื่อลูกค้าเพื่อค้นหา..." required> ... </select>
- *
- * - <select> ตัวจริงยังอยู่ (ซ่อนไว้) → ค่าที่ส่งไป server เหมือนเดิม, old() ใช้ได้
- * - เลือกแล้วยิง event "change" ที่ select → โค้ด auto-fill เดิมยังทำงาน
- * - ใช้กับ filter หน้า index ได้ด้วย (ลบข้อความทิ้ง = ค่าว่าง = "ทั้งหมด")
- *
- * ⚠ โหลดก่อน form-validation.js
- */
 (function () {
     'use strict';
 
@@ -79,7 +66,7 @@
                 btn.className = 'list-group-item list-group-item-action py-2';
                 btn.textContent = o.text.trim();
                 btn.addEventListener('mousedown', function (e) {
-                    e.preventDefault(); // กันไม่ให้ input blur ก่อนเลือก
+                    e.preventDefault();
                     pick(o);
                 });
                 list.appendChild(btn);
@@ -119,7 +106,7 @@
 
         input.addEventListener('focus', function () { input.select(); render(); });
         input.addEventListener('input', function () {
-            if (input.value.trim() !== selectedText()) setValue(''); // พิมพ์ใหม่ = ยังไม่ได้เลือก
+            if (input.value.trim() !== selectedText()) setValue('');
             render();
         });
         input.addEventListener('keydown', function (e) {
@@ -132,7 +119,7 @@
                 e.preventDefault();
                 highlight(Math.max(cursor - 1, 0));
             } else if (e.key === 'Enter' && open) {
-                e.preventDefault(); // ไม่ submit ฟอร์มตอนกำลังเลือก
+                e.preventDefault();
                 var target = items[cursor] || (items.length === 1 ? items[0] : null);
                 if (target) pick(target.opt);
             } else if (e.key === 'Escape') {
@@ -140,7 +127,6 @@
             }
         });
         input.addEventListener('blur', function () {
-            // ถ้าพิมพ์ตรงกับชื่อพอดี ให้เลือกให้เลย ไม่งั้นคืนค่าที่เลือกไว้
             var typed = input.value.trim().toLowerCase();
             var exact = options().filter(function (o) { return o.text.trim().toLowerCase() === typed; })[0];
             if (exact) {
@@ -152,17 +138,16 @@
             close();
         });
 
-        // ถ้าโค้ดอื่นเปลี่ยนค่า select เอง (เช่น auto-fill) ให้ช่องค้นหาตามด้วย
         select.addEventListener('change', function () {
             if (document.activeElement !== input) input.value = selectedText();
         });
 
-        input.value = selectedText(); // รองรับ old() / ค่าเดิมตอนแก้ไข
+        input.value = selectedText();
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('select[data-searchable]').forEach(init);
     });
 
-    window.initSearchableSelect = init; // สำหรับ select ที่สร้างทีหลังด้วย JS
+    window.initSearchableSelect = init;
 })();

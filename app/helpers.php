@@ -10,11 +10,6 @@ if (!function_exists('setting')) {
 }
 
 if (!function_exists('customer_address')) {
-    /**
-     * ที่อยู่ลูกค้าแบบบรรทัดเดียว สำหรับเอกสาร
-     * เช่น 99/9 หมู่ 5 หมู่บ้านสุขใจ ซอยร่มเย็น ถนนมิตรภาพ ตำบลในเมือง อำเภอเมืองนครราชสีมา จังหวัดนครราชสีมา 30000
-     * กรุงเทพฯ ใช้ แขวง / เขต แทน ตำบล / อำเภอ
-     */
     function customer_address($customer): string
     {
         if (!$customer) {
@@ -32,7 +27,6 @@ if (!function_exists('customer_address')) {
             filled($customer->soi ?? null) ? 'ซอย' . $customer->soi : null,
             filled($customer->road ?? null) ? 'ถนน' . $customer->road : null,
             $customer->subdistrict ? ($isBangkok ? 'แขวง' : 'ตำบล') . $customer->subdistrict : null,
-            // ข้อมูลอำเภอบางชุดมีคำว่า "เขต..." / "อำเภอ..." ติดมาแล้ว ไม่ต้องเติมซ้ำ
             $district !== ''
                 ? (str_starts_with($district, 'เขต') || str_starts_with($district, 'อำเภอ') ? $district : $districtPrefix . $district)
                 : null,
@@ -45,7 +39,6 @@ if (!function_exists('customer_address')) {
 }
 
 if (!function_exists('customer_tax_line')) {
-    /** เลขผู้เสียภาษีของลูกค้า + สำนักงานใหญ่/สาขา สำหรับเอกสาร เช่น "0-1055-12345-67-8 (สำนักงานใหญ่)" */
     function customer_tax_line($customer): string
     {
         if (!$customer || blank($customer->tax_id)) {
@@ -59,11 +52,6 @@ if (!function_exists('customer_tax_line')) {
 }
 
 if (!function_exists('thai_date')) {
-    /**
-     * แสดงวันที่รูปแบบเดียวกันทั้งระบบ: วัน/เดือน/ปี (เช่น 24/10/2026)
-     * รับได้ทั้ง Carbon, DateTime, string และ null (null/ค่าว่าง → $empty)
-     * $withTime = true → 24/10/2026 14:30
-     */
     function thai_date($value, bool $withTime = false, string $empty = '-'): string
     {
         if ($value === null || $value === '') {

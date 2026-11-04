@@ -1,25 +1,8 @@
-/*
- * form-validation.js — ตรวจฟอร์มก่อนบันทึก ใช้ร่วมกันทั้งระบบ
- *
- * - ฟิลด์ที่มี attribute `required` จะได้ดอกจัน * สีแดงต่อท้าย label อัตโนมัติ
- * - กดบันทึกแล้วยังมีช่องที่ไม่ผ่าน → กรอบแดง + ข้อความภาษาไทยใต้ช่อง
- *   แล้วเลื่อนจอไปที่ช่องแรกที่ผิด (ฟอร์มยังไม่ถูกส่ง และ modal ยืนยันยังไม่เด้ง)
- * - ตรวจเงื่อนไขอื่นของ HTML ด้วย เช่น pattern, type="email", min/max
- *
- * ในแต่ละหน้าแค่ใส่ `required` ที่ input/select/textarea
- * ข้อความเฉพาะ:     data-required-msg="กรุณาใส่ประเภทสินค้า"
- * ข้อความ pattern:  data-pattern-msg="กรุณาใส่เบอร์โทร 10 หลัก"
- * ต้องตรงกับอีกช่อง:  data-match="id ของช่องนั้น" data-match-msg="รหัสผ่านไม่ตรงกัน"
- * ไม่ต้องตรวจฟอร์มนี้: <form data-no-validate>
- *
- * ⚠ ต้องโหลด "ก่อน" confirm.js เพราะตัวตรวจต้องได้ทำงานก่อน modal ยืนยัน
- */
 (function () {
     'use strict';
 
     var SKIP_TYPES = ['hidden', 'submit', 'button', 'reset', 'image'];
 
-    // ---------- หา label ของช่อง ----------
     function findLabel(el) {
         if (el.id) {
             var byFor = document.querySelector('label[for="' + el.id + '"]');
@@ -37,13 +20,11 @@
         return clone.textContent.replace(/\*/g, '').replace(/\(.*?\)/g, '').replace(/[:：]\s*$/, '').trim();
     }
 
-    // ช่องค้นหาแบบ searchable-select ใช้ input ที่มองเห็นแทน select ที่ซ่อนอยู่
     function visualOf(el) { return el.__visual || el; }
     function anchorOf(el) { return el.closest('.ss-wrap') || el.closest('.input-group') || el; }
 
     function addStar(el) {
         var label = findLabel(el);
-        // ข้ามถ้า label มีดาวอยู่แล้ว (บางหน้าใส่ * เองไว้ก่อน)
         if (label && !label.querySelector('.req-star') && label.textContent.indexOf('*') === -1) {
             var star = document.createElement('span');
             star.className = 'req-star';
@@ -52,13 +33,11 @@
         }
     }
 
-    // 2026-10-17 → 17/10/2026
     function thaiDate(iso) {
         var p = String(iso).split('-');
         return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
     }
 
-    // ---------- ข้อความภาษาไทย ----------
     function messageFor(el) {
         var v = el.validity;
         var name = labelText(el);
@@ -79,24 +58,21 @@
         if (v.tooLong)         return 'ใส่ได้ไม่เกิน ' + el.maxLength + ' ตัวอักษร';
         if (v.rangeUnderflow)  return el.type === 'date' ? 'วันที่ต้องไม่ก่อน ' + thaiDate(el.min) : 'ค่าต้องไม่น้อยกว่า ' + el.min;
         if (v.rangeOverflow)   return el.type === 'date' ? 'วันที่ต้องไม่เกิน ' + thaiDate(el.max) : 'ค่าต้องไม่เกิน ' + el.max;
-        if (v.stepMismatch)    return 'ค่าที่ใส่ไม่ถูกต้อง';
+        if (v.stepMismatch)    return el.dataset.stepMsg || 'ค่าที่ใส่ไม่ถูกต้อง';
         if (v.badInput)        return 'กรุณาใส่เป็นตัวเลข';
         return el.validationMessage;
     }
 
-    // ---------- ตรวจทีละช่อง ----------
     function shouldCheck(el) {
         return el.willValidate
             && SKIP_TYPES.indexOf(el.type) === -1
-            // ช่องพิมพ์ค้นหาของ searchable-select ตรวจผ่าน select ตัวจริงแทน
             && !el.hasAttribute('data-ss-visual')
-            // ส่วนที่ซ่อนอยู่ (เช่น กล่องบันทึกการซ่อมตอนสถานะไม่ใช่ "ซ่อมบำรุง") ไม่ต้องตรวจ
             && visualOf(el).getClientRects().length > 0;
     }
 
     function feedbackOf(el) {
-        if (!el.__fb) {
-            // แถวที่ถูก clone มาจะติดกล่องข้อความของแถวต้นแบบมาด้วย ใช้กล่องนั้นต่อเลย
+        if (!el.__fb || !el.__fb.isConnected) {
+            el.__fb = null;
             var next = anchorOf(el).nextElementSibling;
             if (next && next.classList.contains('fv-msg')) {
                 el.__fb = next;
@@ -111,11 +87,9 @@
     }
 
     function check(el) {
-        // ห้ามกรอกเป็นช่องว่างล้วน ๆ ในช่องที่บังคับ
         el.__blank = el.required && el.tagName !== 'SELECT'
             && typeof el.value === 'string' && el.value !== '' && el.value.trim() === '';
 
-        // data-match="id ของอีกช่อง" → ต้องพิมพ์ให้ตรงกัน (เช่น ยืนยันรหัสผ่าน)
         var other = el.dataset.match ? document.getElementById(el.dataset.match) : null;
         el.__mismatch = !!other && el.value !== '' && el.value !== other.value;
 
@@ -133,17 +107,15 @@
         return ok;
     }
 
-    // ---------- เตรียมฟอร์ม ----------
     function prepareForm(form) {
         if (form.hasAttribute('data-no-validate')) return;
 
-        form.noValidate = true; // ปิดกล่องเตือนภาษาอังกฤษของ browser ใช้ของเราแทน
+        form.noValidate = true;
 
         Array.prototype.forEach.call(form.elements, function (el) {
             if (el.__fvReady || !el.tagName || SKIP_TYPES.indexOf(el.type) !== -1) return;
             el.__fvReady = true;
 
-            // แถวที่ clone มาจากแถวที่เคยขึ้นกรอบแดง → ล้างสถานะเดิมออกก่อน
             var stale = anchorOf(el).nextElementSibling;
             if (stale && stale.classList.contains('fv-msg')) {
                 stale.classList.remove('d-block');
@@ -152,10 +124,18 @@
 
             if (el.required) addStar(el);
 
-            // หลังกดบันทึกครั้งแรก แก้ช่องไหน กรอบแดงช่องนั้นหายทันที
             ['input', 'change'].forEach(function (ev) {
                 el.addEventListener(ev, function () {
-                    if (form.dataset.fvSubmitted && shouldCheck(el)) check(el);
+                    if (!shouldCheck(el)) return;
+                    if (form.dataset.fvSubmitted) { check(el); return; }
+
+                    if (el.dataset.stepMsg) {
+                        if (el.validity.stepMismatch) check(el);
+                        else if (visualOf(el).classList.contains('is-invalid')) {
+                            visualOf(el).classList.remove('is-invalid');
+                            if (el.__fb) el.__fb.classList.remove('d-block');
+                        }
+                    }
                 });
             });
         });
@@ -164,7 +144,6 @@
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('form').forEach(prepareForm);
 
-        // แถวที่ JS เพิ่มเข้ามาทีหลัง (เช่น รายการสินค้า, ช่วงปลายทาง) ให้ติดดาวด้วย
         var pending = false;
         new MutationObserver(function () {
             if (pending) return;
@@ -176,12 +155,11 @@
         }).observe(document.body, { childList: true, subtree: true });
     });
 
-    // capture = ได้ทำงานก่อน listener ของ confirm.js
     document.addEventListener('submit', function (e) {
         var form = e.target;
         if (!(form instanceof HTMLFormElement) || form.hasAttribute('data-no-validate')) return;
 
-        prepareForm(form); // เผื่อแถวที่เพิ่มด้วย JS ทีหลัง (เช่น รายการสินค้า)
+        prepareForm(form);
         form.dataset.fvSubmitted = '1';
 
         var first = null;
@@ -191,16 +169,13 @@
 
         if (first) {
             e.preventDefault();
-            e.stopImmediatePropagation(); // ไม่ให้ modal ยืนยันเด้งขึ้นมา
+            e.stopImmediatePropagation();
             var v = visualOf(first);
             v.scrollIntoView({ behavior: 'smooth', block: 'center' });
             v.focus({ preventScroll: true });
         }
     }, true);
 
-    // ---------- ช่องที่พิมพ์ได้เฉพาะตัวเลข ----------
-    // <input data-digits-only> เช่น เลขบัตรประชาชน เบอร์โทร รหัสไปรษณีย์
-    // พิมพ์/วางตัวอักษรอื่นเข้ามา จะถูกตัดทิ้งทันที (ไม่ต้องรอกดบันทึก)
     document.addEventListener('input', function (e) {
         var el = e.target;
         if (!el.matches || !el.matches('input[data-digits-only]')) return;
@@ -210,10 +185,9 @@
 
         var pos = el.selectionStart - (el.value.length - cleaned.length);
         el.value = cleaned;
-        try { el.setSelectionRange(Math.max(pos, 0), Math.max(pos, 0)); } catch (err) { /* บาง type ไม่รองรับ */ }
+        try { el.setSelectionRange(Math.max(pos, 0), Math.max(pos, 0)); } catch (err) { }
     }, true);
 
-    // กันตั้งแต่ตอนกดแป้น (ยกเว้นปุ่มควบคุม เช่น Backspace ลูกศร Ctrl+V)
     document.addEventListener('keydown', function (e) {
         var el = e.target;
         if (!el.matches || !el.matches('input[data-digits-only]')) return;
@@ -221,7 +195,6 @@
         if (!/[0-9]/.test(e.key)) e.preventDefault();
     }, true);
 
-    // ให้หน้าที่เพิ่มช่อง required ทีหลังเรียกติดดาวเองได้
     window.refreshRequiredStars = function (root) {
         (root || document).querySelectorAll('form').forEach(prepareForm);
     };

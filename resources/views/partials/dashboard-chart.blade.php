@@ -1,13 +1,3 @@
-{{--
-    กราฟรายได้–ต้นทุน–กำไร ตามช่วงที่เลือกในตัวกรอง (ข้อมูลจาก RevenueReport)
-
-    แท่งรายได้ซ้อนกัน 2 สี: ขายสินค้า (ใบส่งของไม่ผูกแคมป์) + บริการแคมป์ (ผูกแคมป์)
-    แท่งต้นทุนแยกไว้ข้าง ๆ ให้เทียบความสูงกันได้ทันที
-    เส้นกำไรทับบน — จุดที่ต่ำกว่า 0 คือช่วงที่ขาดทุน
-
-    ใช้แท่ง (ไม่ใช่เส้นโค้ง) กับยอดรายเดือน เพราะเส้นโค้งจะลากผ่านเดือนที่ไม่มีข้อมูลจนดูเหมือนมียอด
---}}
-
 @php
     $f      = $revenue['filter'];
     $series = $revenue['series'];
@@ -22,7 +12,6 @@
     </div>
 
     @if (! $revenue['hasData'])
-        {{-- ไม่วาดกราฟเปล่า (แกน 0–1 ทำให้ดูเหมือนระบบพัง) แสดงคำอธิบายแทน --}}
         <div class="text-center text-muted py-5">
             <i class="bi bi-bar-chart fs-2 d-block mb-2"></i>
             ไม่มีรายได้หรือต้นทุนในช่วง {{ $f['label'] }} — ลองเลือกช่วงเวลาอื่น
@@ -37,7 +26,6 @@
             </div>
         @endif
 
-        {{-- โหลด Chart.js จากในโปรเจกต์ ไม่พึ่ง CDN — นำเสนอแบบไม่มีเน็ตก็ยังแสดงกราฟได้ --}}
         <script src="{{ asset('js/vendor/chart.umd.min.js') }}"></script>
         <script>
             (function () {
@@ -52,7 +40,6 @@
 
                 const baht = (v) => new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(v);
 
-                // ใช้ฟอนต์และขนาดเดียวกับหน้าเว็บ ไม่งั้นตัวหนังสือในกราฟจะเล็กกว่าที่อื่น
                 const pageStyle = getComputedStyle(document.body);
                 Chart.defaults.font.family = pageStyle.fontFamily;
                 Chart.defaults.font.size = parseFloat(pageStyle.fontSize) || 16;
@@ -80,13 +67,12 @@
                                 type: 'line',
                                 label: 'กำไรขั้นต้น',
                                 data: profit,
-                                stack: 'profit',   // กองของตัวเอง ไม่ให้ไปซ้อนบนแท่ง
+                                stack: 'profit',
                                 borderColor: '#1a1a1a',
                                 backgroundColor: '#1a1a1a',
                                 borderWidth: 2,
                                 tension: 0,
                                 pointRadius: 3,
-                                // จุดที่ขาดทุนเป็นสีแดง
                                 pointBackgroundColor: profit.map((v) => (v < 0 ? '#dc3545' : '#1a1a1a')),
                                 pointBorderColor: profit.map((v) => (v < 0 ? '#dc3545' : '#1a1a1a')),
                                 order: 1,
@@ -98,7 +84,6 @@
                         maintainAspectRatio: false,
                         interaction: { mode: 'index', intersect: false },
                         plugins: {
-                            // เรียงป้ายตามลำดับ dataset (ไม่งั้นเส้นกำไรขึ้นก่อนเพราะ order: 1)
                             legend: {
                                 position: 'bottom',
                                 labels: { sort: (a, b) => a.datasetIndex - b.datasetIndex },

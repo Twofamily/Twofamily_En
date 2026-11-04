@@ -5,7 +5,6 @@
     <div class="card-body">
         <label class="form-label fw-bold">รูปถ่ายรถบรรทุก</label>
 
-        <!-- พื้ันที่แสดงตัวอย่างรูปภาพ (Preview) -->
         <div class="mb-3 text-center">
             @if (isset($truck) && $truck->image)
                 <div id="preview_wrapper">
@@ -217,15 +216,6 @@
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
-{{-- 
-                <div class="col-md-3">
-                    <label class="form-label">คาดว่าเสร็จ</label>
-                    <input type="date" name="expected_return" value="{{ old('expected_return') }}"
-                        class="form-control @error('expected_return') is-invalid @enderror">
-                    @error('expected_return')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div> --}}
 
                 <div class="col-md-3">
                     <label class="form-label">อู่ / ผู้ซ่อม</label>
@@ -253,7 +243,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
 
-        // 1. จัดรูปแบบเลขทะเบียน 70-1234
         const input = document.getElementById('id_truck');
 
         if (input) {
@@ -276,7 +265,6 @@
             });
         }
 
-        // 2. ตัวอย่างรูปภาพ (Image Preview)
         const imageInput = document.getElementById('image_input');
         const imagePreview = document.getElementById('truck_preview');
         const previewWrapper = document.getElementById('preview_wrapper');
@@ -297,7 +285,6 @@
             });
         }
 
-        // 3. ยี่ห้อ -> รุ่น -> สเปคอัตโนมัติ และกรองปีที่ซื้อ
         @if (isset($brands))
             const brandsData = @json($brands);
             const brandSelect = document.getElementById('truck_brand_select');
@@ -377,7 +364,6 @@
                 const model = findModel(modelSelect.value);
 
                 if (!model) {
-                    // เคลียร์ค่าว่างในฟิลด์สเปคกรณีที่ไม่ได้เลือกรุ่น หรือยกเลิกการเลือก
                     Object.keys(specFields).forEach(key => {
                         if (specFields[key]) specFields[key].value = '';
                     });
@@ -416,7 +402,6 @@
             }
         @endif
 
-        // 4. สลับกล่องซ่อมบำรุงตามสถานะ
         const statusSelect = document.getElementById('status_truck');
         const maintenanceBox = document.getElementById('maintenanceBox');
 

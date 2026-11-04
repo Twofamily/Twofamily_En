@@ -10,18 +10,13 @@ use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
-    /* ============================================================
-     |  1.2.1 แสดงรายการผู้ใช้งาน + ค้นหา + แบ่งหน้า
-     ============================================================ */
     public function index(Request $request)
     {
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
 
-        // พิมพ์ "ผู้ดูแล" / "พนักงาน" / "ดูอย่างเดียว" ก็ค้นตามบทบาทได้
         $roles = $this->statusesMatching($search, User::roleList());
 
-        // dropdown สถานะบัญชี + สิทธิ์การใช้งาน
         $statusLabels = ['active' => 'ใช้งานอยู่', 'suspended' => 'ระงับการใช้งาน'];
         $status = $this->statusFilter($request, array_keys($statusLabels));
         $role   = $this->statusFilter($request, array_keys(User::roleList()), 'role');
@@ -45,12 +40,8 @@ class UserController extends Controller
         return view('users.index', compact('users', 'search', 'perPage', 'status', 'statusLabels', 'role'));
     }
 
-    /* ============================================================
-     |  1.2.2 เพิ่มผู้ใช้งาน + กำหนดสิทธิ์
-     ============================================================ */
     public function create()
     {
-        // เพิ่มผู้ใช้ทำในหน้าต่าง (modal) ของหน้ารายการ
         return redirect()->route('users.index', ['modal' => 'create']);
     }
 
@@ -87,12 +78,8 @@ class UserController extends Controller
             ->with('ok', 'เพิ่มผู้ใช้งานเรียบร้อยแล้ว');
     }
 
-    /* ============================================================
-     |  1.2.3 แก้ไขผู้ใช้งาน / เปลี่ยนสิทธิ์
-     ============================================================ */
     public function edit(User $user)
     {
-        // แก้ไขผู้ใช้ทำในหน้าต่าง (modal) ของหน้ารายการ
         return redirect()->route('users.index', ['edit' => $user->getKey()]);
     }
 
@@ -124,7 +111,6 @@ class UserController extends Controller
             ], 'updateUser');
         }
 
-        // ฟอร์มที่ไม่มีตารางสิทธิ์ส่งมา → คงค่าเดิมไว้ ไม่ล้างทิ้ง
         if ($request->has('permissions') || $data['role'] === User::ROLE_ADMIN) {
             $data['permissions'] = $this->permissionsFromRequest($request, $data['role']);
         } else {
@@ -138,10 +124,6 @@ class UserController extends Controller
             ->with('ok', 'แก้ไขข้อมูลผู้ใช้งานเรียบร้อยแล้ว');
     }
 
-    /* ============================================================
-     |  ลายเซ็นอิเล็กทรอนิกส์ (แสดงในกรอบลายเซ็นของ PDF ทุกเอกสาร)
-     |  เก็บไฟล์ไว้ใน public/signatures เพราะ dompdf อ่านได้เฉพาะไฟล์ในเครื่อง
-     ============================================================ */
     public function updateSignature(Request $request, User $user)
     {
         $data = $request->validateWithBag('updateSignature', [
@@ -168,7 +150,6 @@ class UserController extends Controller
 
         $user->update($update);
 
-        // ลบไฟล์เดิมเมื่อเปลี่ยน/ลบลายเซ็น (เฉพาะไฟล์ในโฟลเดอร์ signatures)
         if ($old && array_key_exists('signature_path', $update) && $old !== $update['signature_path']
             && str_starts_with($old, 'signatures/') && is_file(public_path($old))) {
             @unlink(public_path($old));
@@ -179,9 +160,6 @@ class UserController extends Controller
             ->with('ok', 'บันทึกลายเซ็นของ ' . $user->name . ' เรียบร้อยแล้ว');
     }
 
-    /* ============================================================
-     |  1.2.4 รีเซ็ตรหัสผ่านให้ผู้ใช้
-     ============================================================ */
     public function resetPassword(Request $request, User $user)
     {
         $request->validateWithBag('updatePassword', [
@@ -199,9 +177,6 @@ class UserController extends Controller
             ->with('ok', "รีเซ็ตรหัสผ่านของ {$user->name} เรียบร้อยแล้ว");
     }
 
-    /* ============================================================
-     |  1.2.5 ระงับ / เปิดใช้งานบัญชี
-     ============================================================ */
     public function toggleStatus(User $user)
     {
         if ($user->getKey() === auth()->id()) {
@@ -219,9 +194,6 @@ class UserController extends Controller
         return back()->with('ok', "{$status}บัญชี {$user->name} เรียบร้อยแล้ว");
     }
 
-    /* ============================================================
-     |  1.2.6 ลบผู้ใช้งาน
-     ============================================================ */
     public function destroy(User $user)
     {
         if ($user->getKey() === auth()->id()) {
@@ -240,9 +212,6 @@ class UserController extends Controller
             ->with('ok', "ลบผู้ใช้งาน {$name} เรียบร้อยแล้ว");
     }
 
-    /* ============================================================
-     |  นับผู้ดูแลระบบที่ยังใช้งานอยู่
-     ============================================================ */
     private function countActiveAdmins(): int
     {
         return User::where('role', User::ROLE_ADMIN)
@@ -250,10 +219,6 @@ class UserController extends Controller
             ->count();
     }
 
-    /* ============================================================
-     |  แปลงค่าสิทธิ์รายหน้าจากฟอร์มก่อนบันทึก
-     |  admin เข้าได้ทุกหน้าอยู่แล้ว จึงเก็บเป็น null
-     ============================================================ */
     private function permissionsFromRequest(Request $request, string $role): ?array
     {
         if ($role === User::ROLE_ADMIN || ! $request->has('permissions')) {

@@ -1,13 +1,4 @@
-{{--
-    หน้าต่างสร้างใบส่งของ (หน้ารายการใบส่งของ)
-      ขั้นที่ 1 เลือกแคมป์ → โหลดหน้าใหม่ ?modal=create&camp=ID ให้ระบบดึงรายการตามสัญญามาเติม
-      ขั้นที่ 2 กรอกจำนวนที่ส่งเที่ยวนี้
-
-    ต้องส่ง: $camps, $camp (Camp|null), $suggestedItems
-    กรอกผิดแล้วเด้งกลับ (error bag createDeliveryNote) → หน้าต่างเปิดเองพร้อมค่าที่กรอกไว้
---}}
 @php
-    // ข้อผิดพลาดของหน้าต่างนี้แยกกล่อง — ใช้ชื่อ $errors เดิมภายในไฟล์นี้ (@error ทำงานตามปกติ)
     $errors = (new \Illuminate\Support\ViewErrorBag())->put('default', $errors->createDeliveryNote);
 @endphp
 
@@ -29,7 +20,6 @@
                     </div>
                 @endif
 
-                {{-- ขั้นที่ 1 เลือกแคมป์ --}}
                 <form method="GET" action="{{ route('delivery_notes.index') }}" class="mb-4">
                     <input type="hidden" name="modal" value="create">
                     <label for="camp_picker" class="form-label">เลือกแคมป์</label>
@@ -50,7 +40,6 @@
                 </form>
 
                 @if ($camp)
-                    {{-- ข้อมูลที่ดึงมาอัตโนมัติ --}}
                     <div class="border rounded-3 p-3 mb-4 bg-light">
                         <div class="row g-2 small">
                             <div class="col-md-4"><strong>ลูกค้า:</strong> {{ $camp->customer->name_customer ?? '-' }}</div>
@@ -138,7 +127,6 @@
                                 <div class="text-danger small mb-2">{{ $message }}</div>
                             @enderror
 
-                            {{-- ส่งเกินจำนวนตามสัญญา: ต้องติ๊กยืนยันก่อนถึงบันทึกได้ --}}
                             @if (session('over_contract') || old('confirm_over'))
                                 <div class="alert alert-warning py-2">
                                     <div class="fw-semibold mb-1">

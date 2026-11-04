@@ -1,10 +1,3 @@
-{{--
-    หน้าต่าง "ดู" ของรุ่นรถ — ใช้ตัวเดียวทั้งหน้า
-    เมนู "ดู" ในแต่ละแถวส่งข้อมูลของรุ่นนั้นมาทาง data-model (JSON)
-    แล้วสคริปต์ด้านล่างเติมลงหน้าต่างตอนเปิด
-
-    ใช้คู่กับ:  @include('truck_models._view-item', ['m' => $m, 'canEdit' => ...])  ในเมนูของแต่ละแถว
---}}
 <div class="modal fade" id="modelDetailModal" tabindex="-1" aria-labelledby="modelDetailTitle" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow">
@@ -56,7 +49,6 @@
 
         const field = (name) => modalEl.querySelector('[data-field="' + name + '"]');
 
-        // ใช้ textContent ทั้งหมด (ไม่ใช้ innerHTML กับค่าจากฐานข้อมูล)
         modalEl.addEventListener('show.bs.modal', function (e) {
             const trigger = e.relatedTarget;
             if (!trigger || !trigger.dataset.model) return;
@@ -69,7 +61,6 @@
             status.textContent = data.active ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
             status.className = 'badge mt-1 ' + (data.active ? 'text-bg-success' : 'text-bg-secondary');
 
-            // สเปค: แบ่ง 2 คอลัมน์บนจอใหญ่
             const specs = field('specs');
             specs.replaceChildren();
             Object.entries(data.specs).forEach(([label, value]) => {
@@ -83,7 +74,6 @@
                 specs.append(row);
             });
 
-            // รถที่ใช้รุ่นนี้: กดแล้วไปหน้ารายละเอียดรถ
             const trucks = field('trucks');
             trucks.replaceChildren();
             field('truck-count').textContent = '(' + data.trucks.length + ' คัน)';
@@ -115,8 +105,6 @@
             edit.dataset.id = data.id;
         });
 
-        // "แก้ไขรุ่นนี้" → ปิดหน้าต่างดู แล้วเปิด modal แก้ไขในหน้านี้เลย
-        // (ถ้าหน้านี้ไม่มี modal แก้ไข ก็ไปตามลิงก์ตามปกติ)
         field('edit').addEventListener('click', function (e) {
             const btn = document.querySelector('[data-model-edit][data-model-id="' + this.dataset.id + '"]');
             if (!btn || typeof window.openModelEdit !== 'function') return;

@@ -1,8 +1,3 @@
-{{--
-    หน้าต่างแก้ไขรถบรรทุก (ใช้ร่วมทุกแถวในแท็บรถบรรทุก)
-    ต้องส่ง: $brandOptions (ยี่ห้อ + รุ่น), $truckEditData (closure), $openEditTruck (Truck|null), $oldEdit (array|null)
-    ปุ่มในแถว: <button data-truck-edit='@json($truckEditData($t))'>
---}}
 @php
     $te   = $errors->updateTruck;
     $bad  = fn (string $key) => $te->has($key) ? 'is-invalid' : '';
@@ -32,7 +27,6 @@
                 @include('partials.modal-errors', ['bag' => $te])
 
                 <div class="row g-4">
-                    {{-- รูปรถ --}}
                     <div class="col-lg-4">
                         <label class="form-label fw-semibold" for="te_image">รูปถ่ายรถบรรทุก</label>
                         <div class="border rounded bg-light d-flex align-items-center justify-content-center text-muted small mb-2"
@@ -45,7 +39,6 @@
                         <div class="form-text">ไม่เลือกรูปใหม่ = ใช้รูปเดิม · JPG, PNG, WEBP ไม่เกิน 2MB</div>
                     </div>
 
-                    {{-- ข้อมูลรถ --}}
                     <div class="col-lg-8">
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -182,7 +175,6 @@
         brandSel.addEventListener('change', () => { fillModels(''); fillSpecs(); });
         modelSel.addEventListener('change', () => fillSpecs());
 
-        // เลขทะเบียน 70-1234
         const plate = form.querySelector('[data-plate]');
         plate.addEventListener('input', () => {
             const raw = plate.value.replace(/\D/g, '').slice(0, 6);
@@ -190,7 +182,6 @@
             plate.setCustomValidity(raw.length === 6 ? '' : 'กรุณากรอกเลขทะเบียนให้ครบ เช่น 70-1234');
         });
 
-        // รูปตัวอย่าง
         const showImage = (src) => {
             img.classList.toggle('d-none', !src);
             form.querySelector('[data-image-empty]').classList.toggle('d-none', !!src);

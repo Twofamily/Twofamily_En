@@ -49,10 +49,6 @@ class TruckModel extends Model
         return $this->hasMany(Truck::class, 'truck_model_id');
     }
 
-    /**
-     * สเปคทั้งหมดของรุ่น พร้อมหน่วย ในรูป [ป้าย => ค่าที่แสดง]
-     * ใช้ในหน้าต่าง "ดู" ของแท็บรุ่นรถ (ไม่มีหน้า show แยก)
-     */
     public function specList(): array
     {
         $num = fn ($v, string $unit, int $dec = 0) => $v === null || $v === ''

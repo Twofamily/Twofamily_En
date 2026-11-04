@@ -7,16 +7,13 @@
 @endsection
 
 @php
-    // ใบแจ้งหนี้ไม่มีส่วนลด — คิดจากรายการในใบนี้ + VAT
     $subTotal   = $invoice->itemsSubtotal();
     $vat        = $invoice->itemsVat();
     $grandTotal = $invoice->itemsNetTotal();
 
-    // สิทธิ์บันทึก/ลบการชำระ และออกใบเสร็จ
     $canManage = in_array(auth()->user()->role, ['admin', 'staff']);
 
     $paid      = $invoice->paidAmount();
-    // ใบที่ยกเลิกแล้วไม่ใช่หนี้ → ไม่มียอดคงเหลือ
     $remaining = $invoice->isCancelled() ? 0 : $invoice->remainingAmount();
 
     $showDelete = $canManage && $invoice->canEditPayments();
@@ -26,7 +23,6 @@
 @section('content')
 <div class="container py-3">
 
-    {{-- ส่วนหัวเอกสาร (แบบเดียวกับใบเสนอราคา) --}}
     <div class="text-center mb-4">
         <h2>ใบแจ้งหนี้ / ใบวางบิล (Invoice)</h2>
         @include('partials.company-line')
@@ -34,7 +30,6 @@
 
     @include('partials.cancelled-banner', ['doc' => $invoice, 'label' => 'ใบแจ้งหนี้'])
 
-    {{-- แถบสถานะการทำงาน --}}
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body d-flex flex-wrap gap-2 justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -96,7 +91,6 @@
         </div>
     </div>
 
-    {{-- ==================== ข้อมูลทั่วไป + รายการสินค้า ==================== --}}
     <div class="row g-3 mb-3">
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm h-100">
@@ -140,7 +134,6 @@
                         <dt class="col-5 text-muted fw-normal">ลูกค้ารับบิล</dt>
                         <dd class="col-7">
                             @if ($canManage && ! $invoice->hasReceipt() && ! $invoice->isCancelled())
-                                {{-- ใบแจ้งหนี้ทำหน้าที่ใบวางบิล: บันทึกวันที่ลูกค้าเซ็นรับ --}}
                                 <form method="POST" action="{{ route('invoices.billReceived', $invoice->id_invoice) }}"
                                       class="d-flex gap-1 align-items-start">
                                     @csrf
@@ -256,16 +249,13 @@
         </div>
     </div>
 
-    {{-- ==================== การชำระเงิน ==================== --}}
     <div class="row g-3">
 
-        {{-- ประวัติการชำระ --}}
         <div class="{{ $showForm ? 'col-lg-8' : 'col-12' }}">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body p-4">
                     <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">การชำระเงิน</h6>
 
-                    {{-- สรุปยอด --}}
                     <div class="row g-2 text-center mb-3">
                         <div class="col-4">
                             <div class="bg-light rounded-3 p-2">
@@ -289,7 +279,6 @@
                         </div>
                     </div>
 
-                    {{-- รายการชำระ --}}
                     <div class="table-responsive">
                         <table class="table align-middle mb-0 small">
                             <thead class="table-light">
@@ -332,7 +321,6 @@
                                                     <i class="bi {{ $p->isPdfSlip() ? 'bi-file-earmark-pdf' : 'bi-file-earmark-image' }} me-1"></i>ดู
                                                 </a>
                                             @elseif ($p->method === 'cash')
-                                                {{-- เงินสดไม่มีไฟล์: หลักฐานคือผู้รับเงินที่ระบบบันทึก --}}
                                                 <span class="badge bg-light text-dark border">
                                                     <i class="bi bi-cash me-1"></i>รับเงินสดโดย {{ $p->recordedBy->name ?? '-' }}
                                                 </span>
@@ -369,7 +357,6 @@
             </div>
         </div>
 
-        {{-- ฟอร์มแนบหลักฐาน: แสดงเมื่อมีสิทธิ์ + ยังไม่ออกใบเสร็จ + ยังมียอดค้าง --}}
         @if ($showForm)
             <div class="col-lg-4">
                 <div class="card border-0 shadow-sm">

@@ -7,7 +7,6 @@
 @endsection
 
 @php
-    // มีค่าค้นหา/ตัวกรองใดก็ได้ (ไม่นับเลขหน้า/จำนวนต่อหน้า)
     $hasFilter = collect(request()->except(['page', 'per_page']))->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
 @endphp
 
@@ -15,12 +14,13 @@
     <div class="container py-3">
 
         <x-search-bar :action="route('invoices.index')"
-                      placeholder="ค้นหาเลขที่ใบแจ้งหนี้ / ลูกค้า / ใบส่งของ / ใบเสนอราคา / สถานะ เช่น ยังไม่ชำระ"
+                      placeholder="เลขที่ใบแจ้งหนี้ / ชื่อลูกค้า"
                       :search="$search" :per-page="$perPage"
-                      :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่ออก"
+                      {{-- :dates="true" :date-from="$dateFrom" :date-to="$dateTo" date-label="วันที่ออก" --}}
                       :statuses="\App\Models\Invoice::STATUSES + ['cancelled' => ['label' => 'ยกเลิกแล้ว', 'badge' => 'dark']]" :status="$status"
                       status-label="สถานะการชำระ"
-                      :ranges="$ranges" />
+                      {{-- :ranges="$ranges"  --}}
+                      />
 
         @if (auth()->user()->canEdit('invoices'))
             <div class="d-flex justify-content-end mb-3">
@@ -33,7 +33,6 @@
             </div>
         @endif
 
-        {{-- ==================== ตาราง ==================== --}}
         <div class="table-responsive shadow-sm rounded-3">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -58,14 +57,12 @@
                             $paid      = (float) ($inv->payments_sum_amount ?? 0);
                             $remaining = max((float) $inv->total - $paid, 0);
 
-                            // ลบได้เฉพาะใบที่ยังไม่มีรายการชำระและยังไม่ออกใบเสร็จ (ตรงกับเงื่อนไขใน Controller)
                             $canDelete = $inv->payments_count === 0 && ! $inv->receipt_exists;
                             $cancelled = $inv->isCancelled();
                             if ($cancelled) { $paid = 0; $remaining = 0; }
                         @endphp
 
                         <tr @class(['text-muted' => $cancelled])>
-                            {{-- ลำดับต่อเนื่องข้ามหน้า --}}
                             <td class="text-center text-muted">
                                 {{ $invoices->firstItem() + $loop->index }}
                             </td>
@@ -84,7 +81,6 @@
                             <td>{{ $inv->customer->name_customer ?? '-' }}</td>
 
                             <td>
-                                {{-- ใบแจ้งหนี้ 1 ใบ รวมใบส่งของได้หลายใบ: โชว์ 2 ใบแรก ที่เหลือบอกจำนวน --}}
                                 @foreach ($inv->deliveryNotes->take(2) as $dn)
                                     <a href="{{ route('delivery_notes.show', $dn) }}"
                                        class="text-decoration-none small d-block">
@@ -126,7 +122,6 @@
                             </td>
 
                             <td class="text-center">
-                                {{-- ยกเลิกได้เฉพาะใบที่ยังไม่มีการชำระและยังไม่ออกใบเสร็จ --}}
                                 <x-row-actions :show="route('invoices.show', $inv->id_invoice)"
                                                :delete="($canDelete && ! $cancelled) ? route('invoices.destroy', $inv->id_invoice) : null"
                                                :delete-disabled="($canDelete || $cancelled) ? null : 'มีการชำระเงินหรือออกใบเสร็จแล้ว'"
@@ -160,11 +155,9 @@
             </table>
         </div>
 
-        {{-- ==================== สรุปจำนวน + ปุ่มเปลี่ยนหน้า ==================== --}}
         @include('partials.pagination-footer', ['paginator' => $invoices])
 
     </div>
-    {{-- ==================== หน้าต่างออกใบแจ้งหนี้ ==================== --}}
     @if (auth()->user()->canEdit('invoices') && ($canCreate ?? false))
         @include('invoices._create-modal')
 

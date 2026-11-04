@@ -11,7 +11,6 @@ class DeliveryNote extends Model
 {
     use HasDocumentCode, Cancellable, RecordsCreator;
 
-    /** ยกเลิกเอกสาร = ใส่ cancelled_at (SoftDeletes) ไม่ลบแถวทิ้ง */
     public const DELETED_AT = 'cancelled_at';
 
     protected $primaryKey = 'id_delivery_note';
@@ -35,10 +34,6 @@ class DeliveryNote extends Model
         ];
     }
 
-    /**
-     * เดิมประกอบเลขจาก id (DN00002) ตอนนี้อ่านจากคอลัมน์ code_dn แทน
-     * หน้าเว็บที่เรียก $dn->code_delivery อยู่แล้วจึงได้เลขรูปแบบใหม่ทันที ไม่ต้องไล่แก้
-     */
     public function getCodeDeliveryAttribute(): string
     {
         return $this->attributes['code_dn'] ?? '';
@@ -64,13 +59,11 @@ class DeliveryNote extends Model
         return $this->hasMany(DeliveryNoteDetail::class, 'id_delivery_note', 'id_delivery_note');
     }
 
-    /** ใบแจ้งหนี้ที่เรียกเก็บใบส่งของนี้ (ใบแจ้งหนี้ 1 ใบ รวมใบส่งของได้หลายใบ) */
     public function invoice()
     {
         return $this->belongsTo(Invoice::class, 'id_invoice', 'id_invoice');
     }
 
-    /** มูลค่าก่อน VAT ของใบส่งของนี้ */
     public function subtotal(): float
     {
         $details = $this->relationLoaded('details') ? $this->details : $this->details()->get();
@@ -78,7 +71,6 @@ class DeliveryNote extends Model
         return round($details->sum(fn ($d) => (float) $d->total_price), 2);
     }
 
-    /** ยกเลิกได้เมื่อยังไม่ได้ออกใบแจ้งหนี้ (ถ้าออกแล้ว ต้องยกเลิกใบแจ้งหนี้ก่อน) */
     public function cancelBlocker(): ?string
     {
         if ($this->isCancelled()) {
@@ -91,7 +83,6 @@ class DeliveryNote extends Model
         return null;
     }
 
-    /** ใบส่งของที่ยังไม่ได้ออกใบแจ้งหนี้ */
     public function scopePendingInvoice($query)
     {
         return $query->whereNull('id_invoice');

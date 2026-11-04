@@ -10,9 +10,6 @@ use Illuminate\Support\Facades\Storage;
 
 class PaymentController extends Controller
 {
-    /**
-     * บันทึกการชำระเงิน + แนบหลักฐาน
-     */
     public function store(Request $request, $id)
     {
         $invoice = Invoice::findOrFail($id);
@@ -34,7 +31,7 @@ class PaymentController extends Controller
             'bank_name'    => 'nullable|required_if:method,transfer|string|max:100',
             'reference_no' => 'nullable|string|max:50',
             'note'         => 'nullable|string|max:500',
-            'slip'         => Payment::slipRules(),   // บังคับ ยกเว้นเงินสด
+            'slip'         => Payment::slipRules(),
         ], [
             'paid_at.required'        => 'กรุณาระบุวันที่ชำระ',
             'paid_at.before_or_equal' => 'วันที่ชำระต้องไม่เกินวันนี้',
@@ -50,7 +47,6 @@ class PaymentController extends Controller
             'slip.max'                => 'ไฟล์หลักฐานต้องมีขนาดไม่เกิน 5 MB',
         ]);
 
-        // เงินสดอาจไม่มีไฟล์ — ถ้ามีไฟล์ กันการใช้ไฟล์เดิมซ้ำ (เทียบจาก hash ของเนื้อไฟล์)
         $file = $request->file('slip');
         $path = $hash = null;
 
@@ -65,7 +61,6 @@ class PaymentController extends Controller
                 );
             }
 
-            // เก็บไฟล์ใน disk 'local' (private) ไม่เปิดให้เข้าถึงผ่าน URL ตรง
             $path = $file->store(Payment::SLIP_DIR, 'local');
         }
 
@@ -87,7 +82,6 @@ class PaymentController extends Controller
                 $invoice->syncPaymentStatus();
             });
         } catch (\Throwable $e) {
-            // บันทึก DB ไม่สำเร็จ → ลบไฟล์ที่อัปไปแล้วทิ้ง ไม่ให้มีไฟล์กำพร้า
             if ($path) {
                 Storage::disk('local')->delete($path);
             }
@@ -99,9 +93,6 @@ class PaymentController extends Controller
             ->with('success', 'บันทึกการชำระเงินเรียบร้อย');
     }
 
-    /**
-     * เปิดดูไฟล์หลักฐาน (ต้องล็อกอิน)
-     */
     public function slip(Payment $payment)
     {
         abort_unless($payment->hasSlip() && Storage::disk('local')->exists($payment->slip_path), 404);
@@ -112,14 +103,10 @@ class PaymentController extends Controller
         );
     }
 
-    /**
-     * ลบรายการชำระ (ทำได้เฉพาะตอนยังไม่ออกใบเสร็จ)
-     */
     public function destroy(Payment $payment)
     {
         $invoice = $payment->invoice;
 
-        // หลักฐานของใบเสร็จขายสด ลบพร้อมใบเสร็จเท่านั้น
         if (! $invoice) {
             return back()->with('error', 'รายการนี้เป็นหลักฐานของใบเสร็จ ' . $payment->ownerCode() . ' ต้องลบที่ใบเสร็จ');
         }

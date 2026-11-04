@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 
 class SalesOrderController extends Controller
 {
-    /** อัตราภาษีมูลค่าเพิ่ม */
     private const VAT_RATE = 0.07;
 
         public function index(Request $request)
@@ -23,18 +22,14 @@ class SalesOrderController extends Controller
         $search  = $this->searchTerm($request);
         [$dateFrom, $dateTo] = $this->dateRange($request);
 
-        // พิมพ์ "ยืนยัน" / "ปิดงาน" / "ยกเลิก" ก็ค้นตามสถานะได้
         $statuses = $this->statusesMatching($search, SalesOrder::STATUS_LABELS);
 
-        // dropdown เลือกสถานะ + ช่วงยอดสุทธิ
         $status = $this->statusFilter($request, array_keys(SalesOrder::STATUS_LABELS));
         $ranges = $this->numberRanges($request, [
             'total' => ['label' => 'ยอดสุทธิ', 'unit' => 'บาท', 'step' => '0.01'],
         ]);
 
         $salesOrders = SalesOrder::with(['customer', 'quotation', 'camp'])
-            // ช่องค้นหาช่องเดียว: เลขที่ใบสั่งขาย เลข PO ลูกค้า ใบเสนอราคา แคมป์ และสถานะ
-            // ครอบด้วย closure เพื่อให้ orWhere ไม่หลุดไปชนกับช่วงวันที่
             ->when($search !== '', function ($query) use ($search, $statuses) {
                 $query->where(function ($sub) use ($search, $statuses) {
                     $sub->where('code_so', 'like', "%{$search}%")
@@ -53,7 +48,6 @@ class SalesOrderController extends Controller
             ->tap(fn ($query) => $this->applyDateRange($query, 'order_date', $dateFrom, $dateTo))
             ->latest('id_so')
             ->paginate($perPage)
-            // พา search / ช่วงวันที่ / per_page ติดไปกับลิงก์เปลี่ยนหน้า
             ->withQueryString();
 
         return view('sales_orders.index', compact(
@@ -61,12 +55,6 @@ class SalesOrderController extends Controller
         ) + $this->createFormData($request));
     }
 
-    /**
-     * ข้อมูลของหน้าต่างสร้างใบสั่งขาย (อยู่ในหน้ารายการ)
-     *   ?quotation=ID : จากใบเสนอราคาที่อนุมัติแล้ว (ราคาตามใบเสนอราคา)
-     *   ?direct=1     : สั่งตรง ไม่มีใบเสนอราคา (ลูกค้าประจำโทรสั่ง) — ต้องให้ผู้ดูแลระบบยืนยันราคา
-     *   ไม่ส่งอะไรมา  : เลือกว่าจะสร้างแบบไหน
-     */
     private function createFormData(Request $request): array
     {
         if (! $request->user()?->canEdit('sales_orders')) {
@@ -78,7 +66,6 @@ class SalesOrderController extends Controller
             ? Quotation::with(['customer', 'details.product'])->find($quotationId)
             : null;
 
-        // ใบเสนอราคาที่ออกใบสั่งขายไม่ได้แล้ว → กลับไปหน้าเลือก
         if ($quotation && ! $quotation->canCreateSalesOrder()) {
             $quotation = null;
         }
@@ -95,12 +82,10 @@ class SalesOrderController extends Controller
         ];
     }
 
-    /** สร้างใบสั่งขายในหน้าต่าง (modal) ของหน้ารายการ — ลิงก์เดิม (?quotation= / ?direct=) ยังใช้ได้ */
     public function create(Request $request)
     {
         $quotation = $request->quotation ? Quotation::find($request->quotation) : null;
 
-        // กันการเปิดใบสั่งขายซ้ำจากใบเสนอราคาเดิม
         if ($quotation && ! $quotation->canCreateSalesOrder()) {
             return redirect()
                 ->route('quotations.show', $quotation)
@@ -163,7 +148,6 @@ class SalesOrderController extends Controller
             'camp.deliveryNotes',
         ]);
 
-        // แคมป์ที่ยังเปิดอยู่ของลูกค้ารายนี้ ให้เลือก "เพิ่มเข้าแคมป์เดิม" ได้ (กรณีสั่งเพิ่ม)
         $campOptions = $salesOrder->canOpenCamp()
             ? Camp::open()
                 ->where('id_customer', $salesOrder->id_customer)
@@ -171,13 +155,11 @@ class SalesOrderController extends Controller
                 ->get()
             : collect();
 
-        // หน้าต่างแก้ไข (เฉพาะใบร่าง)
         $products = $salesOrder->canEdit() ? Product::orderBy('name_product')->get() : collect();
 
         return view('sales_orders.show', compact('salesOrder', 'campOptions', 'products'));
     }
 
-    /** แก้ไขใบสั่งขายในหน้าต่าง (modal) ของหน้าดูใบสั่งขาย */
     public function edit(SalesOrder $salesOrder)
     {
         if (! $salesOrder->canEdit()) {
@@ -223,9 +205,6 @@ class SalesOrderController extends Controller
             ->with('ok', 'แก้ไขใบสั่งขายเรียบร้อย');
     }
 
-    /* ==================== เปลี่ยนสถานะ ==================== */
-
-    /** ยืนยันใบสั่งขาย = ล็อกรายการ พร้อมเปิดแคมป์ */
     public function confirm(SalesOrder $salesOrder)
     {
         if ($reason = $salesOrder->confirmBlocker(auth()->user())) {
@@ -237,10 +216,6 @@ class SalesOrderController extends Controller
         return back()->with('ok', 'ยืนยันใบสั่งขายเรียบร้อย — เปิดแคมป์ใหม่ หรือเพิ่มเข้าแคมป์เดิมของลูกค้าได้');
     }
 
-    /**
-     * ผูกใบสั่งขายเข้าแคมป์ที่มีอยู่แล้ว (ลูกค้าสั่งเพิ่มในงานเดิม)
-     * กรณีเปิดแคมป์ใหม่ ไปที่ camps.create?sales_order=... แทน
-     */
     public function attachCamp(Request $request, SalesOrder $salesOrder)
     {
         if (! $salesOrder->canOpenCamp()) {
@@ -276,7 +251,6 @@ class SalesOrderController extends Controller
             ->with('ok', "เพิ่มใบสั่งขาย {$salesOrder->code_so} เข้าแคมป์ {$camp->code_camp} แล้ว");
     }
 
-    /** ย้อนกลับเป็นร่าง เพื่อแก้ไข (ทำได้ก่อนเปิดแคมป์เท่านั้น) */
     public function revertToDraft(SalesOrder $salesOrder)
     {
         if ($salesOrder->status !== 'confirmed') {
@@ -305,7 +279,6 @@ class SalesOrderController extends Controller
         return back()->with('ok', 'ยกเลิกใบสั่งขายแล้ว');
     }
 
-    /** ปิดงาน = ส่งของครบแล้ว */
     public function close(SalesOrder $salesOrder)
     {
         if ($salesOrder->status !== 'in_progress') {
@@ -317,8 +290,6 @@ class SalesOrderController extends Controller
         return back()->with('ok', 'ปิดงานใบสั่งขายแล้ว');
     }
 
-    /* ==================== PDF ==================== */
-
     public function pdf(SalesOrder $salesOrder)
     {
         $salesOrder->load(['customer', 'quotation', 'details.product']);
@@ -327,8 +298,6 @@ class SalesOrderController extends Controller
             ->setPaper('A4', 'portrait')
             ->stream('sales-order-' . $salesOrder->code_so . '.pdf');
     }
-
-    /* ==================== Helpers ==================== */
 
     private function validateSalesOrder(Request $request, string $bag): array
     {
@@ -352,7 +321,6 @@ class SalesOrderController extends Controller
         ]);
     }
 
-    /** ใบเสนอราคาต้องอนุมัติแล้ว ยังไม่มีใบสั่งขาย และเป็นของลูกค้ารายเดียวกัน */
     private function checkQuotation(array $data): ?string
     {
         if (empty($data['id_quot'])) {
@@ -380,17 +348,12 @@ class SalesOrderController extends Controller
         return null;
     }
 
-    /**
-     * คำนวณยอดและเก็บเป็นคอลัมน์
-     * แยก vat_amount ออกมาต่างหาก เพื่อใช้ออกใบกำกับภาษีได้ถูกต้อง
-     */
     private function calculateTotals(array $items): array
     {
         $subtotal = round(collect($items)->sum(
             fn(array $item) => (float) $item['quantity'] * (float) $item['price']
         ), 2);
 
-        // บริษัทไม่มีส่วนลดสินค้าแล้ว — คอลัมน์ discount ยังอยู่ในตาราง แต่บันทึกเป็น 0 เสมอ
         $discount      = 0;
         $afterDiscount = $subtotal;
         $vatAmount     = round($afterDiscount * self::VAT_RATE, 2);

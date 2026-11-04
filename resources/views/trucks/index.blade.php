@@ -30,7 +30,6 @@
     $openEditTruck = $openEditTruckId !== '' ? \App\Models\Truck::find($openEditTruckId) : null;
     $oldEdit = $truckEditHasOld ? \Illuminate\Support\Arr::except(old(), ['_token', '_method', '_truck_id', 'image']) : null;
 
-    // ข้อมูลที่ปุ่ม "แก้ไข" ของแต่ละแถวส่งให้ modal แก้ไขรุ่นรถ / ยี่ห้อ
     $modelEditData = fn (\App\Models\TruckModel $m) => [
         'id'     => $m->getKey(),
         'url'    => route('truck_models.update', $m),
@@ -113,7 +112,6 @@
                           placeholder="ทะเบียน / จังหวัด / ยี่ห้อ / รุ่น / ปี"
                           :search="$search" :per-page="$perPage"
                           :statuses="\App\Models\Truck::STATUS_LABELS" :status="$status"
-                          {{-- :ranges="$ranges"  --}}
                           />
         @elseif ($tab === 'models')
             <x-search-bar :action="route('trucks.index', ['tab' => 'models'])"
@@ -121,7 +119,6 @@
                           :search="$search" :per-page="$perPage"
                           :statuses="$wheelLabels" :status="$wheels"
                           status-name="wheels" status-label="จำนวนล้อ"
-                          {{-- :ranges="$ranges" --}}
                           >
                 <input type="hidden" name="tab" value="models">
             </x-search-bar>
@@ -142,7 +139,6 @@
             </div>
         @endif
 
-        {{-- ================= แท็บ: รถบรรทุก ================= --}}
         @if ($tab === 'trucks')
             <div class="table-card">
                 <div class="table-responsive">
@@ -200,7 +196,6 @@
 
             @include('partials.pagination-footer', ['paginator' => $trucks])
 
-        {{-- ================= แท็บ: รุ่นรถ ================= --}}
         @elseif ($tab === 'models')
             <div class="table-card">
                 <div class="table-responsive">
@@ -234,8 +229,6 @@
                                     <td class="text-center">{{ number_format($m->trucks_count) }} คัน</td>
 
                                     <td class="text-center">
-                                        {{-- ดู = หน้าต่างสเปคเต็ม (รุ่นรถไม่มีหน้า show แยก)
-                                             มีรถใช้อยู่ ลบไม่ได้ (controller กันไว้อีกชั้น) --}}
                                         <x-row-actions :delete="! $canEdit ? null : ($m->trucks_count > 0 ? null : route('truck_models.destroy', $m))"
                                                        :delete-disabled="$canEdit && $m->trucks_count > 0 ? 'มีรถใช้รุ่นนี้อยู่' : null"
                                                        :label="$m->name_model"
@@ -271,7 +264,6 @@
 
             @include('truck_models._detail-modal')
 
-        {{-- ================= แท็บ: ยี่ห้อ ================= --}}
         @else
             <div class="table-card">
                 <div class="table-responsive">
@@ -302,7 +294,6 @@
 
                                     @if ($canEdit)
                                         <td class="text-center">
-                                            {{-- มีรุ่นผูกอยู่ ลบไม่ได้ (controller กันไว้อีกชั้น) --}}
                                             <x-row-actions :delete="$brand->models_count > 0 ? null : route('truck_brands.destroy', $brand)"
                                                            :delete-disabled="$brand->models_count > 0 ? 'มีรุ่นรถผูกกับยี่ห้อนี้อยู่' : null"
                                                            :label="$brand->name_brand"
@@ -334,27 +325,22 @@
         @endif
     </div>
 
-    {{-- ================= Modal แก้ไขรถบรรทุก ================= --}}
     @if ($tab === 'trucks' && $canEdit)
         @include('trucks._edit-modal')
     @endif
 
-    {{-- ================= Modal แก้ไขรุ่นรถ / ยี่ห้อ ================= --}}
     @if ($tab === 'models' && $canEdit)
         @include('truck_models._edit-modal')
     @elseif ($tab === 'brands' && $canEdit)
         @include('truck_brands._edit-modal')
     @endif
 
-    {{-- ค่าที่กรอกค้างจาก modal แก้ไข (validate ไม่ผ่าน) ถูกเติมลง modal แก้ไขไปแล้ว
-         ล้างทิ้งตรงนี้ ไม่ให้ไปโผล่ในฟอร์มของ modal เพิ่มด้านล่าง --}}
     @php
         if (in_array($tab, ['models', 'brands'], true) && ($errors->updateModel->any() || $errors->updateBrand->any())) {
             session()->forget('_old_input');
         }
     @endphp
 
-    {{-- ================= Modal ของแท็บที่เปิดอยู่ ================= --}}
     @if ($canEdit)
         @php
             [$action, $title, $size, $confirm] = match ($tab) {
@@ -362,7 +348,6 @@
                 'models' => [route('truck_models.store'), 'เพิ่มรุ่นรถ',    'modal-xl', 'ต้องการบันทึกรุ่นรถบรรทุกนี้หรือไม่'],
                 default  => [route('truck_brands.store'), 'เพิ่มยี่ห้อ',     '',         'ต้องการบันทึกยี่ห้อรถบรรทุกนี้หรือไม่'],
             };
-            // old() ของฟอร์มนี้ใช้ได้เฉพาะตอนที่เพิ่งส่งฟอร์มนี้แล้วเด้งกลับ
             $ownErrors = old('_modal') === $modal['key'] && $errors->any();
         @endphp
 
@@ -432,17 +417,14 @@
                 const modalEl = document.getElementById(@json($modal['id']));
                 if (!modalEl) return;
 
-                // เปิดแล้วโฟกัสช่องพิมพ์ช่องแรก
                 modalEl.addEventListener('shown.bs.modal', function () {
                     const first = modalEl.querySelector('input[type="text"]:not([readonly])');
                     if (first) first.focus();
                 });
 
-                // เปิดให้อัตโนมัติ (กรอกผิดแล้วเด้งกลับ / ลิงก์ ?open=)
                 if (@json($openModal)) {
                     bootstrap.Modal.getOrCreateInstance(modalEl).show();
 
-                    // ลบ ?open= ออกจาก URL กดรีเฟรชแล้วจะได้ไม่เด้งซ้ำ
                     const url = new URL(window.location.href);
                     if (url.searchParams.has('open')) {
                         url.searchParams.delete('open');

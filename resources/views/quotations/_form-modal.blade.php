@@ -1,14 +1,3 @@
-{{--
-    หน้าต่างสร้าง / แก้ไขใบเสนอราคา
-
-        @include('quotations._form-modal', ['mode' => 'create'])                          // หน้ารายการ
-        @include('quotations._form-modal', ['mode' => 'edit', 'quotation' => $quotation])  // หน้าดูใบเสนอราคา
-
-    ต้องส่ง: $customers, $products
-    กรอกผิดแล้วเด้งกลับ (error bag createQuotation / updateQuotation) → หน้าต่างเปิดเองพร้อมค่าที่กรอกไว้
-    ปุ่ม "ลูกค้าใหม่" → หน้าต่างเพิ่มลูกค้า (customers._quick-modal) ไม่ต้องย้ายหน้า
-    ราคาต่อหน่วยดึงจากหน้าสินค้า (แก้ราคาที่หน้าสินค้า) — ผู้ดูแลระบบตรวจราคาตอนอนุมัติ
---}}
 @php
     $isEdit  = $mode === 'edit';
     $bag     = $isEdit ? $errors->updateQuotation : $errors->createQuotation;
@@ -54,7 +43,6 @@
             <div class="modal-body">
                 @include('partials.modal-errors', ['bag' => $bag])
 
-                {{-- ---------- ลูกค้า ---------- --}}
                 <h6 class="modal-section"><i class="bi bi-person me-1"></i>ลูกค้า</h6>
                 <div class="d-flex gap-2">
                     <select name="id_customer" class="form-select {{ $bag->has('id_customer') ? 'is-invalid' : '' }}"
@@ -72,7 +60,6 @@
                     </button>
                 </div>
 
-                {{-- ---------- รายการสินค้า ---------- --}}
                 <h6 class="modal-section mt-4"><i class="bi bi-list-ul me-1"></i>รายการสินค้า</h6>
                 <div class="table-responsive">
                     <table class="table align-middle mb-2" data-items>
@@ -123,7 +110,6 @@
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-add-row>
                     <i class="bi bi-plus-lg me-1"></i>เพิ่มรายการ
                 </button>
-                <div class="form-text">ราคาต่อหน่วยดึงจากหน้าสินค้า · ผู้ดูแลระบบตรวจราคาอีกครั้งตอนอนุมัติ</div>
 
                 <div class="row justify-content-end mt-3">
                     <div class="col-md-5">
@@ -141,9 +127,6 @@
             </div>
 
             <div class="modal-footer">
-                <span class="small text-muted me-auto">
-                    {{ $isEdit ? 'แก้ไขได้เฉพาะใบที่ยังเป็นร่าง' : 'บันทึกเป็นฉบับร่าง แล้วรอผู้ดูแลระบบอนุมัติ' }}
-                </span>
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
                 <button type="submit" class="btn btn-dark">
                     <i class="bi bi-check-lg me-1"></i>{{ $isEdit ? 'บันทึกการแก้ไข' : 'บันทึกใบเสนอราคา' }}
@@ -154,7 +137,6 @@
 </div>
 
 @include('partials.modal-form')
-{{-- ปุ่ม "ลูกค้าใหม่" เปิดหน้าต่างนี้แทน แล้วเลือกลูกค้าที่เพิ่งเพิ่มให้เลย --}}
 @include('customers._quick-modal', ['action' => route('customers.store.ajax')])
 
 <script>
@@ -166,7 +148,6 @@
         const money   = (n) => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         let nextIndex = tbody.querySelectorAll('[data-row]').length;
 
-        /* ---------- รายการสินค้า ---------- */
         function calcRow(row) {
             const price = Number(row.querySelector('[data-product]').selectedOptions[0]?.dataset.price || 0);
             const qty   = Number(row.querySelector('[data-qty]').value || 0);
@@ -210,7 +191,6 @@
 
         recalc();
 
-        // กรอกผิดแล้วเด้งกลับ / มาจากลิงก์ ?modal=create หรือ ?edit=1 → เปิดหน้าต่างให้เอง
         @if ($hasOld || ($isEdit ? request()->boolean('edit') : request('modal') === 'create'))
             ModalForm.open(modalEl);
         @endif

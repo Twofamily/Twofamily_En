@@ -4,10 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
-/**
- * การมอบหมายงาน 1 แถว = รถ + คนขับ ที่แคมป์ 1 แห่ง ในช่วงวันที่หนึ่ง
- * (ตาราง camp_truck — ใช้เป็น pivot ของ Camp::trucks() / Truck::camps() / Driver::camps())
- */
 class CampTruck extends Pivot
 {
     protected $table      = 'camp_truck';

@@ -21,18 +21,14 @@ class CampController extends Controller
         $perPage = $this->perPage($request);
         $search  = $this->searchTerm($request);
 
-        // พิมพ์ "เปิด" / "ปิด" ก็ค้นตามสถานะได้
         $statuses = $this->statusesMatching($search, Camp::STATUS_LABELS);
 
-        // dropdown เลือกสถานะ + จังหวัดที่ตั้งแคมป์
         $status   = $this->statusFilter($request, array_keys(Camp::STATUS_LABELS));
         $province = trim((string) $request->input('province', ''));
 
-        // จังหวัดที่มีแคมป์อยู่จริง ใช้เป็นตัวเลือก (ไม่ต้องโชว์ 77 จังหวัด)
         $provinces = Camp::whereNotNull('province')->where('province', '!=', '')
             ->distinct()->orderBy('province')->pluck('province');
 
-        // ช่องค้นหาช่องเดียว: ชื่อ/รหัสแคมป์ ที่อยู่ ผู้ติดต่อ ลูกค้า เลขใบเสนอราคา และสถานะ
         $camps = Camp::with(['customer', 'quotation'])
             ->withCount(['trucks' => fn ($query) => $query->whereNull('released_date')])
             ->when($search !== '', fn ($query) => $query->where(function ($x) use ($search, $statuses) {
@@ -56,10 +52,6 @@ class CampController extends Controller
         return view('camps.index', compact('camps', 'search', 'perPage', 'status', 'province', 'provinces'));
     }
 
-    /**
-     * เพิ่มแคมป์
-     * ?sales_order=ID → เปิดแคมป์ใหม่จากใบสั่งขาย (เติมลูกค้า/ใบเสนอราคาให้ และผูกใบสั่งขายเข้าแคมป์ตอนบันทึก)
-     */
     public function create(Request $request)
     {
         $salesOrder = null;
@@ -86,7 +78,6 @@ class CampController extends Controller
             'customers'  => Customer::orderBy('name_customer')->get(),
             'quotations' => $this->quotationOptions(),
             'isEdit'     => false,
-            // ใบสั่งขายที่ยืนยันแล้วและยังไม่อยู่ในแคมป์ไหน — ให้เลือกเปิดแคมป์จากใบสั่งขายได้เลย
             'openableOrders' => $salesOrder ? collect() : SalesOrder::with('customer')
                 ->where('status', 'confirmed')
                 ->whereNull('id_camp')
@@ -99,7 +90,6 @@ class CampController extends Controller
     {
         $data = $this->validateCamp($request);
 
-        // เปิดจากใบสั่งขาย → ตรวจว่ายังเปิดได้ และลูกค้าตรงกัน
         $salesOrder = null;
 
         if ($request->filled('id_so')) {
@@ -119,9 +109,8 @@ class CampController extends Controller
         }
 
         $data['code_camp'] = Camp::generateCode();
-        $data['status_camp'] = 'preparing';   // แคมป์ใหม่เริ่มที่เตรียมงานเสมอ
+        $data['status_camp'] = 'preparing';
 
-        // สร้างแคมป์ + ผูกใบสั่งขาย สำเร็จพร้อมกัน หรือไม่สำเร็จทั้งคู่
         $camp = DB::transaction(function () use ($data, $salesOrder) {
             $camp = Camp::create($data);
 
@@ -140,7 +129,6 @@ class CampController extends Controller
 
     public function edit(Camp $camp)
     {
-        // จัดการรถประจำแคมป์ (เพิ่ม / ถอนออก) ทำในหน้าแก้ไขเท่านั้น หน้าดูข้อมูลเป็น read-only
         $camp->load([
             'trucks' => fn ($q) => $q->with(['brand', 'model'])->orderByPivot('assigned_date', 'desc'),
         ]);
@@ -163,7 +151,6 @@ class CampController extends Controller
             return back()->withInput()->with('error', $error);
         }
 
-        // เปลี่ยนเป็นปิดแคมป์ผ่านหน้าแก้ไข → ต้องผ่านเงื่อนไขเดียวกับปุ่มปิดแคมป์
         if ($data['status_camp'] === 'closed' && $camp->status_camp !== 'closed'
             && ($blockers = $camp->closeBlockers())) {
             return back()->withInput()->withErrors(['status_camp' => 'ยังปิดแคมป์ไม่ได้: ' . implode(' · ', $blockers)]);
@@ -174,10 +161,6 @@ class CampController extends Controller
         return redirect()->route('camps.show', $camp)->with('ok', 'แก้ไขแคมป์เรียบร้อย');
     }
 
-    /**
-     * ลบได้เฉพาะแคมป์ที่ยังไม่มีเอกสาร / บันทึกน้ำมัน / รถประจำ (เช่น เปิดผิด)
-     * ใบสั่งขายที่ผูกไว้จะกลับเป็น "ยืนยันแล้ว" ให้เปิดแคมป์ใหม่ได้
-     */
     public function destroy(Camp $camp)
     {
         if ($reason = $camp->deleteBlocker()) {
@@ -196,10 +179,6 @@ class CampController extends Controller
         return redirect()->route('camps.index')->with('ok', 'ลบแคมป์แล้ว');
     }
 
-    /**
-     * เปลี่ยนสถานะแคมป์ทีละขั้นจากหน้าแคมป์
-     * preparing → active → completed → closed  (ปิดแล้วเปิดกลับเป็น active ได้)
-     */
     public function changeStatus(Request $request, Camp $camp)
     {
         $data = $request->validate([
@@ -235,7 +214,6 @@ class CampController extends Controller
             ->latest('delivery_date')
             ->get();
 
-        // ใบเสร็จทุกแบบที่ผูกแคมป์นี้ (ชำระตามใบแจ้งหนี้ / ขายสด)
         $receipts = $camp->receipts()
             ->latest('date_receipt')
             ->get();
@@ -243,10 +221,8 @@ class CampController extends Controller
         $progress = $this->buildProgress($camp);
         $summary  = $camp->financialSummary();
 
-        // ใบส่งของที่ยังไม่ได้เรียกเก็บ → ปุ่ม "ออกใบแจ้งหนี้" บนหน้าแคมป์
         $pendingNotes = $deliveryNotes->whereNull('id_invoice');
 
-        // เงื่อนไขปิดแคมป์ (คำนวณเฉพาะตอนที่ขั้นถัดไปคือปิดแคมป์)
         $closeBlockers = $camp->status_camp === 'completed' ? $camp->closeBlockers() : [];
 
         return view('camps.show', compact(
@@ -254,7 +230,6 @@ class CampController extends Controller
         ));
     }
 
-    /** รถที่พร้อมใช้งาน และยังไม่ได้ประจำแคมป์ไหนอยู่ (รถ 1 คัน ทำงานได้ทีละแคมป์) */
     private function availableTrucksFor(Camp $camp)
     {
         return Truck::available()
@@ -264,7 +239,6 @@ class CampController extends Controller
             ->get();
     }
 
-    /** เทียบยอดตามสัญญา (ใบสั่งขายทุกใบในแคมป์ หรือใบเสนอราคาเดิม) กับยอดที่ส่งจริงสะสม */
     private function buildProgress(Camp $camp)
     {
         $contract = $camp->contractItems();
@@ -308,7 +282,6 @@ class CampController extends Controller
             'id_driver.exists' => 'ไม่พบพนักงานขับรถที่เลือก',
         ]);
 
-        // รถ 1 คัน ทำงานได้ทีละแคมป์
         $truckBusy = CampTruck::with('camp')
             ->where('id_truck', $data['id_truck'])
             ->whereNull('released_date')
@@ -320,7 +293,6 @@ class CampController extends Controller
                 : 'รถคันนี้ยังทำงานอยู่ที่แคมป์ ' . ($truckBusy->camp->code_camp ?? '-') . ' ต้องถอนออกจากแคมป์นั้นก่อน');
         }
 
-        // คนขับ 1 คน ทำงานได้ทีละแคมป์
         if ($error = $this->driverBusyMessage($data['id_driver'] ?? null)) {
             return back()->with('warning', $error);
         }
@@ -334,10 +306,6 @@ class CampController extends Controller
         return back()->with('ok', "เพิ่มรถ {$data['id_truck']} เข้าแคมป์แล้ว");
     }
 
-    /**
-     * เปลี่ยน/ใส่คนขับของรถที่ยังทำงานอยู่ในแคมป์ (เช่น สลับกะ หรือรถที่มอบหมายไว้ก่อนมีระบบคนขับ)
-     * ไม่ได้แก้ประวัติย้อนหลัง — ถ้าต้องการเก็บประวัติว่าใครขับช่วงไหน ให้ถอนรถแล้วเพิ่มใหม่พร้อมคนขับคนใหม่
-     */
     public function changeDriver(Request $request, Camp $camp, $assignmentId)
     {
         $assignment = CampTruck::where('id_camp', $camp->id_camp)
@@ -368,7 +336,6 @@ class CampController extends Controller
             : "เอาคนขับออกจากรถ {$assignment->id_truck} แล้ว");
     }
 
-    /** คืนข้อความเตือนถ้าคนขับคนนี้ประจำแคมป์อื่นอยู่ (null = ว่าง) */
     private function driverBusyMessage($idDriver): ?string
     {
         if (! $idDriver) {
@@ -400,16 +367,11 @@ class CampController extends Controller
             'released_date.after_or_equal' => 'วันที่ถอนรถต้องไม่ก่อนวันที่เริ่มทำงาน',
         ]);
 
-        // ถอนรถ = คนขับของรถคันนั้นออกจากแคมป์ไปด้วย (อยู่แถวเดียวกัน)
         $assignment->update(['released_date' => $data['released_date']]);
 
         return back()->with('ok', 'ถอนรถ' . ($assignment->id_driver ? 'และคนขับ' : '') . 'ออกจากแคมป์แล้ว');
     }
 
-    /**
-     * ใบเสนอราคาที่เลือกได้ = อนุมัติแล้ว
-     * ถ้าเป็นหน้าแก้ไข ให้พ่วงใบเดิมมาด้วยเสมอ กันใบหายจาก dropdown
-     */
     private function quotationOptions(?Camp $camp = null)
     {
         return Quotation::with('customer')
@@ -424,7 +386,6 @@ class CampController extends Controller
             ->get();
     }
 
-    /** ใบเสนอราคาต้องเป็นของลูกค้ารายเดียวกับแคมป์ */
     private function checkQuotationMatch(array $data): ?string
     {
         if (empty($data['id_quot'])) {

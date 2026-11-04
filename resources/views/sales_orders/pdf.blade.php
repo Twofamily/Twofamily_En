@@ -12,7 +12,6 @@
             src: url("{{ public_path('fonts/Sarabun-Regular.ttf') }}") format('truetype');
         }
 
-        {{-- dompdf ทำตัวหนาเองไม่ได้ ต้องมีไฟล์ Bold แยก ถ้าไม่มีไฟล์จะใช้ตัวปกติแทน --}}
         @if (file_exists(public_path('fonts/Sarabun-Bold.ttf')))
         @font-face {
             font-family: 'sarabun';
@@ -41,7 +40,6 @@
         .muted       { color: #666; }
         .small       { font-size: 11.5px; }
 
-        /* ---------- หัวเอกสาร ---------- */
         .company-name {
             font-size: 19px;
             font-weight: bold;
@@ -76,7 +74,6 @@
             margin: 10px 0 12px 0;
         }
 
-        /* ---------- ข้อมูลลูกค้า / อ้างอิง ---------- */
         .info {
             width: 100%;
             border: 1px solid #bfb3a8;
@@ -101,7 +98,6 @@
             border-left: 1px solid #bfb3a8;
         }
 
-        /* ---------- ตารางรายการ ---------- */
         .items {
             width: 100%;
             margin-top: 12px;
@@ -129,7 +125,6 @@
             background-color: #faf7f4;
         }
 
-        /* ---------- สรุปยอด ---------- */
         .summary {
             width: 100%;
         }
@@ -161,7 +156,6 @@
             min-height: 70px;
         }
 
-        /* ---------- ท้ายหน้า ---------- */
         .footer {
             position: fixed;
             bottom: -24px;
@@ -186,7 +180,6 @@
         </table>
     </div>
 
-    {{-- ===== หัวเอกสาร: ข้อมูลบริษัท (ซ้าย) / กล่องเลขที่เอกสาร (ขวา) ===== --}}
     <table width="100%">
         <tr>
             <td width="62%" style="vertical-align: top;">
@@ -229,7 +222,6 @@
 
     <div class="rule"></div>
 
-    {{-- ===== ข้อมูลลูกค้า (ซ้าย) / เอกสารอ้างอิง (ขวา) ===== --}}
     <table class="info small">
         <tr>
             <td colspan="2" class="head" width="62%">ลูกค้า</td>
@@ -263,7 +255,6 @@
         </tr>
     </table>
 
-    {{-- ===== ตารางรายการ ===== --}}
     <table class="items small">
         <thead>
             <tr>
@@ -286,12 +277,10 @@
                     <td class="text-center">{{ number_format($detail->quantity, 2) }}</td>
                     <td class="text-center">คิว</td>
                     <td class="text-right">{{ number_format($detail->price_per_unit, 2) }}</td>
-                    {{-- อ่านจาก total_price ที่บันทึกไว้ ไม่คูณใหม่ตอนพิมพ์ --}}
                     <td class="text-right">{{ number_format($detail->total_price, 2) }}</td>
                 </tr>
             @endforeach
 
-            {{-- เติมแถวว่างให้ตารางเต็มหน้า --}}
             @for ($i; $i <= 8; $i++)
                 <tr class="{{ $i % 2 === 0 ? 'row-alt' : '' }}">
                     <td>&nbsp;</td>
@@ -305,14 +294,8 @@
         </tbody>
     </table>
 
-    {{--
-        ===== ส่วนท้าย: สรุปยอด + ลายเซ็น =====
-        ห้ามตัดหน้าตรงกลาง ถ้าที่ไม่พอ ทั้งก้อนจะย้ายไปหน้าถัดไปพร้อมกัน
-        ลายเซ็นจะไม่หลุดไปอยู่หน้าเดียวโดด ๆ
-    --}}
     <div style="page-break-inside: avoid;">
 
-    {{-- ===== หมายเหตุ (ซ้าย) / สรุปยอด (ขวา) ===== --}}
     <table width="100%" class="small" style="margin-top: 10px;">
         <tr>
             <td width="55%" style="vertical-align: top; padding-right: 12px;">
@@ -323,16 +306,11 @@
             </td>
 
             <td width="45%" style="vertical-align: top;">
-                {{--
-                    ยอดเงินทุกบรรทัดอ่านจากคอลัมน์ที่บันทึกไว้ตอนออกเอกสาร
-                    ไม่คำนวณสดตอนพิมพ์ เพื่อให้เอกสารเก่าพิมพ์ซ้ำได้เหมือนเดิม
-                --}}
                 <table class="summary">
                     <tr>
                         <td>รวมเป็นเงิน</td>
                         <td class="text-right">{{ number_format($salesOrder->subtotal, 2) }}</td>
                     </tr>
-                    {{-- บริษัทไม่มีส่วนลดแล้ว — แสดงเฉพาะใบเก่าที่เคยบันทึกส่วนลดไว้ --}}
                     @if ((float) $salesOrder->discount > 0)
                         <tr>
                             <td>หักส่วนลด</td>
@@ -340,7 +318,6 @@
                         </tr>
                     @endif
                     <tr>
-                        {{-- ใช้ vat_rate ที่บันทึกไว้ถ้ามีคอลัมน์ ไม่มีก็แสดง 7 ตามเดิม --}}
                         <td>ภาษีมูลค่าเพิ่ม {{ rtrim(rtrim(number_format($salesOrder->vat_rate ?? 7, 2), '0'), '.') }}%</td>
                         <td class="text-right">{{ number_format($salesOrder->vat_amount, 2) }}</td>
                     </tr>
@@ -367,12 +344,12 @@
         [
             'party' => 'company',
             'label' => 'ผู้รับคำสั่งซื้อ',
-            'user'  => $salesOrder->creator,      // ผู้ออกเอกสาร: มีลายเซ็นแสดงรูป ไม่มีเว้นว่าง
+            'user'  => $salesOrder->creator,
             'date'  => $salesOrder->order_date,
         ],
     ]])
 
-    </div>{{-- /keep-together --}}
+    </div>
 
 </body>
 

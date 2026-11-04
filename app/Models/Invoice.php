@@ -11,7 +11,6 @@ class Invoice extends Model
 {
     use HasDocumentCode, Cancellable, RecordsCreator;
 
-    /** ยกเลิกเอกสาร = ใส่ cancelled_at (SoftDeletes) ไม่ลบแถวทิ้ง */
     public const DELETED_AT = 'cancelled_at';
 
     protected $primaryKey = 'id_invoice';
@@ -44,11 +43,9 @@ class Invoice extends Model
 
     protected static function booted(): void
     {
-        // กันพลาด: ถ้าโค้ดส่วนไหนสร้างใบแจ้งหนี้โดยไม่ระบุวันที่ออก ให้ใช้วันนี้
         static::creating(function (Invoice $invoice) {
             $invoice->invoice_date ??= now()->toDateString();
 
-            // ครบกำหนดชำระ = วันที่ออก + เครดิตเทอม (ถ้าไม่ได้กำหนดมาเอง)
             $invoice->credit_days ??= (int) Setting::get('doc.credit_days', 30);
             $invoice->due_date ??= \Illuminate\Support\Carbon::parse($invoice->invoice_date)
                 ->addDays($invoice->credit_days)
@@ -56,22 +53,13 @@ class Invoice extends Model
         });
     }
 
-    // สถานะการชำระ => ป้ายภาษาไทย + สี badge
     public const STATUSES = [
         'unpaid'  => ['label' => 'ยังไม่ชำระ',   'badge' => 'secondary'],
         'partial' => ['label' => 'ชำระบางส่วน', 'badge' => 'warning'],
         'paid'    => ['label' => 'ชำระครบแล้ว', 'badge' => 'success'],
     ];
 
-    /** อัตราภาษีมูลค่าเพิ่ม (%) */
     public const VAT_RATE = 7;
-
-    /* ---------- ยอดเงินของใบแจ้งหนี้ (ไม่มีส่วนลด) ---------- */
-    /*
-     | ใบแจ้งหนี้ 1 ใบ = ใบส่งของได้หลายใบ (วางบิลรายรอบ) คิดยอดจาก "รายการที่ส่งจริง" ของใบส่งของเหล่านั้น
-     | ไม่ดึงยอดรวม/ส่วนลดของใบเสนอราคาทั้งสัญญามาใช้
-     | ยอดสุทธิ = รวมรายการ + VAT 7%
-     */
 
     public function itemsSubtotal(): float
     {
@@ -90,8 +78,6 @@ class Invoice extends Model
         return round($this->itemsSubtotal() + $this->itemsVat(), 2);
     }
 
-    /* ---------- Relationships ---------- */
-
     public function details()
     {
         return $this->hasMany(InvoiceDetail::class, 'id_invoice');
@@ -107,13 +93,11 @@ class Invoice extends Model
         return $this->belongsTo(Quotation::class, 'id_quotation', 'id_quot');
     }
 
-    /** แคมป์ของใบแจ้งหนี้ (ใช้สรุปยอดรายแคมป์) */
     public function camp()
     {
         return $this->belongsTo(Camp::class, 'id_camp', 'id_camp');
     }
 
-    /** ใบส่งของที่ใบแจ้งหนี้นี้เรียกเก็บ (ได้หลายใบ) */
     public function deliveryNotes()
     {
         return $this->hasMany(DeliveryNote::class, 'id_invoice', 'id_invoice')
@@ -121,9 +105,6 @@ class Invoice extends Model
                     ->orderBy('id_delivery_note');
     }
 
-    /* ---------- ครบกำหนดชำระ / วางบิล ---------- */
-
-    /** เลยวันครบกำหนดแล้ว และยังมียอดค้าง */
     public function isOverdue(): bool
     {
         return ! $this->isCancelled()
@@ -132,13 +113,11 @@ class Invoice extends Model
             && $this->due_date->lt(today());
     }
 
-    /** เลยกำหนดมาแล้วกี่วัน (ยังไม่เลย = 0) */
     public function daysOverdue(): int
     {
         return $this->isOverdue() ? (int) $this->due_date->diffInDays(today()) : 0;
     }
 
-    /** ลูกค้าเซ็นรับบิลแล้วหรือยัง */
     public function isBillReceived(): bool
     {
         return $this->bill_received_date !== null;
@@ -156,12 +135,6 @@ class Invoice extends Model
         return $this->hasOne(Receipt::class, 'id_invoice', 'id_invoice');
     }
 
-    /* ---------- ยกเลิก ---------- */
-
-    /**
-     * ยกเลิกได้เมื่อยังไม่มีรายการชำระ และยังไม่ออกใบเสร็จ
-     * คืนข้อความเหตุผลถ้ายกเลิกไม่ได้ / null ถ้ายกเลิกได้
-     */
     public function cancelBlocker(): ?string
     {
         if ($this->isCancelled()) {
@@ -177,8 +150,6 @@ class Invoice extends Model
         return null;
     }
 
-    /* ---------- Status label ---------- */
-
     public function getStatusLabelAttribute(): string
     {
         return self::STATUSES[$this->status]['label'] ?? $this->status;
@@ -188,9 +159,6 @@ class Invoice extends Model
     {
         return self::STATUSES[$this->status]['badge'] ?? 'secondary';
     }
-
-    /* ---------- Payment logic ---------- */
-    // คำนวณเป็น "สตางค์" (จำนวนเต็ม) เพื่อเลี่ยงปัญหาทศนิยมของ float
 
     protected function toSatang($value): int
     {
@@ -231,7 +199,6 @@ class Invoice extends Model
             : $this->receipt()->exists();
     }
 
-    // เงื่อนไขหลัก: มีหลักฐานอย่างน้อย 1 รายการ + ยอดครบ + ยังไม่เคยออกใบเสร็จ
     public function canIssueReceipt(): bool
     {
         return ! $this->isCancelled()
@@ -240,16 +207,14 @@ class Invoice extends Model
             && ! $this->hasReceipt();
     }
 
-    // เพิ่ม/ลบรายการชำระได้เฉพาะตอนที่ยังไม่ออกใบเสร็จ
     public function canEditPayments(): bool
     {
         return ! $this->isCancelled() && ! $this->hasReceipt();
     }
 
-    // อัปเดต status ตามยอดที่ชำระจริง — เรียกทุกครั้งหลังเพิ่ม/ลบรายการชำระ
     public function syncPaymentStatus(): void
     {
-        $this->unsetRelation('payments'); // บังคับให้ query ยอดใหม่จาก DB
+        $this->unsetRelation('payments');
 
         if ($this->hasPayments() && $this->isFullyPaid()) {
             $status = 'paid';

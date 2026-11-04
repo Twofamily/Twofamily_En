@@ -1,13 +1,7 @@
-{{--
-    ตัวกรองช่วงเวลาของแดชบอร์ด — วางไว้บนสุด คุมทุกตัวเลขที่เป็น "ตามช่วง"
-    ข้อมูลมาจาก $revenue['filter'] (App\Http\Controllers\RevenueReport)
---}}
-
 @php
     $f = $revenue['filter'];
 @endphp
 
-{{-- ===== ตัวกรองช่วงเวลา ===== --}}
 <form method="GET" action="{{ route('dashboard') }}" class="p-3 p-md-4 section-card" id="revenueFilter">
     <div class="d-flex flex-wrap align-items-center gap-3">
 
@@ -32,7 +26,6 @@
         </div>
     </div>
 
-    {{-- ช่องวันที่ เปิดไว้เมื่อเลือกกำหนดเอง --}}
     <div id="customDates" class="row g-2 align-items-end mt-2 {{ $f['preset'] === 'custom' ? '' : 'd-none' }}">
         <div class="col-6 col-md-auto">
             <label for="from" class="form-label small text-muted mb-1">ตั้งแต่</label>

@@ -1,12 +1,3 @@
-{{--
-    ปุ่ม "ยกเลิกเอกสาร" ในหน้าดู — กดแล้วขึ้นกล่องยืนยันพร้อมช่องกรอกเหตุผล (confirm.js)
-    @include('partials.cancel-button', [
-        'action'  => route('invoices.destroy', $invoice->id_invoice),
-        'label'   => 'ยกเลิกใบแจ้งหนี้',
-        'message' => 'ข้อความในกล่องยืนยัน',
-        'blocker' => null | 'เหตุผลที่ยกเลิกไม่ได้',   // มีค่า = แสดงปุ่มสีเทาพร้อมเหตุผล
-    ])
---}}
 @if ($blocker ?? null)
     <span class="btn btn-sm btn-outline-secondary disabled" title="{{ $blocker }}" aria-disabled="true">
         <i class="bi bi-x-octagon me-1"></i>{{ $label }}

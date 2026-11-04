@@ -1,14 +1,3 @@
-{{--
-    ช่องกรอกข้อมูลลูกค้า — ใช้ทั้งหน้าต่างเพิ่มและหน้าต่างแก้ไข (วางไว้ "ข้างใน <form>")
-
-    @include('customers._fields', [
-        'p'   => 'c_',                 // คำนำหน้า id ของช่อง (กันชนกันเมื่อมีสองฟอร์มในหน้าเดียว)
-        'v'   => [...],                // ค่าเริ่มต้น (หน้าต่างแก้ไขส่ง [] แล้วให้สคริปต์เติมค่า)
-        'bag' => $errors->createCustomer,
-    ])
-
-    ช่องของประเภทที่ไม่ได้เลือกจะถูกซ่อน + disabled (ไม่ถูกส่งไปบันทึก) — ดูสคริปต์ใน customers/index
---}}
 @php
     $v    = $v ?? [];
     $bag  = $bag ?? new \Illuminate\Support\MessageBag();
@@ -18,7 +7,6 @@
     $prefixes = \App\Models\Customer::PREFIXES;
 @endphp
 
-{{-- ---------- ประเภทลูกค้า ---------- --}}
 <div class="mb-3">
     <div class="form-label fw-semibold mb-2">ประเภทลูกค้า</div>
     <div class="btn-group w-100" role="group" aria-label="ประเภทลูกค้า">
@@ -36,10 +24,8 @@
     </div>
 </div>
 
-{{-- ---------- ข้อมูลลูกค้า ---------- --}}
 <h6 class="customer-section"><i class="bi bi-person-vcard me-1"></i>ข้อมูลลูกค้า</h6>
 
-{{-- บุคคล --}}
 <div class="row g-3 mb-3" data-type-block="person">
     <div class="col-md-3">
         <label class="form-label" for="{{ $p }}name_prefix">คำนำหน้า</label>
@@ -67,7 +53,6 @@
     </div>
 </div>
 
-{{-- บริษัท --}}
 <div class="row g-3 mb-3" data-type-block="company">
     <div class="col-12">
         <label class="form-label" for="{{ $p }}name_customer">ชื่อบริษัท / นิติบุคคล <span class="req-star">*</span></label>
@@ -111,7 +96,6 @@
     </div>
 </div>
 
-{{-- ---------- ช่องทางติดต่อ ---------- --}}
 <h6 class="customer-section"><i class="bi bi-telephone me-1"></i>ช่องทางติดต่อ</h6>
 <div class="row g-3 mb-4">
     <div class="col-md-6">
@@ -129,7 +113,6 @@
     </div>
 </div>
 
-{{-- ---------- ที่อยู่ ---------- --}}
 <h6 class="customer-section"><i class="bi bi-geo-alt me-1"></i>ที่อยู่ (สำหรับออกเอกสาร)</h6>
 <div class="row g-3" data-address>
     <div class="col-md-3">

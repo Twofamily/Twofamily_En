@@ -1,7 +1,3 @@
-{{--
-    เมนู "ดู" ของรุ่นรถใน <x-row-actions> — เปิดหน้าต่าง #modelDetailModal
-    ตัวแปร: $m (TruckModel ที่โหลด brand + trucks แล้ว), $canEdit
---}}
 @php
     $detail = [
         'id'     => $m->getKey(),

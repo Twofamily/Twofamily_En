@@ -9,15 +9,11 @@
 @section('content')
 <div class="container py-3">
 
-    {{-- ข้อความแจ้งเตือน (ok / error) แสดงจาก layout แล้ว ไม่ต้องใส่ซ้ำที่นี่ --}}
-
-    {{-- ส่วนหัวเอกสาร (แบบเดียวกับใบเสนอราคา) --}}
     <div class="text-center mb-4">
         <h2>ใบสั่งขาย (Sales Order)</h2>
         @include('partials.company-line')
     </div>
 
-    {{-- แถบสถานะการทำงาน --}}
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body d-flex flex-wrap gap-2 justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -38,7 +34,6 @@
                         <i class="bi bi-plus-lg me-1"></i>เปิดแคมป์ใหม่
                     </a>
 
-                    {{-- ลูกค้าสั่งเพิ่มในงานเดิม → เพิ่มใบสั่งขายนี้เข้าแคมป์ที่เปิดอยู่ --}}
                     @if ($campOptions->isNotEmpty())
                         <span class="text-muted small">หรือ</span>
                         <form method="POST" action="{{ route('sales_orders.attachCamp', $salesOrder) }}"
@@ -95,7 +90,6 @@
                     @php $confirmBlocker = $salesOrder->confirmBlocker(auth()->user()); @endphp
 
                     @if ($confirmBlocker)
-                        {{-- ใบสั่งตรง: พนักงานกดไม่ได้ ต้องรอผู้ดูแลระบบ --}}
                         <span class="small text-muted align-self-center">
                             <i class="bi bi-lock me-1"></i>{{ $confirmBlocker }}
                         </span>
@@ -158,7 +152,6 @@
                     </form>
                 @endif
 
-                {{-- ปุ่มลบถูกเอาออก: ใบสั่งขายที่ไม่ใช้แล้วให้กด "ยกเลิก" แทน เพื่อเก็บประวัติเอกสารไว้ --}}
             </div>
         </div>
     </div>
@@ -260,7 +253,6 @@
                                     <th colspan="4" class="text-end fw-normal text-muted">รวมเป็นเงิน</th>
                                     <th class="text-end">{{ number_format($salesOrder->subtotal, 2) }}</th>
                                 </tr>
-                                {{-- บริษัทไม่มีส่วนลดแล้ว — แสดงเฉพาะใบเก่าที่เคยบันทึกส่วนลดไว้ --}}
                                 @if ((float) $salesOrder->discount > 0)
                                     <tr>
                                         <th colspan="4" class="text-end fw-normal text-muted">ส่วนลด (เอกสารเดิม)</th>

@@ -5,7 +5,6 @@
     <meta charset="utf-8">
 
     @php
-        // เลขที่อ่านจากคอลัมน์ code_dn (สร้างอัตโนมัติตอนบันทึก รูปแบบ DN-2569-0001)
         $dnCode = $deliveryNote->code_dn ?? '-';
         $qtCode = $deliveryNote->quotation?->code_quot ?? '-';
     @endphp
@@ -19,7 +18,6 @@
             src: url("{{ public_path('fonts/Sarabun-Regular.ttf') }}") format('truetype');
         }
 
-        {{-- dompdf ทำตัวหนาเองไม่ได้ ต้องมีไฟล์ Bold แยก ถ้าไม่มีไฟล์จะใช้ตัวปกติแทน --}}
         @if (file_exists(public_path('fonts/Sarabun-Bold.ttf')))
         @font-face {
             font-family: 'sarabun';
@@ -48,7 +46,6 @@
         .muted       { color: #666; }
         .small       { font-size: 11.5px; }
 
-        /* ---------- หัวเอกสาร ---------- */
         .company-name {
             font-size: 19px;
             font-weight: bold;
@@ -83,7 +80,6 @@
             margin: 10px 0 12px 0;
         }
 
-        /* ---------- ข้อมูลลูกค้า / อ้างอิง ---------- */
         .info {
             width: 100%;
             border: 1px solid #bfb3a8;
@@ -108,7 +104,6 @@
             border-left: 1px solid #bfb3a8;
         }
 
-        /* ---------- ตารางรายการ ---------- */
         .items {
             width: 100%;
             margin-top: 12px;
@@ -145,7 +140,6 @@
             margin-top: 12px;
         }
 
-        /* ---------- ท้ายหน้า ---------- */
         .footer {
             position: fixed;
             bottom: -24px;
@@ -171,7 +165,6 @@
         </table>
     </div>
 
-    {{-- ===== หัวเอกสาร: ข้อมูลบริษัท (ซ้าย) / กล่องเลขที่เอกสาร (ขวา) ===== --}}
     <table width="100%">
         <tr>
             <td width="62%" style="vertical-align: top;">
@@ -210,7 +203,6 @@
 
     <div class="rule"></div>
 
-    {{-- ===== ข้อมูลลูกค้า (ซ้าย) / เอกสารอ้างอิง (ขวา) ===== --}}
     <table class="info small">
         <tr>
             <td colspan="2" class="head" width="62%">ส่งถึง (ลูกค้า)</td>
@@ -240,7 +232,6 @@
         </tr>
     </table>
 
-    {{-- ===== ตารางรายการ (ใบส่งของไม่แสดงราคา) ===== --}}
     <table class="items small">
         <thead>
             <tr>
@@ -265,7 +256,6 @@
                 </tr>
             @endforeach
 
-            {{-- เติมแถวว่างให้ตารางเต็มหน้า และเผื่อเขียนมือหน้างาน --}}
             @for ($i; $i <= 8; $i++)
                 <tr class="{{ $i % 2 === 0 ? 'row-alt' : '' }}">
                     <td>&nbsp;</td>
@@ -276,7 +266,6 @@
                 </tr>
             @endfor
 
-            {{-- รวมปริมาณเป็นตัวเลขจำนวนคิว ไม่ใช่ยอดเงิน จึงรวมตอนแสดงผลได้ --}}
             <tr class="total">
                 <td colspan="2" class="text-right">รวมจำนวน</td>
                 <td class="text-center">{{ number_format($deliveryNote->details->sum('quantity'), 2) }}</td>
@@ -286,11 +275,6 @@
         </tbody>
     </table>
 
-    {{--
-        ===== ส่วนท้าย: สรุปยอด + ลายเซ็น =====
-        ห้ามตัดหน้าตรงกลาง ถ้าที่ไม่พอ ทั้งก้อนจะย้ายไปหน้าถัดไปพร้อมกัน
-        ลายเซ็นจะไม่หลุดไปอยู่หน้าเดียวโดด ๆ
-    --}}
     <div style="page-break-inside: avoid;">
 
     <div class="receipt-note small">
@@ -310,7 +294,7 @@
         ],
     ]])
 
-    </div>{{-- /keep-together --}}
+    </div>
 
 </body>
 

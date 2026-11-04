@@ -1,4 +1,3 @@
-{{-- เมนูลิงก์เพิ่มเติมใน <x-row-actions> เช่น พิมพ์ PDF --}}
 @props([
     'href',
     'icon'    => 'bi-box-arrow-up-right',

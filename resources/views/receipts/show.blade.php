@@ -12,7 +12,6 @@
     $lines    = $receipt->lines();
     $proofs   = $receipt->proofPayments();
 
-    // ยอดที่บันทึกไว้ในใบเสร็จ (ใบเก่าที่ยังไม่มีคอลัมน์ ถอยไปใช้ยอดของใบแจ้งหนี้)
     $subTotal = (float) $receipt->subtotal ?: ($inv?->itemsSubtotal() ?? 0);
     $vat      = (float) $receipt->vat_amount ?: ($inv?->itemsVat() ?? 0);
     $gross    = round($subTotal + $vat, 2);
@@ -27,7 +26,6 @@
 @section('content')
 <div class="container py-3">
 
-    {{-- ส่วนหัวเอกสาร (แบบเดียวกับใบเสนอราคา) --}}
     <div class="text-center mb-4">
         <h2>ใบเสร็จรับเงิน (Receipt)</h2>
         @include('partials.company-line')
@@ -35,7 +33,6 @@
 
     @include('partials.cancelled-banner', ['doc' => $receipt, 'label' => 'ใบเสร็จ'])
 
-    {{-- แถบสถานะการทำงาน --}}
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body d-flex flex-wrap gap-2 justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -75,7 +72,6 @@
         </div>
     </div>
 
-    {{-- ==================== ข้อมูลทั่วไป + รายการ ==================== --}}
     <div class="row g-3 mb-3">
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm h-100">
@@ -187,7 +183,6 @@
         </div>
     </div>
 
-    {{-- ==================== หลักฐานการชำระเงิน ==================== --}}
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body p-4">
             <h6 class="text-muted fw-semibold border-bottom pb-2 mb-3">หลักฐานการชำระเงิน</h6>

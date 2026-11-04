@@ -228,7 +228,6 @@
                                 <th class="num">รายได้ (บาท)</th>
                                 <th class="num">ค่าน้ำมัน (บาท)</th>
                                 <th class="num">กำไร (บาท)</th>
-                                {{-- <th></th> --}}
                             </tr>
                         </thead>
                         <tbody>
@@ -251,11 +250,6 @@
                                     <td class="num fw-semibold {{ $row['profit'] < 0 ? 'text-danger' : '' }}">
                                         {{ $money($row['profit']) }}
                                     </td>
-                                    {{-- <td class="num">
-                                        @if ($row['margin'] === null)
-                                            <span class="badge text-bg-danger">ไม่มีรายได้</span>
-                                        @endif
-                                    </td> --}}
                                 </tr>
                             @endforeach
                         </tbody>

@@ -1,7 +1,3 @@
-{{--
-    แถบแจ้งว่าเอกสารถูกยกเลิกแล้ว (ใช้ในหน้าดูใบส่งของ / ใบแจ้งหนี้ / ใบเสร็จ)
-    @include('partials.cancelled-banner', ['doc' => $invoice, 'label' => 'ใบแจ้งหนี้'])
---}}
 @if ($doc->isCancelled())
     <div class="alert alert-dark d-flex gap-3 align-items-start mb-3" role="alert">
         <i class="bi bi-x-octagon-fill fs-3 lh-1"></i>
